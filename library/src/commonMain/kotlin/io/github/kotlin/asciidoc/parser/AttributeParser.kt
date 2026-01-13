@@ -75,14 +75,14 @@ class DefaultAttributeParser : AttributeParser {
         )
     }
     
-    override fun findAttributeReferences(text: String): List<AttributeReference> {
-        val references = mutableListOf<AttributeReference>()
+    override fun findAttributeReferences(text: String): List<AttributeReferenceLocation> {
+        val references = mutableListOf<AttributeReferenceLocation>()
         val regex = Regex("\\{([^}]+)\\}")
         
         regex.findAll(text).forEach { match ->
             val key = match.groupValues[1]
             references.add(
-                AttributeReference(
+                AttributeReferenceLocation(
                     key = key,
                     startIndex = match.range.first,
                     endIndex = match.range.last + 1,

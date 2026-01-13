@@ -64,7 +64,26 @@ data class ListItem(
     val nestedList: AsciiDocList? = null,
     override val attributes: Map<String, String> = emptyMap(),
     override val sourceLocation: SourceLocation
-) : AstNode()
+) : BlockElement()
+
+/**
+ * Represents a callout list containing callout items.
+ */
+data class CalloutList(
+    val items: List<CalloutListItem>,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : BlockElement()
+
+/**
+ * Represents an item in a callout list.
+ */
+data class CalloutListItem(
+    val number: Int,
+    val content: List<InlineElement>,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : BlockElement()
 
 /**
  * Enumeration of supported list types.

@@ -31,7 +31,7 @@ class AstStructuralIntegrityTest : StringSpec({
                 child.sourceLocation shouldNotBe null
                 child.attributes shouldNotBe null
             }
-            
+
             // Verify nested structure integrity for sections
             document.children.filterIsInstance<Section>().forEach { section ->
                 section.level shouldBe section.level // Level should be consistent
@@ -40,12 +40,24 @@ class AstStructuralIntegrityTest : StringSpec({
                     child.shouldBeInstanceOf<BlockElement>()
                 }
             }
-            
+
             // Verify list structure integrity
             document.children.filterIsInstance<AsciiDocList>().forEach { list ->
                 list.items.isNotEmpty() shouldBe true
                 list.items.forEach { item ->
                     item.shouldBeInstanceOf<ListItem>()
+                    item.shouldBeInstanceOf<BlockElement>()
+                    item.sourceLocation shouldNotBe null
+                    item.content shouldNotBe null
+                }
+            }
+
+            // Verify callout list structure integrity
+            document.children.filterIsInstance<CalloutList>().forEach { list ->
+                list.items.isNotEmpty() shouldBe true
+                list.items.forEach { item ->
+                    item.shouldBeInstanceOf<CalloutListItem>()
+                    item.shouldBeInstanceOf<BlockElement>()
                     item.sourceLocation shouldNotBe null
                     item.content shouldNotBe null
                 }
@@ -71,7 +83,8 @@ private fun blockElementGenerator(): Arb<BlockElement> = Arb.choice(
     paragraphGenerator(),
     listGenerator(),
     codeBlockGenerator(),
-    commentGenerator()
+    commentGenerator(),
+    calloutListGenerator()
 )
 
 private fun sectionGenerator(): Arb<Section> = arbitrary { rs ->
@@ -134,8 +147,34 @@ private fun inlineElementGenerator(): Arb<InlineElement> = Arb.choice(
     emphasisGenerator(),
     codeInlineGenerator(),
     linkGenerator(),
-    imageGenerator()
+    imageGenerator(),
+    calloutGenerator()
 )
+
+private fun calloutListGenerator(): Arb<CalloutList> = arbitrary { rs ->
+    CalloutList(
+        items = Arb.list(calloutListItemGenerator(), 1..5).bind(),
+        attributes = Arb.map(Arb.string(1..20), Arb.string(1..50), minSize = 0, maxSize = 2).bind(),
+        sourceLocation = sourceLocationGenerator().bind()
+    )
+}
+
+private fun calloutListItemGenerator(): Arb<CalloutListItem> = arbitrary { rs ->
+    CalloutListItem(
+        number = Arb.int(1..10).bind(),
+        content = Arb.list(inlineElementGenerator(), 1..3).bind(),
+        attributes = Arb.map(Arb.string(1..20), Arb.string(1..50), minSize = 0, maxSize = 2).bind(),
+        sourceLocation = sourceLocationGenerator().bind()
+    )
+}
+
+private fun calloutGenerator(): Arb<Callout> = arbitrary { rs ->
+    Callout(
+        number = Arb.int(1..10).bind(),
+        attributes = Arb.map(Arb.string(1..20), Arb.string(1..50), minSize = 0, maxSize = 2).bind(),
+        sourceLocation = sourceLocationGenerator().bind()
+    )
+}
 
 private fun textGenerator(): Arb<Text> = arbitrary { rs ->
     Text(

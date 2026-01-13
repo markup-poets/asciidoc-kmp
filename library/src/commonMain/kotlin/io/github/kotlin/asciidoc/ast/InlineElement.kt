@@ -70,3 +70,12 @@ data class AttributeReference(
     override val attributes: Map<String, String> = emptyMap(),
     override val sourceLocation: SourceLocation
 ) : InlineElement()
+
+/**
+ * Represents a callout number (e.g., <1>) within text or code.
+ */
+data class Callout(
+    val number: Int,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : InlineElement()

@@ -10,7 +10,7 @@ data class Document(
     val documentAttributes: Map<String, String>,
     override val attributes: Map<String, String> = emptyMap(),
     override val sourceLocation: SourceLocation
-) : AstNode() {
+) : BlockElement() {
     
     /**
      * Get an attribute value by key.
