@@ -1,19 +1,82 @@
-[![official project](http://jb.gg/badges/official.svg)](https://github.com/JetBrains#jetbrains-on-github)
+# Markup Poet - AsciiDoc Converter
 
-# Multiplatform library template
+A lightweight, spec-compliant AsciiDoc converter library built with Kotlin Multiplatform.
 
-## What is it?
+## Overview
 
-This repository contains a simple library project, intended to demonstrate a [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) library that is deployable to [Maven Central](https://central.sonatype.com/).
+Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into various output formats. Built with Kotlin Multiplatform, it runs on JVM, Android, iOS, and Linux platforms without external dependencies.
 
-The library has only one function: generate the [Fibonacci sequence](https://en.wikipedia.org/wiki/Fibonacci_sequence) starting from platform-provided numbers. Also, it has a test for each platform just to be sure that tests run.
+## Features
 
-Note that no other actions or tools usually required for the library development are set up, such as [tracking of backwards compatibility](https://kotlinlang.org/docs/jvm-api-guidelines-backward-compatibility.html#tools-designed-to-enforce-backward-compatibility), explicit API mode, licensing, contribution guideline, code of conduct and others. You can find a guide for best practices for designing Kotlin libraries [here](https://kotlinlang.org/docs/api-guidelines-introduction.html).
+- **Platform Independent**: Runs on JVM, Android, iOS, and Linux
+- **Spec Compliant**: Follows AsciiDoc Language Specification
+- **Clean Architecture**: Clear separation between parsing, processing, conversion, and rendering phases
+- **Extensible**: Modular design allows custom processors and converters
+- **Zero Dependencies**: No external libraries required
 
-## Guide
+## Architecture
 
-Please find the detailed guide [here](https://www.jetbrains.com/help/kotlin-multiplatform-dev/multiplatform-publish-libraries.html).
+The library follows a clean pipeline architecture:
 
-# Other resources
-* [Publishing via the Central Portal](https://central.sonatype.org/publish-ea/publish-ea-guide/)
-* [Gradle Maven Publish Plugin \- Publishing to Maven Central](https://vanniktech.github.io/gradle-maven-publish-plugin/central/)
+1. **Parse** - Analyzes AsciiDoc source text → AST
+2. **Process** - Resolves includes, attributes, and substitutions  
+3. **Convert** - Transforms AST into target format (HTML, etc.)
+4. **Render** - Final output or persistence
+
+## Quick Start
+
+```kotlin
+val parser = AsciidocParser()
+val ast = parser.parse(input)
+
+val processor = AsciidocProcessorPipeline()
+processor.process(ast)
+
+val html = HtmlConverter().convert(ast)
+HtmlRenderer().render(html, outputFile)
+```
+
+## Installation
+
+Add to your `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("org.markup.poet:asciidoc-core:$version")
+}
+```
+
+## Supported Platforms
+
+- **JVM** (Java 11+)
+- **Android** (API 24+)
+- **iOS** (x64, ARM64, Simulator ARM64)
+- **Linux** (x64)
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+
+## Contributing
+
+Contributions are welcome! Please read our contribution guidelines and ensure all tests pass before submitting a pull request.
+
+## Development
+
+### Building
+```bash
+./gradlew build
+```
+
+### Running Tests
+```bash
+./gradlew test                    # All platforms
+./gradlew :library:jvmTest        # JVM only
+./gradlew :library:iosX64Test     # iOS only
+```
+
+### Publishing
+```bash
+./gradlew publishToMavenLocal     # Local testing
+./gradlew publishToMavenCentral   # Maven Central
+```
