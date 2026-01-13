@@ -66,7 +66,7 @@ This implementation plan breaks down the AsciiDoc Core Parser into discrete, inc
 - [x] 5. Checkpoint - Ensure block parsing tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 6. Implement inline parser for text markup
+- [x] 6. Implement inline parser for text markup
   - Create InlineParser interface and implementation
   - Implement strong (*bold*) and emphasis (_italic_) parsing
   - Add inline code (`code`) parsing
@@ -79,11 +79,12 @@ This implementation plan breaks down the AsciiDoc Core Parser into discrete, inc
   - **Property 5: Inline Element Recognition**
   - **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5**
 
-- [ ] 6.2 Write property test for inline markup precedence and escaping
+- [ ] 6.2 Enable and fix property test for inline markup precedence and escaping
   - **Property 7: Inline Markup Precedence and Escaping**
   - **Validates: Requirements 4.6, 4.7**
+  - Remove @Ignore annotation and fix any failing test cases
 
-- [-] 7. Implement attribute parsing and storage
+- [x] 7. Implement attribute parsing and storage
   - Add attribute definition parsing (lines starting with ":")
   - Implement key-value extraction with space preservation
   - Add attribute storage in Document node
@@ -99,44 +100,47 @@ This implementation plan breaks down the AsciiDoc Core Parser into discrete, inc
   - **Property 11: Attribute Reference Marking**
   - **Validates: Requirements 6.4**
 
-- [ ] 8. Implement comprehensive error handling
-  - Add error and warning collection throughout parsing
-  - Implement error recovery strategies (skip and continue, graceful degradation)
+- [x] 8. Implement comprehensive error handling integration
+  - Integrate error and warning collection throughout all parser components
+  - Implement error recovery strategies in main parser facade
   - Add detailed error reporting with line numbers and descriptions
   - Handle malformed syntax with appropriate error messages
   - Ensure parsing continues after recoverable errors
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 3.7_
 
-- [ ] 8.1 Write property test for error handling and recovery
+- [x] 8.1 Write property test for error handling and recovery
   - **Property 12: Error Handling and Recovery**
   - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
-- [ ] 8.2 Write property test for malformed syntax error reporting
+- [x] 8.2 Write property test for malformed syntax error reporting
   - **Property 13: Malformed Syntax Error Reporting**
   - **Validates: Requirements 3.7**
 
-- [ ] 9. Implement main parser facade
-  - Create AsciidocParser interface and implementation
-  - Integrate all components (LineProcessor, BlockParser, InlineParser, StateMachine)
+- [x] 9. Implement main parser facade with component integration
+  - Create DefaultAsciidocParser implementation of AsciidocParser interface
+  - Integrate all components (LineProcessor, BlockParser, InlineParser, StateMachine, AttributeParser)
   - Implement parse methods for String and List<String> input
   - Return ParseResult with document, errors, and warnings
+  - Wire together the complete parsing pipeline
   - Ensure platform-neutral implementation
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 9.1 Write property test for cross-platform consistency
+- [x] 9.1 Write property test for cross-platform consistency
   - **Property 14: Cross-Platform Consistency**
   - **Validates: Requirements 8.3, 8.4**
 
 - [ ] 10. Integration and end-to-end testing
-  - Wire all components together in the parser facade
   - Test complete parsing pipeline with complex documents
   - Validate AST structure for nested and mixed content
   - Ensure error collection works across all components
+  - Test attribute parsing and reference marking integration
+  - Verify state machine context preservation across complex documents
   - _Requirements: All requirements integration_
 
 - [ ] 10.1 Write integration tests for complete parsing pipeline
   - Test end-to-end parsing with complex AsciiDoc documents
   - Validate complete AST structure and error handling
+  - Test attribute substitution and reference resolution
   - _Requirements: All requirements integration_
 
 - [ ] 11. Final checkpoint - Ensure all tests pass
@@ -146,7 +150,8 @@ This implementation plan breaks down the AsciiDoc Core Parser into discrete, inc
 
 - All tasks are required for comprehensive implementation
 - Each task references specific requirements for traceability
-- Property tests validate universal correctness properties using Kotest
+- Property tests validate universal correctness properties using kotlin-test framework
 - Unit tests validate specific examples and edge cases
 - Checkpoints ensure incremental validation throughout development
 - The implementation follows platform-neutral Kotlin Multiplatform practices
+- Most core components are implemented, focus is now on integration and testing
