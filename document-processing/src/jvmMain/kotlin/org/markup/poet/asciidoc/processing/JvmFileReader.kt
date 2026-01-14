@@ -9,13 +9,13 @@ import java.io.IOException
 class JvmFileReader : FileReader {
     override fun readFile(path: String): FileReadResult {
         return try {
-            val file = File(path)
+            val file = File(path).absoluteFile
             if (!file.exists()) {
-                FileReadResult.Error("File not found: $path")
+                FileReadResult.Error("File not found: ${file.absolutePath}")
             } else if (!file.isFile) {
-                FileReadResult.Error("Path is not a file: $path")
+                FileReadResult.Error("Path is not a file: ${file.absolutePath}")
             } else if (!file.canRead()) {
-                FileReadResult.Error("File is not readable: $path")
+                FileReadResult.Error("File is not readable: ${file.absolutePath}")
             } else {
                 val content = file.readText()
                 FileReadResult.Success(content)

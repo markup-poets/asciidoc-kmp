@@ -73,6 +73,7 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
                     )
                 }
             )
+            is CodeBlock -> element // DO NOT substitute attributes in code blocks
             is Document -> processDocument(element, attributeMap, config, errors, substitutedAttributes)
             else -> element
         }

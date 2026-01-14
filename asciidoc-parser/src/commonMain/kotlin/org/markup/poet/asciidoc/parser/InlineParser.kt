@@ -279,6 +279,12 @@ class DefaultInlineParser : InlineParser {
         if (key.isEmpty()) {
             return null
         }
+
+        // AsciiDoc attributes must start with a letter or underscore and contain only alphanumeric, underscores, or hyphens
+        val attributeKeyRegex = Regex("^[a-zA-Z_][a-zA-Z0-9_-]*$")
+        if (!attributeKeyRegex.matches(key)) {
+            return null
+        }
         
         return ParsedInline(
             element = AttributeReference(

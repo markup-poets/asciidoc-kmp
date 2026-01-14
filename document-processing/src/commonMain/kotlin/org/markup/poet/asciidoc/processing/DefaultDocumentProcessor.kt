@@ -20,7 +20,14 @@ class DefaultDocumentProcessor(
     private val macroExpander: MacroExpander,
     private val crossReferenceResolver: CrossReferenceResolver,
     private val tocGenerator: TocGenerator,
-    private val documentValidator: DocumentValidator
+    private val documentValidator: DocumentValidator,
+    private val fileReaderFactory: (String) -> FileReader = { path ->
+        object : FileReader {
+            override fun readFile(path: String): FileReadResult {
+                return FileReadResult.Error("FileReader not configured")
+            }
+        }
+    }
 ) : DocumentProcessor {
     
     override fun process(document: Document, config: ProcessingConfig): ProcessingResult {
@@ -44,8 +51,8 @@ class DefaultDocumentProcessor(
             try {
                 val includeConfig = IncludeConfig(
                     maxDepth = config.maxIncludeDepth,
-                    basePath = "",
-                    fileReader = createDefaultFileReader()
+                    basePath = config.basePath,
+                    fileReader = fileReaderFactory(config.basePath)
                 )
                 val includeResult = includeResolver.resolve(currentDoc, includeConfig)
                 currentDoc = includeResult.document
@@ -223,17 +230,5 @@ class DefaultDocumentProcessor(
         // TODO: Implement TOC insertion logic
         // This would typically insert the TOC at the beginning of the document or at a designated location
         return document
-    }
-    
-    /**
-     * Creates a default FileReader implementation.
-     * This is a placeholder - actual implementation would be platform-specific.
-     */
-    private fun createDefaultFileReader(): FileReader {
-        return object : FileReader {
-            override fun readFile(path: String): FileReadResult {
-                return FileReadResult.Error("FileReader not configured")
-            }
-        }
     }
 }

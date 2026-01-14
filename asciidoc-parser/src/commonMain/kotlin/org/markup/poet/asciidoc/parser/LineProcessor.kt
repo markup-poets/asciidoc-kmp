@@ -43,7 +43,8 @@ enum class BlockType {
     CODE_BLOCK_DELIMITER,
     PARAGRAPH,
     COMMENT,
-    ATTRIBUTE_DEFINITION
+    ATTRIBUTE_DEFINITION,
+    INCLUDE_DIRECTIVE
 }
 
 /**
@@ -85,10 +86,12 @@ class DefaultLineProcessor : LineProcessor {
         return when {
             trimmed.isEmpty() -> BlockType.EMPTY
             isCodeBlockDelimiter(trimmed) -> BlockType.CODE_BLOCK_DELIMITER
+            trimmed.startsWith("[source") -> BlockType.CODE_BLOCK_DELIMITER
             isSectionHeader(trimmed) -> BlockType.SECTION_HEADER
             isUnorderedListItem(trimmed) -> BlockType.UNORDERED_LIST
             isOrderedListItem(trimmed) -> BlockType.ORDERED_LIST
             isComment(trimmed) -> BlockType.COMMENT
+            isIncludeDirective(trimmed) -> BlockType.INCLUDE_DIRECTIVE
             isAttributeDefinition(trimmed) -> BlockType.ATTRIBUTE_DEFINITION
             else -> BlockType.PARAGRAPH
         }
@@ -117,6 +120,11 @@ class DefaultLineProcessor : LineProcessor {
     private fun isAttributeDefinition(line: String): Boolean {
         val trimmed = line.trim()
         return trimmed.startsWith(":") && trimmed.indexOf(':', 1) != -1
+    }
+
+    private fun isIncludeDirective(line: String): Boolean {
+        val trimmed = line.trim()
+        return trimmed.startsWith("include::") && trimmed.contains("[") && trimmed.endsWith("]")
     }
     
     private fun extractContent(line: String, blockType: BlockType): String {
@@ -154,6 +162,7 @@ class DefaultLineProcessor : LineProcessor {
             BlockType.CODE_BLOCK_DELIMITER -> ""
             BlockType.EMPTY -> ""
             BlockType.PARAGRAPH -> trimmed
+            BlockType.INCLUDE_DIRECTIVE -> trimmed
         }
     }
     

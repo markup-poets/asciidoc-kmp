@@ -82,6 +82,9 @@ sealed class StateTrigger {
     
     /** Comment line encountered */
     object CommentLine : StateTrigger()
+
+    /** Include directive encountered */
+    object IncludeDirective : StateTrigger()
 }
 
 /**

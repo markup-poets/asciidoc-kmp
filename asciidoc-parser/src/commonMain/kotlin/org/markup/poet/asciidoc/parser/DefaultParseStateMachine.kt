@@ -51,6 +51,12 @@ class DefaultParseStateMachine : ParseStateMachine {
                     ParseState.IN_CODE_BLOCK -> {
                         if (trigger.type == context.codeBlockDelimiter) {
                             ParseState.DOCUMENT_START // End code block
+                        } else if (trigger.type.startsWith("----") && context.codeBlockDelimiter?.startsWith("----") == true) {
+                            ParseState.DOCUMENT_START // End code block (handling different lengths of ----)
+                        } else if (trigger.type.startsWith("[") && context.currentState != ParseState.IN_CODE_BLOCK) {
+                            ParseState.IN_CODE_BLOCK
+                        } else if (trigger.type.startsWith("----") && context.codeBlockDelimiter?.startsWith("[") == true) {
+                             ParseState.IN_CODE_BLOCK // Keep it going, the ---- is the real start
                         } else {
                             ParseState.IN_CODE_BLOCK // Stay in code block
                         }
@@ -69,6 +75,7 @@ class DefaultParseStateMachine : ParseStateMachine {
                 }
             }
             is StateTrigger.CommentLine -> context.currentState // Comments don't change state
+            is StateTrigger.IncludeDirective -> context.currentState // Includes don't change state
         }
     }
     
@@ -87,7 +94,6 @@ class DefaultParseStateMachine : ParseStateMachine {
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
                 ParseState.IN_ATTRIBUTES -> trigger is StateTrigger.AttributeDefinition
                 ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine
-                else -> false
             }
             
             ParseState.IN_LIST -> when (newState) {
@@ -115,7 +121,6 @@ class DefaultParseStateMachine : ParseStateMachine {
                 ParseState.IN_LIST -> trigger is StateTrigger.ListMarker
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
                 ParseState.IN_ATTRIBUTES -> trigger is StateTrigger.AttributeDefinition
-                else -> false
             }
             
             ParseState.IN_ATTRIBUTES -> when (newState) {
@@ -125,7 +130,6 @@ class DefaultParseStateMachine : ParseStateMachine {
                 ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine
                 ParseState.IN_LIST -> trigger is StateTrigger.ListMarker
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
-                else -> false
             }
         }
     }
@@ -144,6 +148,12 @@ class DefaultParseStateMachine : ParseStateMachine {
             is StateTrigger.BlockDelimiter -> {
                 if (newState == ParseState.IN_CODE_BLOCK && context.currentState != ParseState.IN_CODE_BLOCK) {
                     // Starting a new code block
+                    context.copy(
+                        currentState = newState,
+                        codeBlockDelimiter = trigger.type
+                    )
+                } else if (newState == ParseState.IN_CODE_BLOCK && context.currentState == ParseState.IN_CODE_BLOCK && context.codeBlockDelimiter?.startsWith("[") == true && trigger.type.startsWith("----")) {
+                    // Transitioning from [source] to ----
                     context.copy(
                         currentState = newState,
                         codeBlockDelimiter = trigger.type

@@ -93,8 +93,10 @@ class DefaultAsciidocParser(
                 }
                 
                 // Process the line based on its type
+                val inCodeBlock = stateMachine.getCurrentState() == ParseState.IN_CODE_BLOCK
+
                 when (lineResult.blockType) {
-                    BlockType.EMPTY -> {
+                    BlockType.EMPTY if !inCodeBlock -> {
                         // Finalize current block if any
                         if (currentBlockLines.isNotEmpty()) {
                             processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes)
@@ -102,25 +104,39 @@ class DefaultAsciidocParser(
                         }
                         currentBlockType = null
                     }
-                    
-                    BlockType.ATTRIBUTE_DEFINITION -> {
+                    BlockType.ATTRIBUTE_DEFINITION if !inCodeBlock -> {
                         // Process attribute with error handling
                         processAttributeDefinition(line, lineNumber, documentAttributes)
                     }
-                    
                     else -> {
                         // Check if we need to start a new block
-                        if (currentBlockType != lineResult.blockType) {
+                        // In code block, we don't switch block type until the delimiter ends it
+                        val isDelimiter = lineResult.blockType == BlockType.CODE_BLOCK_DELIMITER
+                        val shouldSwitchBlock = !inCodeBlock && currentBlockType != lineResult.blockType
+                        val isClosingDelimiter = inCodeBlock && isDelimiter
+
+                        if (shouldSwitchBlock || isClosingDelimiter) {
                             // Finalize previous block
                             if (currentBlockLines.isNotEmpty()) {
+                                if (isClosingDelimiter) {
+                                    currentBlockLines.add(line)
+                                }
                                 processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes)
                                 currentBlockLines.clear()
+                                if (isClosingDelimiter) {
+                                    currentBlockType = null
+                                    stateMachine.reset() // HACK: Force state machine to reset for next block
+                                    return@forEachIndexed
+                                }
                             }
-                            
+
+                            currentBlockType = lineResult.blockType
+                            currentBlockStartLine = lineNumber
+                        } else if (currentBlockType == null) {
                             currentBlockType = lineResult.blockType
                             currentBlockStartLine = lineNumber
                         }
-                        
+
                         currentBlockLines.add(line)
                     }
                 }
@@ -187,8 +203,23 @@ class DefaultAsciidocParser(
                 
                 BlockType.CODE_BLOCK_DELIMITER -> {
                     // Extract content between delimiters
+                    var language: String? = null
                     val codeContent = if (lines.size >= 2) {
-                        lines.drop(1).dropLast(1)
+                        if (lines.first().startsWith("[")) {
+                            // Extract language from [source,language]
+                            val metadata = lines.first().removePrefix("[").removeSuffix("]")
+                            if (metadata.startsWith("source,")) {
+                                language = metadata.removePrefix("source,").trim()
+                            }
+                            
+                            if (lines.getOrNull(1)?.startsWith("----") == true) {
+                                lines.drop(2).dropLast(1)
+                            } else {
+                                lines.drop(1).dropLast(1)
+                            }
+                        } else {
+                            lines.drop(1).dropLast(1)
+                        }
                     } else {
                         // Malformed code block
                         addError(
@@ -198,7 +229,7 @@ class DefaultAsciidocParser(
                         )
                         lines
                     }
-                    val codeBlock = blockParser.parseCodeBlock(codeContent, startLineNumber)
+                    val codeBlock = blockParser.parseCodeBlock(codeContent, startLineNumber, language)
                     children.add(codeBlock)
                 }
                 
@@ -207,6 +238,33 @@ class DefaultAsciidocParser(
                     lines.forEach { line ->
                         blockParser.parseComment(line, startLineNumber)
                     }
+                }
+
+                BlockType.INCLUDE_DIRECTIVE -> {
+                    val line = lines.first().trim()
+                    val pathEnd = line.indexOf('[')
+                    val path = line.substring("include::".length, pathEnd)
+                    val attributesStr = line.substring(pathEnd + 1, line.length - 1)
+                    
+                    // Basic parsing of line range if present in attributes
+                    var lineRange: IntRange? = null
+                    if (attributesStr.startsWith("lines=")) {
+                        val rangeStr = attributesStr.substring("lines=".length)
+                        val parts = rangeStr.split("..")
+                        if (parts.size == 2) {
+                            val start = parts[0].toIntOrNull()
+                            val end = parts[1].toIntOrNull()
+                            if (start != null && end != null) {
+                                lineRange = start..end
+                            }
+                        }
+                    }
+
+                    children.add(IncludeDirective(
+                        path = path,
+                        lineRange = lineRange,
+                        sourceLocation = SourceLocation(startLineNumber)
+                    ))
                 }
                 
                 BlockType.PARAGRAPH, null -> {
@@ -301,6 +359,7 @@ class DefaultAsciidocParser(
                 StateTrigger.BlockDelimiter("----")
             }
             BlockType.COMMENT -> StateTrigger.CommentLine
+            BlockType.INCLUDE_DIRECTIVE -> StateTrigger.IncludeDirective
             BlockType.ATTRIBUTE_DEFINITION -> StateTrigger.AttributeDefinition
             BlockType.PARAGRAPH -> StateTrigger.TextLine
         }

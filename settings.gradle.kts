@@ -14,4 +14,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "asciidoc-Konverter"
-include(":library")
+include(":asciidoc-parser")
+include(":ast-graphviz-export")
+include(":document-processing")
+include(":cli-app")

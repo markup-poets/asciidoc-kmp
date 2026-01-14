@@ -7,6 +7,7 @@ package org.markup.poet.asciidoc.processing
 data class ProcessingConfig(
     val enableIncludes: Boolean = true,
     val maxIncludeDepth: Int = 10,
+    val basePath: String = "",
     val enableAttributeSubstitution: Boolean = true,
     val attributeDefaults: Map<String, String> = emptyMap(),
     val enableCrossReferences: Boolean = true,

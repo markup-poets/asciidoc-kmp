@@ -1,0 +1,142 @@
+name: Documentation Build and Preview
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'skainet-lang/**'
+      - 'tools/docgen/**'
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'skainet-lang/**'
+      - 'tools/docgen/**'
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+
+jobs:
+  build-documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        
+      - name: Set up JDK 22
+        uses: actions/setup-java@v5
+        with:
+          java-version: '22'
+          distribution: 'temurin'
+          
+      - name: Cache Gradle packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+            
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        
+      - name: Copy CI gradle.properties
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+        
+      - name: Generate operator documentation
+        run: ./gradlew generateDocs --stacktrace
+        
+      - name: Upload generated documentation
+        uses: actions/upload-artifact@v6
+        with:
+          name: operator-documentation
+          path: |
+            docs/modules/operators/_generated_/**
+            skainet-lang/skainet-lang-core/build/generated/ksp/metadata/commonMain/resources/operators.json
+          retention-days: 30
+          
+      - name: Upload documentation preview (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v6
+        with:
+          name: documentation-preview-${{ github.event.number }}
+          path: |
+            docs/**
+            tools/docgen/build/docs/asciidoc/**
+          retention-days: 7
+          
+  # Job for documentation preview generation on PRs
+  preview-documentation:
+    if: github.event_name == 'pull_request'
+    needs: build-documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download documentation artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: documentation-preview-${{ github.event.number }}
+          path: ./docs-preview
+          
+      - name: Setup Node.js for preview server
+        uses: actions/setup-node@v6
+        with:
+          node-version: '18'
+          
+      - name: Install serve package
+        run: npm install -g serve
+        
+      - name: Start preview server
+        run: |
+          cd docs-preview
+          serve -s . -l 3000 &
+          sleep 5
+          echo "Preview server started at http://localhost:3000"
+          
+      - name: Create PR comment with preview link
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('📖 Documentation Preview')
+            );
+            
+            const commentBody = `📖 **Documentation Preview**
+            
+            The documentation has been built successfully for this PR.
+            
+            **Generated Files:**
+            - Operator documentation: \`docs/modules/operators/_generated_/\`
+            - JSON schema output: \`operators.json\`
+            
+            **Artifacts:** 
+            - Download the \`documentation-preview-${{ github.event.number }}\` artifact to view the complete documentation locally.
+            
+            _This comment will be updated automatically when the PR is updated._`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }

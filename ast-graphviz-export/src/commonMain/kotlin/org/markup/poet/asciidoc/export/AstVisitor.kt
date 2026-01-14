@@ -199,7 +199,8 @@ class GraphvizAstVisitor(
             }
             // Leaf nodes (no children to process)
             is CodeBlock, is Comment, is Text, is Code, is Link, is Image, 
-            is AttributeReference, is Callout -> {
+            is AttributeReference, is Callout, is IncludeDirective, 
+            is CrossReference, is MacroInvocation -> {
                 // These nodes have no children to process
             }
         }
@@ -231,6 +232,9 @@ class GraphvizAstVisitor(
             is Image -> "Image: ${truncateText(node.altText, 25)}"
             is AttributeReference -> "Attr: {${node.key}}"
             is Callout -> "Callout <${node.number}>"
+            is IncludeDirective -> "Include: ${node.path}"
+            is CrossReference -> "XRef: ${node.targetId}"
+            is MacroInvocation -> "Macro: ${node.macroName}"
         }
     }
     
@@ -264,6 +268,8 @@ class GraphvizAstVisitor(
                 is Image -> element.altText
                 is AttributeReference -> "{${element.key}}"
                 is Callout -> "<${element.number}>"
+                is CrossReference -> element.customText ?: "<<${element.targetId}>>"
+                is MacroInvocation -> "${element.macroName}::[]"
             }
         }
     }

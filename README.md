@@ -61,6 +61,32 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 Contributions are welcome! Please read our contribution guidelines and ensure all tests pass before submitting a pull request.
 
+## CLI Tool
+
+A command-line tool is included to convert AsciiDoc files to Graphviz DOT format for AST visualization.
+
+### Quick Usage
+
+```bash
+# Using the wrapper script
+./asciidoc2dot.sh document.adoc
+
+# Using Gradle directly
+./gradlew :cli-app:jvmRun --args="document.adoc output.dot"
+```
+
+### Visualizing Output
+
+```bash
+# Generate PNG
+dot -Tpng output.dot -o output.png
+
+# Generate SVG
+dot -Tsvg output.dot -o output.svg
+```
+
+See [cli-app/README.md](cli-app/README.md) for detailed CLI documentation.
+
 ## Development
 
 ### Building

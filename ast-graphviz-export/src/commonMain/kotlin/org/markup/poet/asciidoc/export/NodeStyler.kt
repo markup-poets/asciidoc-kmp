@@ -35,6 +35,9 @@ class NodeStyler(private val colorScheme: ColorScheme) {
             is Image -> getInlineElementStyle("image")
             is AttributeReference -> getInlineElementStyle("attribute")
             is Callout -> getInlineElementStyle("callout")
+            is IncludeDirective -> getBlockElementStyle("include")
+            is CrossReference -> getInlineElementStyle("xref")
+            is MacroInvocation -> getInlineElementStyle("macro")
         }
     }
     
