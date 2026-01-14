@@ -125,7 +125,7 @@ class DefaultAsciidocParser(
                                 currentBlockLines.clear()
                                 if (isClosingDelimiter) {
                                     currentBlockType = null
-                                    stateMachine.reset() // HACK: Force state machine to reset for next block
+                                    // NO RESET HERE
                                     return@forEachIndexed
                                 }
                             }
