@@ -1,0 +1,84 @@
+digraph AST {
+  // Graph configuration
+  rankdir=TB;
+  node [fontname="Arial", fontsize=10];
+  edge [fontname="Arial", fontsize=8];
+  label="Example AsciiDoc Document";
+  labelloc=t;
+  // Metadata: 36 nodes, max depth 4
+
+  // Nodes
+  doc_1 [label="Document: Example AsciiDoc Document", comment="Document", shape=doubleoctagon, fillcolor=lightblue, style=filled];
+  sec_1 [label="Section L1: Example AsciiDoc Document", comment="Section", shape=box, fillcolor=lightgreen, style=filled];
+  sec_2 [label="Section L2: Introduction", comment="Section", shape=box, fillcolor=lightgreen, style=filled];
+  para_1 [label="Paragraph (1 elements)", comment="Paragraph", shape=box, fillcolor=lightyellow, style=filled];
+  text_1 [label="Text: This is a simple example document to ...", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  sec_3 [label="Section L2: Features", comment="Section", shape=box, fillcolor=lightgreen, style=filled];
+  para_2 [label="Paragraph (1 elements)", comment="Paragraph", shape=box, fillcolor=lightyellow, style=filled];
+  text_2 [label="Text: The converter supports:", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  list_1 [label="Unordered List (5 items)", comment="AsciiDocList", shape=folder, fillcolor=lightcoral, style=filled];
+  item_1 [label="List Item: Sections and headers", comment="ListItem", shape=box, fillcolor=mistyrose, style=filled];
+  text_3 [label="Text: Sections and headers", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  item_2 [label="List Item: Paragraphs with bold a...", comment="ListItem", shape=box, fillcolor=mistyrose, style=filled];
+  text_4 [label="Text: Paragraphs with ", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  strong_1 [label="Strong: bold", comment="Strong", shape=ellipse, fillcolor=gold, style="filled,bold"];
+  text_5 [label="Text: bold", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  text_6 [label="Text:  and ", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  em_1 [label="Emphasis: italic", comment="Emphasis", shape=ellipse, fillcolor=lavender, style=filled, fontname="Arial-Italic"];
+  text_7 [label="Text: italic", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  text_8 [label="Text:  text", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  item_3 [label="List Item: Lists (ordered and uno...", comment="ListItem", shape=box, fillcolor=mistyrose, style=filled];
+  text_9 [label="Text: Lists (ordered and unordered)", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  item_4 [label="List Item: Code blocks", comment="ListItem", shape=box, fillcolor=mistyrose, style=filled];
+  text_10 [label="Text: Code blocks", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  item_5 [label="List Item: Links and images", comment="ListItem", shape=box, fillcolor=mistyrose, style=filled];
+  text_11 [label="Text: Links and images", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  sec_4 [label="Section L2: Code Example", comment="Section", shape=box, fillcolor=lightgreen, style=filled];
+  para_3 [label="Paragraph (1 elements)", comment="Paragraph", shape=box, fillcolor=lightyellow, style=filled];
+  text_12 [label="Text: Here's a simple code block:", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  code_1 [label="Code Block", comment="CodeBlock", shape=box, fillcolor=lightgray, style=filled, fontname="Courier"];
+  para_4 [label="Paragraph (2 elements)", comment="Paragraph", shape=box, fillcolor=lightyellow, style=filled];
+  text_13 [label="Text: fun main() ", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+  attr_1 [label="Attr: \{     println(\"Hello, World!\") \}", comment="AttributeReference", shape=diamond, fillcolor=wheat, style=filled];
+  code_2 [label="Code Block", comment="CodeBlock", shape=box, fillcolor=lightgray, style=filled, fontname="Courier"];
+  sec_5 [label="Section L2: Conclusion", comment="Section", shape=box, fillcolor=lightgreen, style=filled];
+  para_5 [label="Paragraph (1 elements)", comment="Paragraph", shape=box, fillcolor=lightyellow, style=filled];
+  text_14 [label="Text: This example shows the basic structur...", comment="Text", shape=ellipse, fillcolor=white, style=filled];
+
+  // Edges
+  doc_1 -> sec_1;
+  doc_1 -> sec_2;
+  para_1 -> text_1;
+  doc_1 -> para_1;
+  doc_1 -> sec_3;
+  para_2 -> text_2;
+  doc_1 -> para_2;
+  item_1 -> text_3;
+  list_1 -> item_1;
+  item_2 -> text_4;
+  strong_1 -> text_5;
+  item_2 -> strong_1;
+  item_2 -> text_6;
+  em_1 -> text_7;
+  item_2 -> em_1;
+  item_2 -> text_8;
+  list_1 -> item_2;
+  item_3 -> text_9;
+  list_1 -> item_3;
+  item_4 -> text_10;
+  list_1 -> item_4;
+  item_5 -> text_11;
+  list_1 -> item_5;
+  doc_1 -> list_1;
+  doc_1 -> sec_4;
+  para_3 -> text_12;
+  doc_1 -> para_3;
+  doc_1 -> code_1;
+  para_4 -> text_13;
+  para_4 -> attr_1;
+  doc_1 -> para_4;
+  doc_1 -> code_2;
+  doc_1 -> sec_5;
+  para_5 -> text_14;
+  doc_1 -> para_5;
+}

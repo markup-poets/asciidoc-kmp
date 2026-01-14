@@ -1,0 +1,29 @@
+= Example AsciiDoc Document
+
+== Introduction
+
+This is a simple example document to demonstrate the AsciiDoc to Graphviz converter.
+
+== Features
+
+The converter supports:
+
+* Sections and headers
+* Paragraphs with *bold* and _italic_ text
+* Lists (ordered and unordered)
+* Code blocks
+* Links and images
+
+== Code Example
+
+Here's a simple code block:
+
+----
+fun main() {
+    println("Hello, World!")
+}
+----
+
+== Conclusion
+
+This example shows the basic structure that will be converted to a DOT graph.
