@@ -17,4 +17,5 @@ rootProject.name = "asciidoc-Konverter"
 include(":asciidoc-parser")
 include(":ast-graphviz-export")
 include(":document-processing")
+include(":html-renderer")
 include(":cli-app")

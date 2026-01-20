@@ -42,3 +42,7 @@ library/src/
 - Platform implementations: One file per platform with `actual` declarations
 - Common code: Shared interfaces and business logic
 - Tests: Separate test classes per platform when needed
+
+## .gitkeep
+
+Avoid ceration of .gitkeep in empty folders.

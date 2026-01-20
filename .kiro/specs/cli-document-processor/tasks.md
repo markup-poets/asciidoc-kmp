@@ -6,19 +6,19 @@ This implementation plan adds document processing capabilities to the existing C
 
 ## Tasks
 
-- [ ] 1. Refactor existing CLI into command pattern
-  - [ ] 1.1 Create CliCommand interface and CommandResult sealed class
+- [x] 1. Refactor existing CLI into command pattern
+  - [x] 1.1 Create CliCommand interface and CommandResult sealed class
     - Define base interface for all commands
     - Create result types for success and error cases
     - _Requirements: 7.1, 7.3_
   
-  - [ ] 1.2 Create CommandArgs data class and ArgumentParser
+  - [x] 1.2 Create CommandArgs data class and ArgumentParser
     - Implement argument parsing logic
     - Support positional args, options, and flags
     - Handle both short (-o) and long (--output) option forms
     - _Requirements: 4.4, 4.5_
   
-  - [ ] 1.3 Extract existing conversion logic into ConvertCommand
+  - [x] 1.3 Extract existing conversion logic into ConvertCommand
     - Move existing Main.kt logic into ConvertCommand class
     - Implement CliCommand interface
     - Maintain existing functionality
@@ -33,19 +33,19 @@ This implementation plan adds document processing capabilities to the existing C
     - Test existing conversion functionality still works
     - _Requirements: 7.1_
 
-- [ ] 2. Implement command routing infrastructure
-  - [ ] 2.1 Create CommandRouter class
+- [x] 2. Implement command routing infrastructure
+  - [x] 2.1 Create CommandRouter class
     - Implement command registration and routing
     - Handle backward compatibility (no subcommand defaults to convert)
     - _Requirements: 7.2, 7.3_
   
-  - [ ] 2.2 Implement help system
+  - [x] 2.2 Implement help system
     - Show usage when no arguments provided
     - Show command list with descriptions
     - Support --help flag for detailed help
     - _Requirements: 4.2, 4.3, 7.5_
   
-  - [ ] 2.3 Update Main.kt to use CommandRouter
+  - [x] 2.3 Update Main.kt to use CommandRouter
     - Wire up router with commands
     - Handle exit codes properly
     - _Requirements: 1.5, 3.4_
@@ -56,11 +56,11 @@ This implementation plan adds document processing capabilities to the existing C
     - Test help display
     - _Requirements: 7.2, 7.3, 4.2, 4.3_
 
-- [ ] 3. Checkpoint - Ensure all tests pass
+- [x] 3. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Implement JVM FileReader for document processing
-  - [ ] 4.1 Create JvmFileReader implementation
+- [x] 4. Implement JVM FileReader for document processing
+  - [x] 4.1 Create JvmFileReader implementation
     - Implement FileReader interface using Java File I/O
     - Handle file not found errors
     - Handle read errors with descriptive messages
@@ -71,13 +71,13 @@ This implementation plan adds document processing capabilities to the existing C
     - Test error handling for missing files
     - _Requirements: 1.4, 6.5_
 
-- [ ] 5. Implement ProcessCommand core functionality
-  - [ ] 5.1 Create ProcessCommand class skeleton
+- [x] 5. Implement ProcessCommand core functionality
+  - [x] 5.1 Create ProcessCommand class skeleton
     - Implement CliCommand interface
     - Define command name and description
     - _Requirements: 4.1_
   
-  - [ ] 5.2 Implement argument parsing for process command
+  - [x] 5.2 Implement argument parsing for process command
     - Parse input file (required positional argument)
     - Parse output file option (-o, --output)
     - Parse base path option (-b, --base-path)
@@ -86,17 +86,17 @@ This implementation plan adds document processing capabilities to the existing C
     - Parse no-overwrite flag (--no-overwrite)
     - _Requirements: 1.2, 2.1, 2.3, 3.5, 6.2_
   
-  - [ ] 5.3 Implement input file validation
+  - [x] 5.3 Implement input file validation
     - Check input file exists
     - Report error with file path if not found
     - _Requirements: 1.4_
   
-  - [ ] 5.4 Implement output file overwrite checking
+  - [x] 5.4 Implement output file overwrite checking
     - Check if output file exists when no-overwrite flag set
     - Report error if exists and no-overwrite is set
     - _Requirements: 6.2_
   
-  - [ ] 5.5 Implement base path determination
+  - [x] 5.5 Implement base path determination
     - Use specified base path if provided
     - Default to input file directory if not specified
     - _Requirements: 2.1, 2.2_
@@ -110,32 +110,32 @@ This implementation plan adds document processing capabilities to the existing C
     - **Property 5: Base Path Resolution**
     - **Validates: Requirements 2.1, 2.2**
 
-- [ ] 6. Implement document processing logic
-  - [ ] 6.1 Implement document reading and parsing
+- [x] 6. Implement document processing logic
+  - [x] 6.1 Implement document reading and parsing
     - Read input file content
     - Parse AsciiDoc to AST using DefaultAsciidocParser
     - Handle parse errors
     - _Requirements: 1.1_
   
-  - [ ] 6.2 Create ProcessingConfig from command options
+  - [x] 6.2 Create ProcessingConfig from command options
     - Set enableIncludes to true
     - Set maxIncludeDepth from option (default 10)
     - Disable other processors (attributes, cross-refs, TOC, macros)
     - _Requirements: 2.3, 2.4_
   
-  - [ ] 6.3 Implement include resolution
+  - [x] 6.3 Implement include resolution
     - Create IncludeConfig with base path and file reader
     - Call DefaultIncludeResolver to resolve includes
     - _Requirements: 1.1, 2.1_
   
-  - [ ] 6.4 Implement error reporting
+  - [x] 6.4 Implement error reporting
     - Collect all processing errors
     - Format errors with file path and line number
     - Report all errors before exiting
     - Display warnings to stderr
     - _Requirements: 3.1, 3.2, 3.3_
   
-  - [ ] 6.5 Implement verbose output
+  - [x] 6.5 Implement verbose output
     - Display processing steps when verbose flag set
     - Show included files
     - Show processing summary
@@ -157,20 +157,20 @@ This implementation plan adds document processing capabilities to the existing C
     - **Property 9: Error Collection**
     - **Validates: Requirements 3.2**
 
-- [ ] 7. Implement output generation
-  - [ ] 7.1 Create AsciiDoc pretty printer
+- [x] 7. Implement output generation
+  - [x] 7.1 Create AsciiDoc pretty printer
     - Convert processed AST back to AsciiDoc text
     - Preserve formatting and structure
     - Handle all AST node types
     - _Requirements: 5.1, 5.3, 5.5_
   
-  - [ ] 7.2 Create OutputWriter interface and implementations
+  - [x] 7.2 Create OutputWriter interface and implementations
     - Create FileOutputWriter for file output
     - Create StdoutOutputWriter for stdout output
     - Handle directory creation for file output
     - _Requirements: 1.2, 1.3, 6.3_
   
-  - [ ] 7.3 Implement output writing logic
+  - [x] 7.3 Implement output writing logic
     - Write to file if output path specified
     - Write to stdout if no output path
     - Create parent directories if needed
@@ -195,11 +195,11 @@ This implementation plan adds document processing capabilities to the existing C
     - Test directory creation
     - _Requirements: 1.2, 1.3, 6.3_
 
-- [ ] 8. Checkpoint - Ensure all tests pass
+- [x] 8. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Implement exit code handling
-  - [ ] 9.1 Implement proper exit code logic
+- [x] 9. Implement exit code handling
+  - [x] 9.1 Implement proper exit code logic
     - Return 0 on successful processing
     - Return non-zero on any errors
     - _Requirements: 1.5, 3.4_
@@ -208,14 +208,14 @@ This implementation plan adds document processing capabilities to the existing C
     - **Property 4: Exit Code Correctness**
     - **Validates: Requirements 1.5, 3.4**
 
-- [ ] 10. Implement remaining error handling
-  - [ ] 10.1 Implement comprehensive error reporting format
+- [x] 10. Implement remaining error handling
+  - [x] 10.1 Implement comprehensive error reporting format
     - Format all errors consistently
     - Include file path and line number
     - Group multiple errors together
     - _Requirements: 3.1, 3.2, 8.1_
   
-  - [ ] 10.2 Implement error handling consistency across commands
+  - [x] 10.2 Implement error handling consistency across commands
     - Use same error format for convert and process commands
     - _Requirements: 7.4_
   
@@ -227,13 +227,13 @@ This implementation plan adds document processing capabilities to the existing C
     - **Property 21: Error Handling Consistency**
     - **Validates: Requirements 7.4**
 
-- [ ] 11. Integration and end-to-end testing
-  - [ ] 11.1 Wire ProcessCommand into CommandRouter
+- [x] 11. Integration and end-to-end testing
+  - [x] 11.1 Wire ProcessCommand into CommandRouter
     - Register process command
     - Test command routing
     - _Requirements: 4.1, 7.3_
   
-  - [ ] 11.2 Update help and usage messages
+  - [x] 11.2 Update help and usage messages
     - Add process command to help output
     - Document all options and flags
     - _Requirements: 4.2, 4.3, 7.5_
@@ -260,7 +260,7 @@ This implementation plan adds document processing capabilities to the existing C
     - **Property 20: Subcommand Routing**
     - **Validates: Requirements 7.3**
 
-- [ ] 12. Final checkpoint - Ensure all tests pass
+- [x] 12. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
