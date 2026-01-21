@@ -87,18 +87,39 @@ dot -Tsvg output.dot -o output.svg
 
 See [cli-app/README.md](cli-app/README.md) for detailed CLI documentation.
 
+## Testing & Quality Assurance
+
+### Technology Compatibility Kit (TCK)
+
+The project includes a comprehensive TCK for ensuring consistent behavior across all platforms. The TCK provides:
+
+- **Test Fixtures**: Reusable AsciiDoc test documents with expected outputs
+- **Validation Framework**: Utilities for comparing actual vs expected results
+- **Compatibility Tests**: Cross-platform validation tests
+- **Performance Benchmarking**: Infrastructure for measuring parsing and rendering performance
+- **Memory Monitoring**: Tools for tracking memory usage across platforms
+
+See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed TCK documentation and usage examples.
+
+### Running Tests
+
+```bash
+# All tests across all platforms
+./gradlew test
+
+# Platform-specific tests
+./gradlew :library:jvmTest        # JVM only
+./gradlew :library:iosX64Test     # iOS only
+
+# TCK tests
+./gradlew :tck-quality-testing:test
+```
+
 ## Development
 
 ### Building
 ```bash
 ./gradlew build
-```
-
-### Running Tests
-```bash
-./gradlew test                    # All platforms
-./gradlew :library:jvmTest        # JVM only
-./gradlew :library:iosX64Test     # iOS only
 ```
 
 ### Publishing
