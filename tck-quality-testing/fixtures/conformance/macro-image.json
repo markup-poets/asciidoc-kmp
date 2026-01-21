@@ -1,0 +1,12 @@
+{
+  "id": "conformance-macro-image",
+  "category": "CONFORMANCE",
+  "description": "Image macro with attributes",
+  "input": "image::diagram.png[Diagram,800,600,align=center]",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Images",
+    "difficulty": "intermediate",
+    "spec_section": "macro-syntax"
+  }
+}

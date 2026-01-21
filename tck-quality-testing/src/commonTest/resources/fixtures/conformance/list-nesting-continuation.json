@@ -1,0 +1,12 @@
+{
+  "id": "conformance-list-nesting-continuation",
+  "category": "CONFORMANCE",
+  "description": "List with continuation for multiple paragraphs",
+  "input": "* First item\n+\nContinuation paragraph for first item.\n+\nAnother continuation paragraph.\n\n* Second item\n+\n----\nCode block in list item\n----",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - List Continuation",
+    "difficulty": "advanced",
+    "spec_section": "list-nesting"
+  }
+}

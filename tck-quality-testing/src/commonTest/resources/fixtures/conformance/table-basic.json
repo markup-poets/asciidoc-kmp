@@ -1,0 +1,12 @@
+{
+  "id": "conformance-table-basic",
+  "category": "CONFORMANCE",
+  "description": "Basic table with header and data rows",
+  "input": "|===\n|Column 1 |Column 2 |Column 3\n\n|Cell 1.1\n|Cell 1.2\n|Cell 1.3\n\n|Cell 2.1\n|Cell 2.2\n|Cell 2.3\n|===",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Tables",
+    "difficulty": "intermediate",
+    "spec_section": "table-syntax"
+  }
+}

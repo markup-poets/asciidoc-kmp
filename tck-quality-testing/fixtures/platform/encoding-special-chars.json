@@ -1,0 +1,14 @@
+{
+  "id": "platform-encoding-special-chars",
+  "category": "PLATFORM_ENCODING",
+  "description": "Special characters and control sequences",
+  "input": "= Special Characters\n\nQuotes: "double" 'single' «guillemets»\n\nDashes: – en-dash — em-dash\n\nMath: ∑ ∫ ∞ ≈ ≠ ≤ ≥\n\nArrows: → ← ↑ ↓ ⇒ ⇐",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "encoding",
+    "encoding": "UTF-8",
+    "difficulty": "intermediate",
+    "requirement": "7.2",
+    "notes": "Tests special typographic and mathematical characters"
+  }
+}

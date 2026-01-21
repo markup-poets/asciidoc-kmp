@@ -1,0 +1,14 @@
+{
+  "id": "platform-encoding-zero-width",
+  "category": "PLATFORM_ENCODING",
+  "description": "Zero-width and combining characters",
+  "input": "= Zero-Width Characters\n\nCombining: e\u0301 (é with combining acute)\n\nZero-width joiner: \u200d\n\nZero-width non-joiner: \u200c",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "encoding",
+    "encoding": "UTF-8",
+    "difficulty": "advanced",
+    "requirement": "7.2",
+    "notes": "Tests zero-width and combining Unicode characters"
+  }
+}

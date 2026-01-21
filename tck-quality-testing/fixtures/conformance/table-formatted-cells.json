@@ -1,0 +1,12 @@
+{
+  "id": "conformance-table-formatted-cells",
+  "category": "CONFORMANCE",
+  "description": "Table with formatted cell content",
+  "input": "[cols=\"1,2,1\"]\n|===\n|Name |Description |Status\n\n|*Bold Name*\n|This is a _description_ with formatting\n|`Active`\n\n|Another Name\n|Plain description\n|Inactive\n|===",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Tables",
+    "difficulty": "advanced",
+    "spec_section": "table-syntax"
+  }
+}

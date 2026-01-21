@@ -1,0 +1,11 @@
+{
+  "id": "inline-italic-multiple",
+  "category": "INLINE_ITALIC",
+  "description": "Multiple italic sections in one line",
+  "input": "This has _first italic_ and _second italic_ sections.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Text Formatting",
+    "difficulty": "basic"
+  }
+}

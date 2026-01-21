@@ -1,0 +1,12 @@
+{
+  "id": "conformance-macro-link",
+  "category": "CONFORMANCE",
+  "description": "Link macro with text",
+  "input": "Visit link:https://example.com[our website] for more information.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Links",
+    "difficulty": "basic",
+    "spec_section": "macro-syntax"
+  }
+}

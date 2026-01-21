@@ -1,0 +1,14 @@
+{
+  "id": "platform-encoding-utf8-emoji",
+  "category": "PLATFORM_ENCODING",
+  "description": "UTF-8 encoding test with emoji and special symbols",
+  "input": "= Document Title 📚\n\nThis paragraph contains emoji: 🎉 ✨ 🚀\n\nAnd symbols: © ® ™ € £ ¥",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "encoding",
+    "encoding": "UTF-8",
+    "difficulty": "intermediate",
+    "requirement": "7.2",
+    "notes": "Tests multi-byte UTF-8 characters including emoji"
+  }
+}

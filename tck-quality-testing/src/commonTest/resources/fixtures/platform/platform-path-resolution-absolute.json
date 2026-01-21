@@ -1,0 +1,13 @@
+{
+  "id": "platform-path-resolution-absolute",
+  "category": "PLATFORM_PATH_RESOLUTION",
+  "description": "Test absolute path resolution across platforms",
+  "input": "/path/to/document.adoc",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "path_resolution",
+    "difficulty": "basic",
+    "requirement": "7.3",
+    "notes": "Absolute paths should be handled consistently"
+  }
+}

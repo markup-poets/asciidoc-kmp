@@ -1,0 +1,11 @@
+{
+  "id": "block-list-unordered",
+  "category": "BLOCK_LIST",
+  "description": "Simple unordered list",
+  "input": "* First item\n* Second item\n* Third item",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Lists",
+    "difficulty": "basic"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "malformed-block-unclosed",
+  "category": "MALFORMED_BLOCK",
+  "description": "Unclosed delimited block",
+  "input": "====\nThis is a sidebar block.\n\nBut it's never closed.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "Error Recovery - Unclosed Blocks",
+    "difficulty": "error-handling",
+    "expected_behavior": "Should continue parsing after detecting unclosed block"
+  }
+}

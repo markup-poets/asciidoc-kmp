@@ -1,0 +1,12 @@
+{
+  "id": "conformance-document-structure-preamble",
+  "category": "CONFORMANCE",
+  "description": "Document with preamble before first section",
+  "input": "= Document Title\n\nThis is the preamble.\nIt comes before any sections.\n\n== First Section\n\nSection content here.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Document Structure",
+    "difficulty": "intermediate",
+    "spec_section": "document-structure"
+  }
+}

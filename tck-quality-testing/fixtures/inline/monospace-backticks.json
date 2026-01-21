@@ -1,0 +1,11 @@
+{
+  "id": "inline-monospace-backticks",
+  "category": "INLINE_MONOSPACE",
+  "description": "Monospace with backtick syntax",
+  "input": "The variable `userName` stores the user's name.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Text Formatting",
+    "difficulty": "basic"
+  }
+}

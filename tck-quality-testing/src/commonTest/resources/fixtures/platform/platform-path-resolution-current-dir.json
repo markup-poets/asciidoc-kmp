@@ -1,0 +1,13 @@
+{
+  "id": "platform-path-resolution-current-dir",
+  "category": "PLATFORM_PATH_RESOLUTION",
+  "description": "Test current directory path resolution",
+  "input": "./document.adoc",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "path_resolution",
+    "difficulty": "basic",
+    "requirement": "7.3",
+    "notes": "Current directory relative paths"
+  }
+}

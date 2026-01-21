@@ -1,0 +1,12 @@
+{
+  "id": "conformance-attribute-conditional",
+  "category": "CONFORMANCE",
+  "description": "Conditional content based on attributes",
+  "input": ":feature-enabled:\n\nifdef::feature-enabled[]\nThis content is shown when feature-enabled is set.\nendif::[]\n\nifndef::feature-disabled[]\nThis content is shown when feature-disabled is not set.\nendif::[]",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Conditional Directives",
+    "difficulty": "advanced",
+    "spec_section": "attribute-processing"
+  }
+}

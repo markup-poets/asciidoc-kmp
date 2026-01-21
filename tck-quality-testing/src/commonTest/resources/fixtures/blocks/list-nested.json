@@ -1,0 +1,11 @@
+{
+  "id": "block-list-nested",
+  "category": "BLOCK_LIST",
+  "description": "Nested unordered list",
+  "input": "* Level 1 item\n** Level 2 item\n*** Level 3 item\n** Another level 2 item\n* Another level 1 item",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Lists",
+    "difficulty": "intermediate"
+  }
+}

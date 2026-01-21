@@ -1,0 +1,11 @@
+{
+  "id": "block-paragraph-simple",
+  "category": "BLOCK_PARAGRAPH",
+  "description": "Simple paragraph with plain text",
+  "input": "This is a simple paragraph.",
+  "expectedOutput": "<p>This is a simple paragraph.</p>",
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Paragraphs",
+    "difficulty": "basic"
+  }
+}

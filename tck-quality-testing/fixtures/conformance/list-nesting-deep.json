@@ -1,0 +1,12 @@
+{
+  "id": "conformance-list-nesting-deep",
+  "category": "CONFORMANCE",
+  "description": "Deeply nested unordered list (5 levels)",
+  "input": "* Level 1\n** Level 2\n*** Level 3\n**** Level 4\n***** Level 5\n**** Back to level 4\n** Back to level 2\n* Another level 1",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Lists",
+    "difficulty": "advanced",
+    "spec_section": "list-nesting"
+  }
+}

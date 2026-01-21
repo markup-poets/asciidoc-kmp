@@ -1,0 +1,12 @@
+{
+  "id": "malformed-block-invalid-delimiter",
+  "category": "MALFORMED_BLOCK",
+  "description": "Block with mismatched delimiters",
+  "input": "====\nThis starts as a sidebar.\n----\nBut closes with a different delimiter.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "Error Recovery - Mismatched Delimiters",
+    "difficulty": "error-handling",
+    "expected_behavior": "Should detect mismatch and continue parsing"
+  }
+}

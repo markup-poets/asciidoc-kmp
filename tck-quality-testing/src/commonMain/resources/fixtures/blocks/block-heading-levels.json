@@ -1,0 +1,11 @@
+{
+  "id": "block-heading-levels",
+  "category": "BLOCK_HEADING",
+  "description": "Heading with different levels",
+  "input": "= Level 1\n== Level 2\n=== Level 3",
+  "expectedOutput": "<h1>Level 1</h1>\n<h2>Level 2</h2>\n<h3>Level 3</h3>",
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Headings",
+    "difficulty": "basic"
+  }
+}

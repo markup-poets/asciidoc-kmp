@@ -1,0 +1,11 @@
+{
+  "id": "inline-italic-simple",
+  "category": "INLINE_ITALIC",
+  "description": "Simple italic formatting",
+  "input": "This is _italic text_ in a sentence.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Text Formatting",
+    "difficulty": "basic"
+  }
+}

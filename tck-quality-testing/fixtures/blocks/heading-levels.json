@@ -1,0 +1,11 @@
+{
+  "id": "block-heading-levels",
+  "category": "BLOCK_HEADING",
+  "description": "Headings at all six levels",
+  "input": "= Level 0 (Document Title)\n\n== Level 1\n\n=== Level 2\n\n==== Level 3\n\n===== Level 4\n\n====== Level 5",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Sections",
+    "difficulty": "basic"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "invalid-attribute-value",
+  "category": "MALFORMED_ATTRIBUTE",
+  "description": "Attribute with invalid value type",
+  "input": ":toc-levels: not-a-number\n:sectnums:\n\n== Section\n\nContent.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "Error Recovery - Invalid Attribute Values",
+    "difficulty": "error-handling",
+    "expected_behavior": "Should use default value when attribute value is invalid"
+  }
+}

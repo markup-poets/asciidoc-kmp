@@ -1,0 +1,12 @@
+{
+  "id": "invalid-attribute-syntax",
+  "category": "MALFORMED_ATTRIBUTE",
+  "description": "Invalid attribute syntax",
+  "input": ":invalid attribute without equals\n:another-attr: valid value\n\nContent here.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "Error Recovery - Invalid Attributes",
+    "difficulty": "error-handling",
+    "expected_behavior": "Should use default values and log warnings for invalid attributes"
+  }
+}

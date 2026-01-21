@@ -1,0 +1,12 @@
+{
+  "id": "malformed-inline-nested",
+  "category": "MALFORMED_INLINE",
+  "description": "Improperly nested inline formatting",
+  "input": "This has *bold with _italic that closes bold* before italic_.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "Error Recovery - Nested Inline Formatting",
+    "difficulty": "error-handling",
+    "expected_behavior": "Should handle improper nesting gracefully"
+  }
+}

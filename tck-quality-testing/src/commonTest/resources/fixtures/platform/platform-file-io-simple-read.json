@@ -1,0 +1,12 @@
+{
+  "id": "platform-file-io-simple-read",
+  "category": "PLATFORM_FILE_IO",
+  "description": "Simple file reading test with basic AsciiDoc content",
+  "input": "= Document Title\n\nThis is a simple paragraph.",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "file_read",
+    "difficulty": "basic",
+    "requirement": "7.1"
+  }
+}

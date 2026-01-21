@@ -1,0 +1,12 @@
+{
+  "id": "conformance-document-structure-sections",
+  "category": "CONFORMANCE",
+  "description": "Document with hierarchical section structure",
+  "input": "= Document Title\n\n== Level 1 Section\n\nContent for level 1.\n\n=== Level 2 Section\n\nContent for level 2.\n\n==== Level 3 Section\n\nContent for level 3.\n\n== Another Level 1 Section\n\nMore content.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Sections",
+    "difficulty": "intermediate",
+    "spec_section": "document-structure"
+  }
+}

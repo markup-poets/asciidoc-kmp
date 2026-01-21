@@ -1,0 +1,11 @@
+{
+  "id": "block-paragraph-multiline",
+  "category": "BLOCK_PARAGRAPH",
+  "description": "Paragraph with multiple lines",
+  "input": "This is the first line.\nThis is the second line.\nThis is the third line.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Paragraphs",
+    "difficulty": "basic"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "platform-file-io-multiline-read",
+  "category": "PLATFORM_FILE_IO",
+  "description": "File reading test with multiline content and various line endings",
+  "input": "= Document Title\n\nFirst paragraph.\n\nSecond paragraph with *bold* text.\n\n== Section\n\nSection content.",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "file_read",
+    "difficulty": "intermediate",
+    "requirement": "7.1",
+    "notes": "Tests handling of different line endings across platforms"
+  }
+}

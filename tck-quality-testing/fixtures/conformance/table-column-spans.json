@@ -1,0 +1,12 @@
+{
+  "id": "conformance-table-column-spans",
+  "category": "CONFORMANCE",
+  "description": "Table with column spans",
+  "input": "|===\n|Column 1 |Column 2 |Column 3\n\n3+|This cell spans all three columns\n\n|Cell 2.1\n2+|This cell spans two columns\n|===",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Tables",
+    "difficulty": "advanced",
+    "spec_section": "table-syntax"
+  }
+}

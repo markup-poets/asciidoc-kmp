@@ -1,0 +1,12 @@
+{
+  "id": "conformance-list-nesting-mixed",
+  "category": "CONFORMANCE",
+  "description": "Mixed nested lists (unordered and ordered)",
+  "input": "* Item 1\n** Nested item 1.1\n** Nested item 1.2\n*** Deep nested 1.2.1\n* Item 2\n. Ordered nested 2.1\n. Ordered nested 2.2\n* Item 3",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Lists",
+    "difficulty": "advanced",
+    "spec_section": "list-nesting"
+  }
+}

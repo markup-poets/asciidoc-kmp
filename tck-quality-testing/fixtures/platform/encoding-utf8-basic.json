@@ -1,0 +1,13 @@
+{
+  "id": "platform-encoding-utf8-basic",
+  "category": "PLATFORM_ENCODING",
+  "description": "Basic UTF-8 encoding test with common characters",
+  "input": "= Document Title\n\nThis is a paragraph with UTF-8 characters: café, naïve, résumé.",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "encoding",
+    "encoding": "UTF-8",
+    "difficulty": "basic",
+    "requirement": "7.2"
+  }
+}

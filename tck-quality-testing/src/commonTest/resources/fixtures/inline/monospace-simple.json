@@ -1,0 +1,11 @@
+{
+  "id": "inline-monospace-simple",
+  "category": "INLINE_MONOSPACE",
+  "description": "Simple monospace formatting",
+  "input": "Use the `code` function to execute.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Text Formatting",
+    "difficulty": "basic"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "malformed-inline-unclosed",
+  "category": "MALFORMED_INLINE",
+  "description": "Unclosed inline formatting",
+  "input": "This has *bold that never closes and continues to the end.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "Error Recovery - Unclosed Inline Formatting",
+    "difficulty": "error-handling",
+    "expected_behavior": "Should preserve raw text when formatting is unclosed"
+  }
+}

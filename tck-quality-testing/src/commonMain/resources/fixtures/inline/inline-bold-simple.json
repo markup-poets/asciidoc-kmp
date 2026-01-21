@@ -1,0 +1,11 @@
+{
+  "id": "inline-bold-simple",
+  "category": "INLINE_BOLD",
+  "description": "Simple bold text formatting",
+  "input": "This is *bold* text.",
+  "expectedOutput": "This is <strong>bold</strong> text.",
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Inline Formatting",
+    "difficulty": "basic"
+  }
+}

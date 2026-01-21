@@ -1,0 +1,12 @@
+{
+  "id": "conformance-document-structure-header",
+  "category": "CONFORMANCE",
+  "description": "Document with header containing title and author",
+  "input": "= Document Title\nJohn Doe <john@example.com>\n\nFirst paragraph of content.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Document Header",
+    "difficulty": "intermediate",
+    "spec_section": "document-structure"
+  }
+}

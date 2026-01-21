@@ -1,0 +1,12 @@
+{
+  "id": "conformance-attribute-substitution",
+  "category": "CONFORMANCE",
+  "description": "Attribute substitution in content",
+  "input": ":product-name: AsciiDoc Converter\n:version: 1.0.0\n\nWelcome to {product-name} version {version}.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Attribute References",
+    "difficulty": "intermediate",
+    "spec_section": "attribute-processing"
+  }
+}

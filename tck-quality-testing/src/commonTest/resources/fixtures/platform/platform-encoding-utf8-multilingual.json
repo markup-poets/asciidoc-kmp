@@ -1,0 +1,14 @@
+{
+  "id": "platform-encoding-utf8-multilingual",
+  "category": "PLATFORM_ENCODING",
+  "description": "UTF-8 encoding test with multiple languages",
+  "input": "= Multilingual Document\n\nEnglish: Hello World\n\nFrench: Bonjour le monde\n\nGerman: Hallo Welt\n\nJapanese: こんにちは世界\n\nChinese: 你好世界\n\nRussian: Привет мир\n\nArabic: مرحبا بالعالم",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "encoding",
+    "encoding": "UTF-8",
+    "difficulty": "advanced",
+    "requirement": "7.2",
+    "notes": "Tests various Unicode scripts and right-to-left text"
+  }
+}

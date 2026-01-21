@@ -1,0 +1,13 @@
+{
+  "id": "platform-path-resolution-relative",
+  "category": "PLATFORM_PATH_RESOLUTION",
+  "description": "Test relative path resolution across platforms",
+  "input": "../docs/document.adoc",
+  "expectedOutput": null,
+  "metadata": {
+    "test_type": "path_resolution",
+    "difficulty": "intermediate",
+    "requirement": "7.3",
+    "notes": "Relative paths with parent directory navigation"
+  }
+}

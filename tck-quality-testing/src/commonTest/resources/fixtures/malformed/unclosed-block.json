@@ -1,0 +1,10 @@
+{
+  "id": "malformed-unclosed-block",
+  "category": "MALFORMED_BLOCK",
+  "description": "Block with unclosed delimiter",
+  "input": "----\nCode block without closing delimiter",
+  "metadata": {
+    "spec_reference": "Error Recovery",
+    "difficulty": "error-case"
+  }
+}

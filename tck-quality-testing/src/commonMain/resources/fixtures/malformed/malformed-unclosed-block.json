@@ -1,0 +1,10 @@
+{
+  "id": "malformed-unclosed-block",
+  "category": "MALFORMED_BLOCK",
+  "description": "Block with unclosed delimiter",
+  "input": "====\nThis is a block without closing delimiter",
+  "metadata": {
+    "error_type": "unclosed_delimiter",
+    "difficulty": "basic"
+  }
+}

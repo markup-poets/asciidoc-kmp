@@ -1,0 +1,11 @@
+{
+  "id": "inline-bold-nested",
+  "category": "INLINE_BOLD",
+  "description": "Bold formatting with nested italic",
+  "input": "This is *bold with _italic_ inside* text.",
+  "expectedOutput": null,
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Text Formatting",
+    "difficulty": "intermediate"
+  }
+}
