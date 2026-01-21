@@ -5,7 +5,7 @@ shadow = "9.3.1"
 android-minSdk = "24"
 android-compileSdk = "36"
 vanniktechMavenPublish = "0.35.0"
-kotest = "6.0.7"
+kotest = "6.1.0"
 kotlinx-serialization = "1.7.3"
 
 [libraries]
