@@ -12,6 +12,20 @@ The TCK provides:
 - **Test Reporting**: Generators for JUnit XML, JSON, and text reports
 - **Compatibility Tests**: Base classes for cross-platform validation
 
+## Relationship to Official AsciiDoc TCK
+
+This is currently a **custom TCK** designed for this project's specific needs (Kotlin Multiplatform compatibility, incremental development, performance tracking). 
+
+**Future Goal**: Integrate with and pass the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) to achieve full AsciiDoc specification conformance and certification.
+
+**Current Status**: 
+- ✅ Custom test infrastructure operational
+- ✅ Growing fixture library for incremental development
+- 🔄 Official TCK integration planned for future milestone
+- 🔄 Spec conformance validation in progress
+
+**Roadmap**: See [OFFICIAL_TCK_INTEGRATION.md](OFFICIAL_TCK_INTEGRATION.md) for the detailed integration plan.
+
 ## Module Structure
 
 ```
@@ -200,6 +214,26 @@ The TCK is designed to:
 4. **Enable CI/CD**: All tests execute via Gradle and produce standard reports
 
 ## Future Enhancements
+
+### Official TCK Integration (Planned)
+
+**Goal**: Integrate with the official Eclipse Foundation AsciiDoc TCK to achieve specification conformance certification.
+
+**Planned Work**:
+- Fetch and sync official TCK test cases from [Eclipse AsciiDoc TCK repository](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck)
+- Support official TCK test format alongside custom fixtures
+- Map official test cases to KMP test infrastructure
+- Generate conformance reports showing pass/fail status against official tests
+- Document any spec ambiguities or interpretation differences
+- Achieve official AsciiDoc processor certification
+
+**Benefits**:
+- Guaranteed spec compliance
+- Interoperability with other AsciiDoc processors
+- Community trust and adoption
+- Automatic updates when spec evolves
+
+### Other Enhancements
 
 - Advanced diff generation with syntax highlighting
 - Performance regression visualization

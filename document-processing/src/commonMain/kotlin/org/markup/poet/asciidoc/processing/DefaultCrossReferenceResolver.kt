@@ -279,6 +279,8 @@ class DefaultCrossReferenceResolver : CrossReferenceResolver {
             is Callout -> "<${inline.number}>"
             is CrossReference -> inline.customText ?: inline.targetId
             is MacroInvocation -> inline.macroName
+            is FootnoteReference -> inline.content.joinToString("") { extractText(it) }
+            is BibliographyReference -> inline.citationId
         }
     }
     

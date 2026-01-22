@@ -96,6 +96,60 @@ data class IncludeDirective(
 ) : BlockElement()
 
 /**
+ * Represents a conditional directive (ifdef, ifndef, ifeval).
+ */
+data class ConditionalDirective(
+    val type: ConditionalType,
+    val condition: String,
+    val content: List<BlockElement>,
+    val elseContent: List<BlockElement> = emptyList(),
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : BlockElement()
+
+/**
+ * Types of conditional directives.
+ */
+enum class ConditionalType {
+    IFDEF,
+    IFNDEF,
+    IFEVAL
+}
+
+/**
+ * Represents an admonition block (NOTE, TIP, WARNING, CAUTION, IMPORTANT).
+ */
+data class AdmonitionBlock(
+    val type: AdmonitionType,
+    val title: String?,
+    val content: List<BlockElement>,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : BlockElement()
+
+/**
+ * Types of admonition blocks.
+ */
+enum class AdmonitionType {
+    NOTE,
+    TIP,
+    WARNING,
+    CAUTION,
+    IMPORTANT
+}
+
+/**
+ * Represents a bibliography entry in the document.
+ */
+data class BibliographyEntry(
+    val id: String,
+    val citation: String,
+    val metadata: Map<String, String>,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : BlockElement()
+
+/**
  * Enumeration of supported list types.
  */
 enum class ListType { 

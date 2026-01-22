@@ -203,6 +203,10 @@ class GraphvizAstVisitor(
             is CrossReference, is MacroInvocation -> {
                 // These nodes have no children to process
             }
+            // Default for any other node types
+            else -> {
+                // Other node types don't have children or are handled elsewhere
+            }
         }
         
         currentDepth--
@@ -235,6 +239,7 @@ class GraphvizAstVisitor(
             is IncludeDirective -> "Include: ${node.path}"
             is CrossReference -> "XRef: ${node.targetId}"
             is MacroInvocation -> "Macro: ${node.macroName}"
+            else -> "Node: ${node::class.simpleName}"
         }
     }
     
@@ -270,6 +275,7 @@ class GraphvizAstVisitor(
                 is Callout -> "<${element.number}>"
                 is CrossReference -> element.customText ?: "<<${element.targetId}>>"
                 is MacroInvocation -> "${element.macroName}::[]"
+                else -> ""
             }
         }
     }

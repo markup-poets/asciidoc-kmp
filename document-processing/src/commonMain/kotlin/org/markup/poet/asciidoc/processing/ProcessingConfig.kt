@@ -8,6 +8,8 @@ data class ProcessingConfig(
     val enableIncludes: Boolean = true,
     val maxIncludeDepth: Int = 10,
     val basePath: String = "",
+    val enableFragmentProcessing: Boolean = true,
+    val enableConditionalProcessing: Boolean = true,
     val enableAttributeSubstitution: Boolean = true,
     val attributeDefaults: Map<String, String> = emptyMap(),
     val enableCrossReferences: Boolean = true,
@@ -15,7 +17,11 @@ data class ProcessingConfig(
     val tocDepth: Int = 3,
     val validationStrictness: ValidationLevel = ValidationLevel.NORMAL,
     val enableMacroExpansion: Boolean = true,
-    val customMacros: Map<String, MacroProcessor> = emptyMap()
+    val customMacros: Map<String, MacroProcessor> = emptyMap(),
+    val enableAdmonitionProcessing: Boolean = true,
+    val enableCalloutProcessing: Boolean = true,
+    val enableBibliographyManagement: Boolean = true,
+    val extensionRegistry: ExtensionRegistry? = null
 )
 
 /**

@@ -116,3 +116,79 @@ This specification defines the document processing capabilities for an AsciiDoc 
 3. WHEN warnings are generated, THE Document_Processor SHALL distinguish them from errors in the diagnostic output
 4. WHEN processing completes, THE Document_Processor SHALL provide a summary of errors and warnings encountered
 5. WHEN an error prevents further processing, THE Document_Processor SHALL report the error and halt gracefully
+
+### Requirement 9: Conditional Content Processing
+
+**User Story:** As a documentation author, I want to conditionally include or exclude content based on attributes, so that I can generate different document variants from a single source.
+
+#### Acceptance Criteria
+
+1. WHEN an ifdef directive is encountered, THE Document_Processor SHALL include the content only if the specified attribute is defined
+2. WHEN an ifndef directive is encountered, THE Document_Processor SHALL include the content only if the specified attribute is not defined
+3. WHEN an ifeval directive is encountered, THE Document_Processor SHALL evaluate the expression and include content based on the result
+4. WHEN conditional directives are nested, THE Document_Processor SHALL evaluate them correctly according to nesting rules
+5. WHEN an endif directive is missing, THE Document_Processor SHALL report an error with the location of the unclosed conditional
+6. WHEN multiple attributes are specified in a conditional, THE Document_Processor SHALL support logical operators (AND, OR)
+
+### Requirement 10: Document Fragment Processing
+
+**User Story:** As a documentation author, I want to include specific tagged sections from files, so that I can reuse portions of code or documentation without including entire files.
+
+#### Acceptance Criteria
+
+1. WHEN an include directive specifies a tag attribute, THE Document_Processor SHALL include only content between matching tag markers
+2. WHEN multiple tags are specified, THE Document_Processor SHALL include all matching tagged sections
+3. WHEN a tag is not found in the included file, THE Document_Processor SHALL report a warning with the missing tag name
+4. WHEN tag markers are malformed, THE Document_Processor SHALL report an error with location information
+5. WHEN tags are nested, THE Document_Processor SHALL handle them according to AsciiDoc tag nesting rules
+6. WHEN combining tags with line ranges, THE Document_Processor SHALL apply both filters correctly
+
+### Requirement 11: Admonition Block Processing
+
+**User Story:** As a documentation author, I want to create admonition blocks (NOTE, TIP, WARNING, etc.), so that I can highlight important information for readers.
+
+#### Acceptance Criteria
+
+1. WHEN an admonition block is encountered, THE Document_Processor SHALL identify its type (NOTE, TIP, WARNING, CAUTION, IMPORTANT)
+2. WHEN processing an admonition, THE Document_Processor SHALL preserve its content and metadata in the AST
+3. WHEN an admonition has a custom title, THE Document_Processor SHALL associate the title with the admonition
+4. WHEN admonitions are nested within other blocks, THE Document_Processor SHALL maintain proper structural relationships
+5. WHEN an admonition type is invalid, THE Document_Processor SHALL report a warning and treat it as a generic block
+
+### Requirement 12: Bibliography and Footnote Management
+
+**User Story:** As a documentation author, I want to manage bibliographic references and footnotes, so that I can properly cite sources and provide additional context.
+
+#### Acceptance Criteria
+
+1. WHEN a footnote reference is encountered, THE Document_Processor SHALL assign it a unique identifier and collect the footnote content
+2. WHEN processing completes, THE Document_Processor SHALL provide a list of all footnotes in document order
+3. WHEN a bibliography entry is defined, THE Document_Processor SHALL index it for cross-referencing
+4. WHEN a bibliography reference is encountered, THE Document_Processor SHALL resolve it to the corresponding entry
+5. WHEN a footnote or bibliography reference is unresolved, THE Document_Processor SHALL report a warning
+6. WHEN footnotes are referenced multiple times, THE Document_Processor SHALL maintain consistent numbering
+
+### Requirement 13: Source Code Callout Processing
+
+**User Story:** As a documentation author, I want to add callouts to source code examples, so that I can explain specific lines or sections of code.
+
+#### Acceptance Criteria
+
+1. WHEN a callout marker is found in a code block, THE Document_Processor SHALL extract and number it sequentially
+2. WHEN callout list items are provided after a code block, THE Document_Processor SHALL associate them with the corresponding callout markers
+3. WHEN callout markers and list items don't match, THE Document_Processor SHALL report a warning
+4. WHEN callouts are used without a code block, THE Document_Processor SHALL report an error
+5. WHEN multiple code blocks with callouts exist, THE Document_Processor SHALL maintain separate callout sequences for each
+
+### Requirement 14: Extension System for Custom Processors
+
+**User Story:** As a system integrator, I want to register custom processors and extensions, so that I can add domain-specific processing logic without modifying the core library.
+
+#### Acceptance Criteria
+
+1. WHEN a custom processor is registered, THE Document_Processor SHALL make it available in the processing pipeline
+2. WHEN configuring the pipeline, THE Document_Processor SHALL allow specifying the execution order of custom processors
+3. WHEN a custom processor fails, THE Document_Processor SHALL report the error and continue with remaining processors
+4. WHEN custom processors modify the AST, THE Document_Processor SHALL validate the modifications
+5. WHEN multiple custom processors are registered, THE Document_Processor SHALL execute them in the configured order
+6. WHEN a custom processor is registered with a priority, THE Document_Processor SHALL insert it at the appropriate position in the pipeline

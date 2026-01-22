@@ -64,6 +64,9 @@ class DefaultBlockRenderer(
             is CalloutListItem -> renderCalloutListItem(block, context)
             is IncludeDirective -> renderIncludeDirective(block, context)
             is Document -> renderDocument(block, context)
+            is AdmonitionBlock -> renderAdmonitionBlock(block, context)
+            is ConditionalDirective -> renderConditionalDirective(block, context)
+            is BibliographyEntry -> renderBibliographyEntry(block, context)
         }
     }
     
@@ -338,5 +341,38 @@ class DefaultBlockRenderer(
      */
     private fun renderInlineContent(content: List<InlineElement>, context: RenderContext): String {
         return content.joinToString("") { inlineRenderer.render(it, context) }
+    }
+    
+    /**
+     * Render an admonition block (NOTE, TIP, WARNING, etc.)
+     */
+    private fun renderAdmonitionBlock(block: AdmonitionBlock, context: RenderContext): String {
+        val content = block.content.joinToString("\n") { render(it, context) }
+        return """<div class="admonitionblock ${block.type.name.lowercase()}">
+<table>
+<tr>
+<td class="icon"><div class="title">${block.type.name}</div></td>
+<td class="content">$content</td>
+</tr>
+</table>
+</div>"""
+    }
+    
+    /**
+     * Render a conditional directive (ifdef/ifndef)
+     */
+    private fun renderConditionalDirective(block: ConditionalDirective, context: RenderContext): String {
+        // For now, just render the content (condition should be evaluated during processing)
+        return block.content.joinToString("\n") { render(it, context) }
+    }
+    
+    /**
+     * Render a bibliography entry
+     */
+    private fun renderBibliographyEntry(block: BibliographyEntry, context: RenderContext): String {
+        return """<div class="bibliography-entry" id="${block.id}">
+<span class="bibliography-label">[${block.id}]</span>
+<span class="bibliography-text">${builder.escape(block.citation)}</span>
+</div>"""
     }
 }

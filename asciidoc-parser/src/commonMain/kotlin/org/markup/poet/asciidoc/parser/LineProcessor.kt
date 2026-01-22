@@ -86,7 +86,6 @@ class DefaultLineProcessor : LineProcessor {
         return when {
             trimmed.isEmpty() -> BlockType.EMPTY
             isCodeBlockDelimiter(trimmed) -> BlockType.CODE_BLOCK_DELIMITER
-            trimmed.startsWith("[source") -> BlockType.CODE_BLOCK_DELIMITER
             isSectionHeader(trimmed) -> BlockType.SECTION_HEADER
             isUnorderedListItem(trimmed) -> BlockType.UNORDERED_LIST
             isOrderedListItem(trimmed) -> BlockType.ORDERED_LIST

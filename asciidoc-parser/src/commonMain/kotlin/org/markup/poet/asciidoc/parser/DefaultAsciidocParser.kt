@@ -65,11 +65,21 @@ class DefaultAsciidocParser(
         var currentBlockLines = mutableListOf<String>()
         var currentBlockType: BlockType? = null
         var currentBlockStartLine = 1
+        var pendingBlockAttribute: String? = null  // Track [source,...] lines
         
         lines.forEachIndexed { index, line ->
             val lineNumber = index + 1
             
             try {
+                val trimmed = line.trim()
+                
+                // Check if this is a block attribute line like [source,kotlin]
+                if (trimmed.startsWith("[source") && trimmed.endsWith("]") && !stateMachine.getCurrentState().let { it == ParseState.IN_CODE_BLOCK }) {
+                    // Store this as a pending block attribute for the next code block
+                    pendingBlockAttribute = trimmed
+                    return@forEachIndexed
+                }
+                
                 val context = ParseContext(
                     inCodeBlock = stateMachine.getCurrentState() == ParseState.IN_CODE_BLOCK,
                     currentListLevel = stateMachine.getContext().listLevel,
@@ -99,8 +109,9 @@ class DefaultAsciidocParser(
                     BlockType.EMPTY if !inCodeBlock -> {
                         // Finalize current block if any
                         if (currentBlockLines.isNotEmpty()) {
-                            processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes)
+                            processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes, pendingBlockAttribute)
                             currentBlockLines.clear()
+                            pendingBlockAttribute = null
                         }
                         currentBlockType = null
                     }
@@ -121,8 +132,9 @@ class DefaultAsciidocParser(
                                 if (isClosingDelimiter) {
                                     currentBlockLines.add(line)
                                 }
-                                processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes)
+                                processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes, pendingBlockAttribute)
                                 currentBlockLines.clear()
+                                pendingBlockAttribute = null
                                 if (isClosingDelimiter) {
                                     currentBlockType = null
                                     // NO RESET HERE
@@ -156,7 +168,7 @@ class DefaultAsciidocParser(
         
         // Process any remaining block
         if (currentBlockLines.isNotEmpty()) {
-            processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes)
+            processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes, pendingBlockAttribute)
         }
         
         // Extract document title from first section if present
@@ -180,7 +192,8 @@ class DefaultAsciidocParser(
         blockType: BlockType?,
         startLineNumber: Int,
         children: MutableList<BlockElement>,
-        documentAttributes: Map<String, String>
+        documentAttributes: Map<String, String>,
+        blockAttribute: String? = null
     ) {
         if (lines.isEmpty()) return
         
@@ -202,24 +215,16 @@ class DefaultAsciidocParser(
                 }
                 
                 BlockType.CODE_BLOCK_DELIMITER -> {
-                    // Extract content between delimiters
+                    // Extract language from block attribute if present
                     var language: String? = null
+                    if (blockAttribute != null && blockAttribute.startsWith("[source,")) {
+                        val metadata = blockAttribute.removePrefix("[").removeSuffix("]")
+                        language = metadata.removePrefix("source,").trim()
+                    }
+                    
+                    // Extract content between delimiters
                     val codeContent = if (lines.size >= 2) {
-                        if (lines.first().startsWith("[")) {
-                            // Extract language from [source,language]
-                            val metadata = lines.first().removePrefix("[").removeSuffix("]")
-                            if (metadata.startsWith("source,")) {
-                                language = metadata.removePrefix("source,").trim()
-                            }
-                            
-                            if (lines.getOrNull(1)?.startsWith("----") == true) {
-                                lines.drop(2).dropLast(1)
-                            } else {
-                                lines.drop(1).dropLast(1)
-                            }
-                        } else {
-                            lines.drop(1).dropLast(1)
-                        }
+                        lines.drop(1).dropLast(1)
                     } else {
                         // Malformed code block
                         addError(

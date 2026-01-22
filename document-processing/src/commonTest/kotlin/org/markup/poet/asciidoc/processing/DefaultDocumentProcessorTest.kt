@@ -51,8 +51,13 @@ class DefaultDocumentProcessorTest {
         val document = Document(null, emptyList(), emptyMap(), emptyMap(), SourceLocation(0, 0))
         val config = ProcessingConfig(
             enableIncludes = false,
+            enableFragmentProcessing = false,
+            enableConditionalProcessing = false,
             enableAttributeSubstitution = false,
             enableMacroExpansion = false,
+            enableAdmonitionProcessing = false,
+            enableCalloutProcessing = false,
+            enableBibliographyManagement = false,
             enableCrossReferences = false,
             enableTocGeneration = false
         )
@@ -72,8 +77,13 @@ class DefaultDocumentProcessorTest {
         val document = Document(null, emptyList(), emptyMap(), emptyMap(), SourceLocation(0, 0))
         val config = ProcessingConfig(
             enableIncludes = false,
+            enableFragmentProcessing = false,
+            enableConditionalProcessing = false,
             enableAttributeSubstitution = false,
             enableMacroExpansion = false,
+            enableAdmonitionProcessing = false,
+            enableCalloutProcessing = false,
+            enableBibliographyManagement = false,
             enableCrossReferences = false,
             enableTocGeneration = false
         )
@@ -108,8 +118,13 @@ class DefaultDocumentProcessorTest {
     private fun createTestProcessor(): DefaultDocumentProcessor {
         return DefaultDocumentProcessor(
             includeResolver = createMockIncludeResolver(),
+            fragmentProcessor = createMockFragmentProcessor(),
+            conditionalProcessor = createMockConditionalProcessor(),
             attributeSubstitutor = createMockAttributeSubstitutor(),
             macroExpander = createMockMacroExpander(),
+            admonitionProcessor = createMockAdmonitionProcessor(),
+            calloutProcessor = createMockCalloutProcessor(),
+            bibliographyManager = createMockBibliographyManager(),
             crossReferenceResolver = createMockCrossReferenceResolver(),
             tocGenerator = createMockTocGenerator(),
             documentValidator = createMockDocumentValidator()
@@ -123,6 +138,70 @@ class DefaultDocumentProcessorTest {
                     document = document,
                     errors = emptyList(),
                     includedFiles = emptySet()
+                )
+            }
+        }
+    }
+    
+    private fun createMockFragmentProcessor(): FragmentProcessor {
+        return object : FragmentProcessor {
+            override fun processFragments(document: Document, config: FragmentConfig): FragmentResult {
+                return FragmentResult(
+                    document = document,
+                    errors = emptyList(),
+                    warnings = emptyList(),
+                    extractedTags = emptyMap()
+                )
+            }
+        }
+    }
+    
+    private fun createMockConditionalProcessor(): ConditionalProcessor {
+        return object : ConditionalProcessor {
+            override fun process(document: Document, config: ConditionalConfig): ConditionalResult {
+                return ConditionalResult(
+                    document = document,
+                    errors = emptyList(),
+                    warnings = emptyList(),
+                    evaluatedConditionals = 0
+                )
+            }
+        }
+    }
+    
+    private fun createMockAdmonitionProcessor(): AdmonitionProcessor {
+        return object : AdmonitionProcessor {
+            override fun process(document: Document): AdmonitionResult {
+                return AdmonitionResult(
+                    document = document,
+                    warnings = emptyList(),
+                    admonitionCount = emptyMap()
+                )
+            }
+        }
+    }
+    
+    private fun createMockCalloutProcessor(): CalloutProcessor {
+        return object : CalloutProcessor {
+            override fun process(document: Document): CalloutResult {
+                return CalloutResult(
+                    document = document,
+                    errors = emptyList(),
+                    warnings = emptyList(),
+                    calloutsByBlock = emptyMap()
+                )
+            }
+        }
+    }
+    
+    private fun createMockBibliographyManager(): BibliographyManager {
+        return object : BibliographyManager {
+            override fun process(document: Document): BibliographyResult {
+                return BibliographyResult(
+                    document = document,
+                    footnotes = emptyList(),
+                    bibliography = emptyMap(),
+                    warnings = emptyList()
                 )
             }
         }

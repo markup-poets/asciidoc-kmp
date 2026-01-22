@@ -1,10 +1,12 @@
 package org.markup.poet.asciidoc.parser
 
 import org.markup.poet.asciidoc.ast.AttributeReference
+import org.markup.poet.asciidoc.ast.BibliographyReference
 import org.markup.poet.asciidoc.ast.Callout
 import org.markup.poet.asciidoc.ast.Code
 import org.markup.poet.asciidoc.ast.CrossReference
 import org.markup.poet.asciidoc.ast.Emphasis
+import org.markup.poet.asciidoc.ast.FootnoteReference
 import org.markup.poet.asciidoc.ast.Image
 import org.markup.poet.asciidoc.ast.Link
 import org.markup.poet.asciidoc.ast.MacroInvocation
@@ -38,7 +40,7 @@ class InlineMarkupPrecedenceAndEscapingTest {
                         when (element) {
                             is Strong -> element.content.size > 1 || element.content.any { it !is Text }
                             is Emphasis -> element.content.size > 1 || element.content.any { it !is Text }
-                            is Code, is Image, is Link, is Text, is AttributeReference, is Callout, is CrossReference, is MacroInvocation -> false
+                            is Code, is Image, is Link, is Text, is AttributeReference, is Callout, is CrossReference, is MacroInvocation, is BibliographyReference, is FootnoteReference -> false
                         }
                     }
                     

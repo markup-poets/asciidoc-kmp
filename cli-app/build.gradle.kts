@@ -25,6 +25,7 @@ kotlin {
                 implementation(project(":asciidoc-parser"))
                 implementation(project(":ast-graphviz-export"))
                 implementation(project(":document-processing"))
+                implementation(project(":html-renderer"))
             }
         }
 

@@ -61,6 +61,8 @@ class DefaultInlineRenderer(
             is Callout -> renderCallout(inline)
             is CrossReference -> renderCrossReference(inline, context)
             is MacroInvocation -> renderMacroInvocation(inline, context)
+            is BibliographyReference -> renderBibliographyReference(inline)
+            is FootnoteReference -> renderFootnoteReference(inline)
         }
     }
     
@@ -225,5 +227,19 @@ class DefaultInlineRenderer(
         }
         
         return trimmed
+    }
+    
+    /**
+     * Render a bibliography reference
+     */
+    private fun renderBibliographyReference(ref: BibliographyReference): String {
+        return """<a href="#${ref.citationId}" class="bibliography-ref">[${ref.citationId}]</a>"""
+    }
+    
+    /**
+     * Render a footnote reference
+     */
+    private fun renderFootnoteReference(ref: FootnoteReference): String {
+        return """<sup class="footnote-ref"><a href="#fn-${ref.id}">${ref.id}</a></sup>"""
     }
 }

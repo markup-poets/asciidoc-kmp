@@ -475,6 +475,237 @@ All errors include:
 - Context information where applicable
 
 
+## Extended Components
+
+### Conditional Content Processor
+
+Processes conditional directives (ifdef, ifndef, ifeval):
+
+```kotlin
+interface ConditionalProcessor {
+    fun process(document: Document, config: ConditionalConfig): ConditionalResult
+}
+
+data class ConditionalConfig(
+    val definedAttributes: Set<String>,
+    val allowNestedConditionals: Boolean = true,
+    val maxNestingDepth: Int = 10
+)
+
+data class ConditionalResult(
+    val document: Document,
+    val errors: List<ProcessingError>,
+    val warnings: List<ProcessingWarning>,
+    val evaluatedConditionals: Int
+)
+```
+
+The conditional processor will:
+- Evaluate ifdef/ifndef directives based on attribute presence
+- Support ifeval with expression evaluation
+- Handle nested conditionals with depth tracking
+- Remove conditional blocks that don't match
+- Report errors for unclosed conditionals
+
+### Document Fragment Processor
+
+Handles tagged includes and partial content:
+
+```kotlin
+interface FragmentProcessor {
+    fun processFragments(document: Document, config: FragmentConfig): FragmentResult
+}
+
+data class FragmentConfig(
+    val tagPrefix: String = "tag::",
+    val tagSuffix: String = "[]",
+    val allowNestedTags: Boolean = false
+)
+
+data class FragmentResult(
+    val document: Document,
+    val errors: List<ProcessingError>,
+    val warnings: List<ProcessingWarning>,
+    val extractedTags: Map<String, List<String>>
+)
+```
+
+The fragment processor will:
+- Parse tag markers in included content
+- Extract content between matching tags
+- Support multiple tag selection
+- Combine with line range filtering
+- Report missing or malformed tags
+
+### Admonition Processor
+
+Processes admonition blocks:
+
+```kotlin
+interface AdmonitionProcessor {
+    fun process(document: Document): AdmonitionResult
+}
+
+enum class AdmonitionType {
+    NOTE, TIP, WARNING, CAUTION, IMPORTANT
+}
+
+data class AdmonitionBlock(
+    val type: AdmonitionType,
+    val title: String?,
+    val content: List<AstNode>,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : BlockElement()
+
+data class AdmonitionResult(
+    val document: Document,
+    val warnings: List<ProcessingWarning>,
+    val admonitionCount: Map<AdmonitionType, Int>
+)
+```
+
+The admonition processor will:
+- Identify admonition block types
+- Extract titles and content
+- Validate admonition structure
+- Convert to structured AST nodes
+
+### Bibliography and Footnote Manager
+
+Manages citations and footnotes:
+
+```kotlin
+interface BibliographyManager {
+    fun process(document: Document): BibliographyResult
+}
+
+data class Footnote(
+    val id: String,
+    val number: Int,
+    val content: List<InlineElement>,
+    val sourceLocation: SourceLocation
+)
+
+data class BibliographyEntry(
+    val id: String,
+    val citation: String,
+    val metadata: Map<String, String>,
+    val sourceLocation: SourceLocation
+)
+
+data class BibliographyResult(
+    val document: Document,
+    val footnotes: List<Footnote>,
+    val bibliography: List<BibliographyEntry>,
+    val warnings: List<ProcessingWarning>
+)
+```
+
+The bibliography manager will:
+- Collect and number footnotes
+- Index bibliography entries
+- Resolve footnote and citation references
+- Maintain consistent numbering
+- Generate footnote and bibliography sections
+
+### Callout Processor
+
+Processes source code callouts:
+
+```kotlin
+interface CalloutProcessor {
+    fun process(document: Document): CalloutResult
+}
+
+data class Callout(
+    val number: Int,
+    val marker: String,
+    val lineNumber: Int,
+    val explanation: List<InlineElement>?
+)
+
+data class CalloutResult(
+    val document: Document,
+    val errors: List<ProcessingError>,
+    val warnings: List<ProcessingWarning>,
+    val calloutsByBlock: Map<String, List<Callout>>
+)
+```
+
+The callout processor will:
+- Extract callout markers from code blocks
+- Number callouts sequentially
+- Associate callout lists with code blocks
+- Validate marker-explanation matching
+- Report mismatched callouts
+
+### Extension System
+
+Allows custom processor registration:
+
+```kotlin
+interface CustomProcessor {
+    val name: String
+    val priority: ProcessorPriority
+    
+    fun process(document: Document, context: ProcessingContext): ProcessorResult
+}
+
+enum class ProcessorPriority {
+    HIGHEST, HIGH, NORMAL, LOW, LOWEST
+}
+
+data class ProcessingContext(
+    val config: ProcessingConfig,
+    val currentPhase: ProcessingPhase,
+    val sharedData: MutableMap<String, Any>
+)
+
+enum class ProcessingPhase {
+    PRE_INCLUDE, POST_INCLUDE, PRE_ATTRIBUTE, POST_ATTRIBUTE,
+    PRE_MACRO, POST_MACRO, PRE_VALIDATION, POST_VALIDATION
+}
+
+data class ProcessorResult(
+    val document: Document,
+    val errors: List<ProcessingError>,
+    val warnings: List<ProcessingWarning>,
+    val continueProcessing: Boolean = true
+)
+
+interface ExtensionRegistry {
+    fun register(processor: CustomProcessor)
+    fun unregister(name: String)
+    fun getProcessors(phase: ProcessingPhase): List<CustomProcessor>
+}
+```
+
+The extension system will:
+- Allow registration of custom processors
+- Support priority-based ordering
+- Provide processing context and shared state
+- Enable processors at specific pipeline phases
+- Validate custom processor output
+
+## Extended Processing Pipeline
+
+The extended pipeline includes new processors:
+
+1. **Include Resolver** (existing)
+2. **Fragment Processor** (new) - Extract tagged sections
+3. **Conditional Processor** (new) - Evaluate conditionals
+4. **Attribute Substitutor** (existing)
+5. **Macro Expander** (existing)
+6. **Admonition Processor** (new) - Process admonitions
+7. **Callout Processor** (new) - Process code callouts
+8. **Bibliography Manager** (new) - Manage citations
+9. **Cross-Reference Resolver** (existing)
+10. **TOC Generator** (existing)
+11. **Document Validator** (existing)
+
+Custom processors can be inserted at any phase via the extension system.
+
 ## Correctness Properties
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
@@ -611,6 +842,122 @@ All errors include:
 *For any* fatal error that prevents further processing, the Document_Processor should report the error with full details and halt gracefully without crashing
 **Validates: Requirements 8.5**
 
+### Property 34: Ifdef Conditional Evaluation
+*For any* ifdef directive with a defined attribute, the Document_Processor should include the conditional content; for undefined attributes, it should exclude the content
+**Validates: Requirements 9.1**
+
+### Property 35: Ifndef Conditional Evaluation
+*For any* ifndef directive with an undefined attribute, the Document_Processor should include the conditional content; for defined attributes, it should exclude the content
+**Validates: Requirements 9.2**
+
+### Property 36: Ifeval Expression Evaluation
+*For any* ifeval directive with a valid expression, the Document_Processor should evaluate it and include content based on the boolean result
+**Validates: Requirements 9.3**
+
+### Property 37: Nested Conditional Processing
+*For any* nested conditional directives, the Document_Processor should evaluate them correctly according to nesting rules, respecting the configured depth limit
+**Validates: Requirements 9.4**
+
+### Property 38: Unclosed Conditional Detection
+*For any* conditional directive without a matching endif, the Document_Processor should report an error with the location of the unclosed conditional
+**Validates: Requirements 9.5**
+
+### Property 39: Multi-Attribute Conditional Logic
+*For any* conditional directive with multiple attributes and logical operators, the Document_Processor should evaluate the combined expression correctly
+**Validates: Requirements 9.6**
+
+### Property 40: Tagged Fragment Extraction
+*For any* include directive with tag attributes, the Document_Processor should extract only content between matching tag markers, excluding all other content
+**Validates: Requirements 10.1**
+
+### Property 41: Multiple Tag Selection
+*For any* include directive specifying multiple tags, the Document_Processor should include all matching tagged sections in document order
+**Validates: Requirements 10.2**
+
+### Property 42: Missing Tag Warning
+*For any* tag specified in an include directive that doesn't exist in the target file, the Document_Processor should report a warning with the missing tag name
+**Validates: Requirements 10.3**
+
+### Property 43: Tag Marker Validation
+*For any* malformed tag markers in included content, the Document_Processor should report an error with location information
+**Validates: Requirements 10.4**
+
+### Property 44: Tag and Line Range Combination
+*For any* include directive combining tags with line ranges, the Document_Processor should apply both filters correctly, first extracting tags then applying line ranges
+**Validates: Requirements 10.6**
+
+### Property 45: Admonition Type Recognition
+*For any* admonition block, the Document_Processor should correctly identify its type (NOTE, TIP, WARNING, CAUTION, IMPORTANT) and preserve it in the AST
+**Validates: Requirements 11.1, 11.2**
+
+### Property 46: Admonition Title Preservation
+*For any* admonition with a custom title, the Document_Processor should associate the title with the admonition in the AST
+**Validates: Requirements 11.3**
+
+### Property 47: Admonition Structure Validation
+*For any* admonition nested within other blocks, the Document_Processor should maintain proper parent-child relationships in the AST
+**Validates: Requirements 11.4**
+
+### Property 48: Footnote Collection and Numbering
+*For any* footnote reference in the document, the Document_Processor should assign it a unique sequential number and collect the footnote content
+**Validates: Requirements 12.1**
+
+### Property 49: Footnote List Generation
+*For any* document with footnotes, the Document_Processor should provide a complete list of all footnotes in document order upon processing completion
+**Validates: Requirements 12.2**
+
+### Property 50: Bibliography Entry Indexing
+*For any* bibliography entry defined in the document, the Document_Processor should index it with a unique identifier for cross-referencing
+**Validates: Requirements 12.3**
+
+### Property 51: Bibliography Reference Resolution
+*For any* bibliography reference, the Document_Processor should resolve it to the corresponding entry in the bibliography index
+**Validates: Requirements 12.4**
+
+### Property 52: Unresolved Citation Warning
+*For any* footnote or bibliography reference that cannot be resolved, the Document_Processor should report a warning with the reference identifier
+**Validates: Requirements 12.5**
+
+### Property 53: Consistent Footnote Numbering
+*For any* footnote referenced multiple times, the Document_Processor should maintain consistent numbering across all references
+**Validates: Requirements 12.6**
+
+### Property 54: Callout Marker Extraction
+*For any* callout marker in a code block, the Document_Processor should extract it and assign a sequential number within that code block
+**Validates: Requirements 13.1**
+
+### Property 55: Callout List Association
+*For any* callout list following a code block, the Document_Processor should associate each list item with the corresponding numbered callout marker
+**Validates: Requirements 13.2**
+
+### Property 56: Callout Mismatch Warning
+*For any* code block where callout markers and list items don't match in count, the Document_Processor should report a warning
+**Validates: Requirements 13.3**
+
+### Property 57: Callout Context Validation
+*For any* callout list not associated with a code block, the Document_Processor should report an error
+**Validates: Requirements 13.4**
+
+### Property 58: Callout Sequence Isolation
+*For any* document with multiple code blocks containing callouts, the Document_Processor should maintain separate sequential numbering for each block
+**Validates: Requirements 13.5**
+
+### Property 59: Custom Processor Registration
+*For any* custom processor registered with the extension system, the Document_Processor should make it available in the processing pipeline at the specified phase
+**Validates: Requirements 14.1**
+
+### Property 60: Custom Processor Ordering
+*For any* custom processors with specified priorities, the Document_Processor should execute them in priority order within their phase
+**Validates: Requirements 14.2, 14.5, 14.6**
+
+### Property 61: Custom Processor Error Isolation
+*For any* custom processor that fails during execution, the Document_Processor should report the error and continue with remaining processors
+**Validates: Requirements 14.3**
+
+### Property 62: Custom Processor Output Validation
+*For any* custom processor that modifies the AST, the Document_Processor should validate the modifications for structural correctness
+**Validates: Requirements 14.4**
+
 ## Testing Strategy
 
 The document processing module will be validated using a dual testing approach combining unit tests and property-based tests to ensure comprehensive coverage and correctness.
@@ -627,6 +974,12 @@ Property tests will focus on:
 - **Validation**: Testing section hierarchy, whitespace normalization, error collection
 - **Macro Expansion**: Testing expansion logic, parameter parsing, AST integration
 - **Error Reporting**: Testing error collection, location tracking, severity classification
+- **Conditional Processing**: Testing ifdef/ifndef/ifeval evaluation, nesting, logical operators
+- **Fragment Processing**: Testing tag extraction, multiple tags, tag validation
+- **Admonition Processing**: Testing type recognition, title preservation, structure validation
+- **Bibliography Management**: Testing footnote numbering, citation resolution, consistency
+- **Callout Processing**: Testing marker extraction, list association, sequence isolation
+- **Extension System**: Testing processor registration, ordering, error isolation, validation
 
 ### Unit Testing
 
@@ -635,7 +988,9 @@ Unit tests will complement property tests by focusing on:
 - **Edge Cases**: Empty documents, documents with no sections, maximum nesting depths
 - **Integration Points**: Pipeline execution, processor chaining, configuration handling
 - **Error Scenarios**: Specific malformed patterns and their expected error messages
-- **Configuration Examples**: Testing different configuration combinations (7.1-7.5)
+- **Configuration Examples**: Testing different configuration combinations
+- **Advanced Features**: Conditional content, tagged includes, admonitions, footnotes, callouts
+- **Extension System**: Custom processor registration and execution
 
 ### Test Data Generation
 
@@ -645,6 +1000,11 @@ Property tests will use intelligent generators that:
 - Generate attribute definitions and references with various patterns
 - Create cross-reference networks with valid and invalid targets
 - Generate section hierarchies with valid and invalid nesting
+- Create conditional directives with various attribute combinations
+- Generate tagged content with valid and invalid markers
+- Create admonition blocks of all types
+- Generate footnotes and bibliography entries
+- Create code blocks with callout markers
 - Include edge cases like empty content, maximum recursion, circular dependencies
 - Ensure platform-neutral test execution
 
@@ -654,5 +1014,6 @@ For platform-specific operations (file I/O), tests will use:
 - **FileReader interface mocking**: Provide controlled file content for testing
 - **In-memory file systems**: Simulate file structures without actual I/O
 - **Deterministic generators**: Ensure reproducible test results
+- **Custom processor mocks**: Test extension system without real implementations
 
-The testing strategy ensures that both successful processing (correct transformations) and error conditions (malformed input, circular dependencies) are thoroughly validated across all supported platforms.
+The testing strategy ensures that both successful processing (correct transformations) and error conditions (malformed input, circular dependencies) are thoroughly validated across all supported platforms, including all advanced features.

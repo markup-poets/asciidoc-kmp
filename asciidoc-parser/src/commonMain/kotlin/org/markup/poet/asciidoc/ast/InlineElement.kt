@@ -100,3 +100,23 @@ data class MacroInvocation(
     override val attributes: Map<String, String> = emptyMap(),
     override val sourceLocation: SourceLocation
 ) : InlineElement()
+
+/**
+ * Represents a footnote reference in the document.
+ * The footnote content is stored separately and referenced by ID.
+ */
+data class FootnoteReference(
+    val id: String,
+    val content: List<InlineElement>,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : InlineElement()
+
+/**
+ * Represents a bibliography citation reference.
+ */
+data class BibliographyReference(
+    val citationId: String,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation
+) : InlineElement()

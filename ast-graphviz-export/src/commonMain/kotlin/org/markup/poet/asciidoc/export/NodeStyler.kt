@@ -38,6 +38,9 @@ class NodeStyler(private val colorScheme: ColorScheme) {
             is IncludeDirective -> getBlockElementStyle("include")
             is CrossReference -> getInlineElementStyle("xref")
             is MacroInvocation -> getInlineElementStyle("macro")
+            
+            // Default for any other node types
+            else -> getBlockElementStyle("unknown")
         }
     }
     
