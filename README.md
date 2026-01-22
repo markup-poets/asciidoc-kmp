@@ -99,6 +99,8 @@ The project includes a comprehensive TCK for ensuring consistent behavior across
 - **Performance Benchmarking**: Infrastructure for measuring parsing and rendering performance
 - **Memory Monitoring**: Tools for tracking memory usage across platforms
 
+**Note**: This is currently a custom TCK designed for Kotlin Multiplatform development. The project roadmap includes integration with the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) to achieve full specification conformance and certification. See [tck-quality-testing/OFFICIAL_TCK_INTEGRATION.md](tck-quality-testing/OFFICIAL_TCK_INTEGRATION.md) for the integration roadmap.
+
 See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed TCK documentation and usage examples.
 
 ### Running Tests
