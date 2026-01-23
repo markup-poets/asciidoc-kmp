@@ -10,12 +10,32 @@ kotlin {
         }
     }
     
+    // Native macOS target
+    macosArm64 {
+        binaries {
+            executable {
+                entryPoint = "org.markup.poet.html.cli.main"
+                baseName = "html-renderer"
+            }
+        }
+    }
+    
     sourceSets {
-        val jvmMain by getting {
+        val commonMain by getting {
             dependencies {
                 implementation(project(":asciidoc-parser"))
                 implementation(project(":html-renderer"))
             }
+        }
+        
+        val jvmMain by getting
+        
+        val nativeMain by creating {
+            dependsOn(commonMain)
+        }
+        
+        val macosArm64Main by getting {
+            dependsOn(nativeMain)
         }
     }
 }

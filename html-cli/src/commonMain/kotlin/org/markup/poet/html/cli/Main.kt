@@ -2,8 +2,12 @@ package org.markup.poet.html.cli
 
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.asciidoc.render.*
-import java.io.File
-import kotlin.system.exitProcess
+
+// Platform-specific file operations
+expect fun readFileContent(path: String): String
+expect fun writeFileContent(path: String, content: String)
+expect fun fileExists(path: String): Boolean
+expect fun exitProcess(code: Int): Nothing
 
 fun main(args: Array<String>) {
     if (args.isEmpty() || args.contains("--help") || args.contains("-h")) {
@@ -22,13 +26,12 @@ fun main(args: Array<String>) {
     try {
         // Read input file
         println("[HTML-RENDERER] Reading input file...")
-        val input = File(inputFile)
-        if (!input.exists()) {
-            System.err.println("✗ Error: Input file not found: $inputFile")
+        if (!fileExists(inputFile)) {
+            printlnErr("✗ Error: Input file not found: $inputFile")
             exitProcess(1)
         }
         
-        val content = input.readText()
+        val content = readFileContent(inputFile)
         println("[HTML-RENDERER] Read ${content.length} bytes")
         
         // Parse AsciiDoc
@@ -37,9 +40,9 @@ fun main(args: Array<String>) {
         val parseResult = parser.parse(content)
         
         if (parseResult.errors.isNotEmpty()) {
-            System.err.println("✗ Parse errors:")
+            printlnErr("✗ Parse errors:")
             parseResult.errors.forEach { error ->
-                System.err.println("  Line ${error.location.line}: ${error.message}")
+                printlnErr("  Line ${error.location.line}: ${error.message}")
             }
             exitProcess(1)
         }
@@ -88,7 +91,7 @@ fun main(args: Array<String>) {
                 
                 // Write output
                 println("[HTML-RENDERER] Writing output file...")
-                File(outputFile).writeText(fullHtml)
+                writeFileContent(outputFile, fullHtml)
                 
                 println()
                 println("✓ HTML generated successfully")
@@ -97,17 +100,20 @@ fun main(args: Array<String>) {
                 exitProcess(0)
             }
             else -> {
-                System.err.println("✗ Rendering failed: ${renderResult.exceptionOrNull()?.message}")
-                renderResult.exceptionOrNull()?.printStackTrace()
+                printlnErr("✗ Rendering failed: ${renderResult.exceptionOrNull()?.message}")
                 exitProcess(1)
             }
         }
         
     } catch (e: Exception) {
-        System.err.println("✗ Error: ${e.message}")
-        e.printStackTrace()
+        printlnErr("✗ Error: ${e.message}")
         exitProcess(1)
     }
+}
+
+// Helper function for stderr output
+fun printlnErr(message: String) {
+    println(message) // In native, both go to stdout, but we keep the semantic distinction
 }
 
 fun printHelp() {
