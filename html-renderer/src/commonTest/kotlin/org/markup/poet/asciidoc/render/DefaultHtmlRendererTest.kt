@@ -131,6 +131,24 @@ class DefaultHtmlRendererTest {
             attributes = emptyMap(),
             sourceLocation = SourceLocation(1, 1)
         )
+        
+        // Create a mock FileWriter to capture written content
+        var writtenPath: String? = null
+        var writtenContent: String? = null
+        val mockFileWriter = object : FileWriter {
+            override fun writeFile(path: String, content: String): Result<Unit> {
+                writtenPath = path
+                writtenContent = content
+                return Result.success(Unit)
+            }
+        }
+        
+        val renderer = DefaultHtmlRenderer(
+            blockRenderer,
+            inlineRenderer,
+            fileWriter = mockFileWriter
+        )
+        
         val config = RenderConfig(
             outputOptions = OutputOptions(
                 standalone = true,
@@ -147,6 +165,11 @@ class DefaultHtmlRendererTest {
         val html = result.getOrThrow()
         assertTrue(html.contains("<link rel=\"stylesheet\" href=\"styles.css\">"))
         assertTrue(!html.contains("<style>"))
+        
+        // Verify CSS file was written
+        assertEquals("styles.css", writtenPath)
+        assertTrue(writtenContent != null)
+        assertTrue(writtenContent!!.contains(".heading")) // Should contain default CSS
     }
     
     @Test
@@ -452,5 +475,270 @@ class DefaultHtmlRendererTest {
         assertTrue(html.contains("John &lt;Doe&gt;"))
         assertTrue(html.contains("A &amp; B"))
         assertTrue(!html.contains("<script>"))
+    }
+    
+    @Test
+    fun `should include custom CSS content when provided`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        val customCss = "body { background-color: red; }"
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.INLINE
+            ),
+            cssOptions = CssOptions(
+                customCssContent = customCss,
+                includeDefaultCss = false
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains("<style>"))
+        assertTrue(html.contains("body { background-color: red; }"))
+        assertTrue(html.contains("</style>"))
+    }
+    
+    @Test
+    fun `should merge default CSS with custom CSS when both enabled`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        val customCss = "/* Custom styles */"
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.INLINE
+            ),
+            cssOptions = CssOptions(
+                customCssContent = customCss,
+                includeDefaultCss = true
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains("<style>"))
+        assertTrue(html.contains(".heading")) // Default CSS
+        assertTrue(html.contains("/* Custom styles */")) // Custom CSS
+        assertTrue(html.contains("</style>"))
+    }
+    
+    @Test
+    fun `should apply CSS variables when provided`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.INLINE
+            ),
+            cssOptions = CssOptions(
+                cssVariables = mapOf(
+                    "--mp-color-primary" to "#ff0000",
+                    "--mp-font-size-base" to "18px"
+                )
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains(":root {"))
+        assertTrue(html.contains("--mp-color-primary: #ff0000;"))
+        assertTrue(html.contains("--mp-font-size-base: 18px;"))
+    }
+    
+    @Test
+    fun `should use built-in theme when specified`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.INLINE
+            ),
+            cssOptions = CssOptions(
+                builtInTheme = "minimal"
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains("<style>"))
+        // Minimal theme should have simpler CSS
+        assertTrue(html.contains(".heading"))
+    }
+    
+    @Test
+    fun `should handle CSS provider errors gracefully`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        // Provide a non-existent CSS file path
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.INLINE
+            ),
+            cssOptions = CssOptions(
+                customCssPath = "/non/existent/file.css",
+                includeDefaultCss = false
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        // Should succeed but without custom CSS (error is logged as warning)
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains("<!DOCTYPE html>"))
+    }
+    
+    @Test
+    fun `should handle file write errors gracefully in EXTERNAL mode`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        
+        // Create a mock FileWriter that fails
+        val mockFileWriter = object : FileWriter {
+            override fun writeFile(path: String, content: String): Result<Unit> {
+                return Result.failure(
+                    CssException.LoadingFailure("Permission denied")
+                )
+            }
+        }
+        
+        val renderer = DefaultHtmlRenderer(
+            blockRenderer,
+            inlineRenderer,
+            fileWriter = mockFileWriter
+        )
+        
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.EXTERNAL,
+                cssPath = "styles.css"
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        // Should succeed even if file write fails (error is logged as warning)
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains("<!DOCTYPE html>"))
+        // Link tag should not be included if file write failed
+        assertTrue(!html.contains("<link rel=\"stylesheet\""))
+    }
+    
+    @Test
+    fun `should write custom CSS to external file in EXTERNAL mode`() {
+        // Arrange
+        val document = Document(
+            title = "Test",
+            children = emptyList(),
+            documentAttributes = emptyMap(),
+            attributes = emptyMap(),
+            sourceLocation = SourceLocation(1, 1)
+        )
+        
+        // Create a mock FileWriter to capture written content
+        var writtenPath: String? = null
+        var writtenContent: String? = null
+        val mockFileWriter = object : FileWriter {
+            override fun writeFile(path: String, content: String): Result<Unit> {
+                writtenPath = path
+                writtenContent = content
+                return Result.success(Unit)
+            }
+        }
+        
+        val renderer = DefaultHtmlRenderer(
+            blockRenderer,
+            inlineRenderer,
+            fileWriter = mockFileWriter
+        )
+        
+        val customCss = "body { background-color: blue; }"
+        val config = RenderConfig(
+            outputOptions = OutputOptions(
+                standalone = true,
+                cssMode = CssMode.EXTERNAL,
+                cssPath = "custom.css"
+            ),
+            cssOptions = CssOptions(
+                customCssContent = customCss,
+                includeDefaultCss = false
+            )
+        )
+        
+        // Act
+        val result = renderer.render(document, config)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        val html = result.getOrThrow()
+        assertTrue(html.contains("<link rel=\"stylesheet\" href=\"custom.css\">"))
+        
+        // Verify custom CSS was written to file
+        assertEquals("custom.css", writtenPath)
+        assertTrue(writtenContent!!.contains(customCss))
+        assertTrue(writtenContent.contains("/* Custom CSS */"))
     }
 }

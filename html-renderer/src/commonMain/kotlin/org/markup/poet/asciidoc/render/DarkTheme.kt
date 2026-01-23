@@ -1,104 +1,38 @@
 package org.markup.poet.asciidoc.render
 
 /**
- * Defines CSS classes and styling for rendered HTML elements.
+ * Dark theme with dark color scheme for low-light environments.
  * 
- * A Theme provides CSS class names for different element types and can generate
- * CSS styles to be included in the rendered HTML. This allows for customizable
- * visual presentation while maintaining semantic HTML structure.
+ * This theme provides a comfortable dark mode experience with carefully chosen
+ * colors that reduce eye strain in low-light conditions. It uses CSS variables
+ * for easy customization and maintains good contrast ratios for readability.
  * 
- * Implementations should provide consistent class naming conventions and
- * corresponding CSS rules that work together to style the rendered document.
+ * Key characteristics:
+ * - Dark background with light text for reduced eye strain
+ * - Carefully chosen accent colors that work well on dark backgrounds
+ * - Good contrast ratios for accessibility
+ * - CSS variables for easy customization
+ * - Suitable for code-heavy documents and technical content
+ * 
+ * CSS Variables:
+ * - --mp-color-text: Main text color (light gray)
+ * - --mp-color-text-muted: Muted text color for secondary content
+ * - --mp-color-background: Main background color (dark gray)
+ * - --mp-color-background-alt: Alternative background for tables/code
+ * - --mp-color-border: Border color for elements
+ * - --mp-color-code-bg: Background for code blocks
+ * - --mp-color-link: Link color (bright blue)
+ * - --mp-color-note: Note admonition color
+ * - --mp-color-tip: Tip admonition color
+ * - --mp-color-warning: Warning admonition color
+ * - --mp-color-important: Important admonition color
+ * - --mp-color-caution: Caution admonition color
+ * - --mp-font-family: Base font family
+ * - --mp-font-size-base: Base font size
+ * - --mp-line-height: Base line height
+ * - --mp-spacing-unit: Base spacing unit
  */
-interface Theme {
-    /**
-     * Returns CSS classes for heading elements.
-     * 
-     * @param level The heading level (1-6)
-     * @return CSS class string to apply to the heading element
-     */
-    fun headingClasses(level: Int): String
-    
-    /**
-     * Returns CSS classes for paragraph elements.
-     * 
-     * @return CSS class string to apply to paragraph elements
-     */
-    fun paragraphClasses(): String
-    
-    /**
-     * Returns CSS classes for code block elements.
-     * 
-     * @return CSS class string to apply to code block (pre/code) elements
-     */
-    fun codeBlockClasses(): String
-    
-    /**
-     * Returns CSS classes for table elements.
-     * 
-     * @return CSS class string to apply to table elements
-     */
-    fun tableClasses(): String
-    
-    /**
-     * Returns CSS classes for list elements.
-     * 
-     * @return CSS class string to apply to list (ul/ol) elements
-     */
-    fun listClasses(): String
-    
-    /**
-     * Returns CSS classes for quote/blockquote elements.
-     * 
-     * @return CSS class string to apply to blockquote elements
-     */
-    fun quoteClasses(): String
-    
-    /**
-     * Returns CSS classes for admonition blocks.
-     * 
-     * Admonitions are special blocks that highlight important information
-     * (e.g., NOTE, TIP, WARNING, IMPORTANT, CAUTION).
-     * 
-     * @param type The admonition type (e.g., "note", "warning", "tip")
-     * @return CSS class string to apply to the admonition element
-     */
-    fun admonitionClasses(type: String): String
-    
-    /**
-     * Returns the complete CSS stylesheet for this theme.
-     * 
-     * The returned CSS should include rules for all classes returned by
-     * the other methods in this interface. This CSS can be included inline
-     * in a <style> tag or written to an external file.
-     * 
-     * @return CSS stylesheet as a string
-     */
-    fun getCss(): String
-    
-    companion object {
-        /**
-         * Returns the default theme implementation.
-         * 
-         * @return A DefaultTheme instance with minimal, clean styling
-         */
-        fun default(): Theme = DefaultTheme()
-    }
-}
-
-/**
- * Default theme implementation with minimal, clean styling.
- * 
- * This theme provides a simple, readable appearance suitable for most documents.
- * It uses semantic class names and provides basic styling for all supported
- * element types without being overly opinionated about visual design.
- * 
- * Class naming convention:
- * - Base classes describe the element type (e.g., "heading", "paragraph")
- * - Modifier classes add specificity (e.g., "heading-1", "heading-2")
- * - Admonition classes include type (e.g., "admonition-note", "admonition-warning")
- */
-class DefaultTheme : Theme {
+class DarkTheme : Theme {
     override fun headingClasses(level: Int): String {
         return "heading heading-$level"
     }
@@ -131,30 +65,29 @@ class DefaultTheme : Theme {
         return """
             :root {
                 /* Colors */
-                --mp-color-primary: #007acc;
-                --mp-color-text: #333;
-                --mp-color-text-muted: #666;
-                --mp-color-background: #fff;
-                --mp-color-background-alt: #f5f5f5;
-                --mp-color-background-alt2: #fafafa;
-                --mp-color-background-alt3: #f9f9f9;
-                --mp-color-border: #ddd;
-                --mp-color-border-alt: #ccc;
-                --mp-color-code-bg: #f5f5f5;
-                --mp-color-note: #3498db;
-                --mp-color-note-bg: #e8f4f8;
-                --mp-color-tip: #2ecc71;
-                --mp-color-tip-bg: #e8f8f0;
-                --mp-color-warning: #f39c12;
-                --mp-color-warning-bg: #fef5e7;
-                --mp-color-important: #e74c3c;
-                --mp-color-important-bg: #fdecea;
-                --mp-color-caution: #e67e22;
-                --mp-color-caution-bg: #fef0e7;
+                --mp-color-text: #e0e0e0;
+                --mp-color-text-muted: #a0a0a0;
+                --mp-color-background: #1e1e1e;
+                --mp-color-background-alt: #2d2d2d;
+                --mp-color-background-alt2: #252525;
+                --mp-color-border: #444;
+                --mp-color-border-alt: #555;
+                --mp-color-code-bg: #2d2d2d;
+                --mp-color-link: #4fc3f7;
+                --mp-color-note: #64b5f6;
+                --mp-color-note-bg: #1a2332;
+                --mp-color-tip: #81c784;
+                --mp-color-tip-bg: #1a2e1f;
+                --mp-color-warning: #ffb74d;
+                --mp-color-warning-bg: #2e2419;
+                --mp-color-important: #e57373;
+                --mp-color-important-bg: #2e1a1a;
+                --mp-color-caution: #ff8a65;
+                --mp-color-caution-bg: #2e1f1a;
                 
                 /* Fonts */
                 --mp-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                --mp-font-family-mono: monospace;
+                --mp-font-family-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
                 --mp-font-size-base: 16px;
                 --mp-font-size-heading-1: 2em;
                 --mp-font-size-heading-2: 1.5em;
@@ -182,11 +115,20 @@ class DefaultTheme : Theme {
                 --mp-border-radius: 4px;
             }
             
+            body {
+                font-family: var(--mp-font-family);
+                font-size: var(--mp-font-size-base);
+                line-height: var(--mp-line-height-base);
+                color: var(--mp-color-text);
+                background: var(--mp-color-background);
+            }
+            
             /* Headings */
             .heading {
                 margin: var(--mp-spacing-unit) 0 var(--mp-spacing-half);
                 font-weight: bold;
                 line-height: var(--mp-line-height-heading);
+                color: var(--mp-color-text);
             }
             .heading-1 { font-size: var(--mp-font-size-heading-1); }
             .heading-2 { font-size: var(--mp-font-size-heading-2); }
@@ -216,6 +158,7 @@ class DefaultTheme : Theme {
                 background: none;
                 padding: 0;
                 border: none;
+                color: var(--mp-color-text);
             }
             
             /* Tables */
@@ -261,7 +204,7 @@ class DefaultTheme : Theme {
                 border-left: var(--mp-border-width-thick) solid var(--mp-color-border-alt);
                 padding: var(--mp-spacing-padding);
                 margin: var(--mp-spacing-unit) 0;
-                background: var(--mp-color-background-alt3);
+                background: var(--mp-color-background-alt);
             }
             .admonition-note {
                 border-left-color: var(--mp-color-note);
@@ -282,6 +225,15 @@ class DefaultTheme : Theme {
             .admonition-caution {
                 border-left-color: var(--mp-color-caution);
                 background: var(--mp-color-caution-bg);
+            }
+            
+            /* Links */
+            a {
+                color: var(--mp-color-link);
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
             }
         """.trimIndent()
     }

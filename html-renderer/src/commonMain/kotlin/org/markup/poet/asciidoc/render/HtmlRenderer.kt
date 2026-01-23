@@ -26,6 +26,7 @@ interface HtmlRenderer {
  * 
  * @param outputOptions Controls standalone vs fragment mode and CSS inclusion
  * @param theme Theme for CSS class generation and styling
+ * @param cssOptions Configuration for custom CSS styling (Validates: Requirements 1.5, 2.5, 3.5)
  * @param customRenderers Custom renderers for specific node types (keyed by node class simple name)
  * @param attributeHandlers Custom attribute handlers for processing node attributes
  * @param documentTemplate Custom template for document structure (standalone mode only)
@@ -33,6 +34,7 @@ interface HtmlRenderer {
 data class RenderConfig(
     val outputOptions: OutputOptions = OutputOptions.default(),
     val theme: Theme = Theme.default(),
+    val cssOptions: CssOptions = CssOptions.default(),
     val customRenderers: Map<String, CustomRenderer> = emptyMap(),
     val attributeHandlers: Map<String, AttributeHandler> = emptyMap(),
     val documentTemplate: DocumentTemplate? = null
@@ -105,15 +107,19 @@ enum class CssMode {
  * It supports both standalone documents (complete HTML with head/body) and
  * fragments (body content only).
  * 
- * Validates: Requirements 1.1, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 7.1, 7.2, 7.3, 7.4, 7.6, 12.4
+ * Validates: Requirements 1.1, 1.2, 1.3, 1.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 7.1, 7.2, 7.3, 7.4, 7.6, 12.4
  * 
  * @param blockRenderer The renderer for block-level elements
  * @param inlineRenderer The renderer for inline elements
+ * @param cssProvider The CSS provider for loading and merging CSS (defaults to DefaultCssProvider with PlatformFileReader)
+ * @param fileWriter The file writer for writing external CSS files (defaults to PlatformFileWriter)
  * @param escaper The HTML escaper for security (defaults to DefaultHtmlEscaper)
  */
 class DefaultHtmlRenderer(
     private val blockRenderer: BlockRenderer,
     private val inlineRenderer: InlineRenderer,
+    private val cssProvider: CssProvider = DefaultCssProvider(PlatformFileReader()),
+    private val fileWriter: FileWriter = PlatformFileWriter(),
     private val escaper: HtmlEscaper = DefaultHtmlEscaper()
 ) : HtmlRenderer {
     
@@ -242,20 +248,57 @@ class DefaultHtmlRenderer(
             }
         }
         
-        // CSS inclusion
+        // CSS inclusion (Validates: Requirements 1.2, 1.3, 1.4)
         when (options.cssMode) {
             CssMode.INLINE -> {
-                builder.append("  <style>\n")
-                builder.append(config.theme.getCss())
-                builder.append("\n  </style>\n")
+                // INLINE mode: Include CSS in <style> tag
+                // Use CssProvider to get CSS content (handles custom CSS, themes, variables, etc.)
+                val cssResult = cssProvider.provideCss(config.cssOptions, config.theme)
+                cssResult.fold(
+                    onSuccess = { css ->
+                        if (css.isNotBlank()) {
+                            builder.append("  <style>\n")
+                            builder.append(css)
+                            builder.append("\n  </style>\n")
+                        }
+                    },
+                    onFailure = { error ->
+                        // Log warning but continue rendering (CSS errors shouldn't break rendering)
+                        // In a production system, this would use a proper logging framework
+                        println("Warning: CSS loading failed: ${error.message}")
+                    }
+                )
             }
             CssMode.EXTERNAL -> {
-                options.cssPath?.let { path ->
-                    builder.append("  <link rel=\"stylesheet\" href=\"${escaper.escapeAttribute(path)}\">\n")
-                }
+                // EXTERNAL mode: Write CSS to file and add <link> tag
+                // First, get the CSS content
+                val cssResult = cssProvider.provideCss(config.cssOptions, config.theme)
+                cssResult.fold(
+                    onSuccess = { css ->
+                        options.cssPath?.let { path ->
+                            // Write CSS to the external file
+                            val writeResult = fileWriter.writeFile(path, css)
+                            writeResult.fold(
+                                onSuccess = {
+                                    // Add link tag to reference the external CSS file
+                                    builder.append("  <link rel=\"stylesheet\" href=\"${escaper.escapeAttribute(path)}\">\n")
+                                },
+                                onFailure = { error ->
+                                    // Log warning but continue rendering
+                                    println("Warning: Failed to write CSS file '$path': ${error.message}")
+                                }
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        // Log warning but continue rendering
+                        println("Warning: CSS loading failed: ${error.message}")
+                    }
+                )
             }
             CssMode.NONE -> {
-                // No CSS
+                // NONE mode: Skip CSS entirely
+                // No CSS included in output
             }
         }
         

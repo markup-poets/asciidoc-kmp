@@ -28,6 +28,12 @@ kotlin {
             }
         }
         
+        val commonTest by getting {
+            dependencies {
+                implementation(libs.kotlin.test)
+            }
+        }
+        
         val jvmMain by getting
         
         val nativeMain by creating {
