@@ -44,12 +44,18 @@ kotlin {
             // JSON serialization for fixture loading
             implementation(libs.kotlinx.serialization.json)
         }
+        
+        jvmMain.dependencies {
+            // JGit for git operations on JVM
+            implementation(libs.jgit)
+        }
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotest.framework.engine)
             implementation(libs.kotest.assertions.core)
             implementation(libs.kotest.property)
+            implementation(libs.kotlinx.coroutines.core)
         }
     }
 }

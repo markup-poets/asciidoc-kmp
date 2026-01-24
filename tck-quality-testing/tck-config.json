@@ -1,0 +1,29 @@
+{
+  "sync": {
+    "repositoryUrl": "https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git",
+    "branch": "main",
+    "localPath": "tck-quality-testing/official-tck/repository",
+    "autoSync": false,
+    "syncFrequency": "MANUAL",
+    "syncTimeoutSeconds": 300
+  },
+  "execution": {
+    "enableOfficialTests": true,
+    "enableCustomTests": true,
+    "parallelExecution": true,
+    "testTimeoutSeconds": 30,
+    "allowedCategories": [],
+    "excludedCategories": [],
+    "failFast": false
+  },
+  "reporting": {
+    "outputDirectory": "tck-quality-testing/conformance-reports",
+    "generateJson": true,
+    "generateHtml": true,
+    "generateMarkdown": true,
+    "includeStackTraces": true,
+    "includeDiffs": true,
+    "includePendingTests": true,
+    "maxDiffLength": 1000
+  }
+}

@@ -160,4 +160,26 @@ class ResourceFixtureLoader : FixtureLoader {
         allFixturesLoaded = true
         return fixtureCache.values.toList()
     }
+    
+    /**
+     * Check if this loader supports the given path.
+     * 
+     * @param path File or directory path
+     * @return true if this loader can handle the path
+     */
+    override fun supports(path: String): Boolean {
+        // This loader supports custom JSON fixtures in the fixtures/ directory
+        return path.contains("fixtures/") && 
+               !path.contains("official-tck") &&
+               (path.endsWith(".json") || path.contains("/fixtures/"))
+    }
+    
+    /**
+     * Get the format this loader handles.
+     * 
+     * @return FixtureFormat.CUSTOM_JSON
+     */
+    override fun getFormat(): FixtureFormat {
+        return FixtureFormat.CUSTOM_JSON
+    }
 }

@@ -14,17 +14,66 @@ The TCK provides:
 
 ## Relationship to Official AsciiDoc TCK
 
-This is currently a **custom TCK** designed for this project's specific needs (Kotlin Multiplatform compatibility, incremental development, performance tracking). 
+This module includes both a **custom TCK** for project-specific needs and **Official AsciiDoc TCK Integration** for specification conformance.
 
-**Future Goal**: Integrate with and pass the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) to achieve full AsciiDoc specification conformance and certification.
+### Custom TCK (Operational ✅)
+- Designed for Kotlin Multiplatform compatibility
+- Supports incremental development with pending tests
+- Performance tracking and benchmarking
+- Memory monitoring across platforms
+- Growing fixture library
 
-**Current Status**: 
-- ✅ Custom test infrastructure operational
-- ✅ Growing fixture library for incremental development
-- 🔄 Official TCK integration planned for future milestone
-- 🔄 Spec conformance validation in progress
+### Official TCK Integration (In Progress 🔄)
 
-**Roadmap**: See [OFFICIAL_TCK_INTEGRATION.md](OFFICIAL_TCK_INTEGRATION.md) for the detailed integration plan.
+**Goal**: Integrate with and pass the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) to achieve full AsciiDoc specification conformance and certification.
+
+**Current Status** (~54% Complete):
+- ✅ **Phase 1**: Research & Analysis (100%)
+- 🔄 **Phase 2**: TCK Sync System (89%)
+- 🔄 **Phase 3**: Official Test Format Support (71%)
+- 🔄 **Phase 4**: Dual Format Support (50%)
+- ✅ **Phase 5**: Test Execution System (100%)
+- 🔄 **Phase 6**: Conformance Reporting (73%)
+- ✅ **Phase 7**: Version Tracking & Configuration (100%)
+- 🔄 **Phase 8**: Gradle Tasks & Public API (25%)
+- ⏳ **Phase 9**: Integration Testing & Documentation (0%)
+- ⏳ **Phase 10**: CI/CD Integration (0%)
+
+**Key Achievements**:
+- ✅ Pure Kotlin implementation (no JavaScript dependencies)
+- ✅ Multiplatform support (JVM, iOS, Linux)
+- ✅ 171 tests (161 unit + 10 property-based)
+- ✅ Complete public API (TckIntegration)
+- ✅ Sync, fixture loading, test execution, reporting all operational
+
+**Documentation**:
+- [TCK_IMPLEMENTATION_STATUS.md](TCK_IMPLEMENTATION_STATUS.md) - Detailed progress report
+- [OFFICIAL_TCK_PROGRESS.md](OFFICIAL_TCK_PROGRESS.md) - Phase-by-phase status
+- [PHASE_5_SUMMARY.md](PHASE_5_SUMMARY.md) - Test execution system
+- [PHASE_6_SUMMARY.md](PHASE_6_SUMMARY.md) - Conformance reporting
+- [PHASE_7_SUMMARY.md](PHASE_7_SUMMARY.md) - Version tracking & config
+- [PHASE_8_SUMMARY.md](PHASE_8_SUMMARY.md) - Public API
+
+**Usage Example**:
+```kotlin
+// Initialize TCK system
+val context = TckIntegration.initialize()
+
+// Sync official TCK repository
+val syncResult = TckIntegration.sync(context)
+println("Synced ${syncResult.metadata.testCount} tests")
+
+// Run all tests
+val results = TckIntegration.runTests(context)
+println("Passed: ${results.passed}/${results.totalTests}")
+
+// Generate conformance report
+val report = TckIntegration.generateReport(context, results)
+
+// Check certification readiness
+val status = TckIntegration.checkCertification(context, results)
+println("Certification ready: ${status.isReady}")
+```
 
 ## Module Structure
 
