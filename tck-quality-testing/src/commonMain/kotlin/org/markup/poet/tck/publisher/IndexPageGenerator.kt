@@ -194,7 +194,13 @@ class IndexPageGenerator {
         val chart = buildString {
             for (i in chartHeight downTo 0) {
                 val threshold = (i.toDouble() / chartHeight) * maxPassRate
-                append(String.format("%3d%% |", threshold.toInt()))
+                val thresholdInt = threshold.toInt()
+                val prefix = when {
+                    thresholdInt < 10 -> "  "
+                    thresholdInt < 100 -> " "
+                    else -> ""
+                }
+                append("$prefix$thresholdInt% |")
                 
                 for (pub in chartData) {
                     val passRatePercent = (pub.passRate * 100).roundToInt()
@@ -477,17 +483,11 @@ class IndexPageGenerator {
     }
     
     private fun formatTimestamp(timestamp: Long): String {
-        // Simple formatting - in production, use a proper date formatter
-        val date = java.util.Date(timestamp)
-        val format = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss 'UTC'")
-        format.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        return format.format(date)
+        // Simple formatting for commonMain
+        return "Timestamp: $timestamp"
     }
     
     private fun formatShortDate(timestamp: Long): String {
-        val date = java.util.Date(timestamp)
-        val format = java.text.SimpleDateFormat("MMM dd")
-        format.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        return format.format(date)
+        return "$timestamp"
     }
 }

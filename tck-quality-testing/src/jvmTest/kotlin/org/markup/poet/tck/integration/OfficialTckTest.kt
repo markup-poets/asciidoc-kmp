@@ -3,6 +3,8 @@ package org.markup.poet.tck.integration
 import kotlinx.coroutines.runBlocking
 import org.markup.poet.tck.TckIntegration
 import org.markup.poet.tck.execution.SourceFilter
+import org.markup.poet.tck.conformance.DefaultAsciidocReporter
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -199,6 +201,45 @@ class OfficialTckTest {
         
         println("\n" + "=".repeat(60))
         
+        assertTrue(results.totalTests > 0, "Should have run some tests")
+    }
+
+    @Test
+    fun `should generate official conformance report in asciidoc`() = runBlocking {
+        println("\n" + "=".repeat(60))
+        println("Generating Official Conformance Report (AsciiDoc)")
+        println("=".repeat(60))
+        
+        val context = TckIntegration.initialize()
+        
+        // Try to sync
+        try {
+            TckIntegration.sync(context)
+        } catch (e: Exception) {
+            println("⚠️  Sync skipped: ${e.message}")
+        }
+        
+        // Run tests (both custom and official)
+        val results = TckIntegration.runTests(context)
+        
+        // Generate report model
+        val report = TckIntegration.generateReport(context, results)
+        
+        // Generate AsciiDoc
+        val adocReporter = DefaultAsciidocReporter()
+        val adoc = adocReporter.generateAsciidoc(report)
+        
+        // Save to file
+        val outputDir = File("build/tck-report")
+        outputDir.mkdirs()
+        val outputFile = File(outputDir, "tck-conformance-report.adoc")
+        outputFile.writeText(adoc)
+        
+        println("\n✅ AsciiDoc report generated at: ${outputFile.absolutePath}")
+        println("   Total tests: ${report.summary.totalTests}")
+        println("   Pass rate: ${String.format("%.1f%%", report.summary.overallPassRate * 100)}")
+        
+        assertTrue(outputFile.exists(), "Report file should exist")
         assertTrue(results.totalTests > 0, "Should have run some tests")
     }
 }

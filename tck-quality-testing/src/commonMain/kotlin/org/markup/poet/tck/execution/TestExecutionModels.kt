@@ -232,7 +232,7 @@ data class AggregatedResults(
         return buildString {
             appendLine("Test Results Summary:")
             appendLine("  Total: $totalTests")
-            appendLine("  Passed: $passed (${String.format("%.1f%%", passRate() * 100)})")
+            appendLine("  Passed: $passed (${(passRate() * 100).toLong() / 1.0}%)")
             appendLine("  Failed: $failed")
             appendLine("  Pending: $pending")
             appendLine("  Skipped: $skipped")
@@ -241,14 +241,14 @@ data class AggregatedResults(
             if (byPlatform.isNotEmpty()) {
                 appendLine("\nBy Platform:")
                 byPlatform.forEach { (platform, results) ->
-                    appendLine("  $platform: ${results.passed}/${results.total} (${String.format("%.1f%%", results.passRate * 100)})")
+                    appendLine("  $platform: ${results.passed}/${results.total} (${(results.passRate * 100).toLong() / 1.0}%)")
                 }
             }
             
             if (byCategory.isNotEmpty()) {
                 appendLine("\nBy Category:")
                 byCategory.entries.sortedByDescending { it.value.total }.take(5).forEach { (category, results) ->
-                    appendLine("  $category: ${results.passed}/${results.total} (${String.format("%.1f%%", results.passRate * 100)})")
+                    appendLine("  $category: ${results.passed}/${results.total} (${(results.passRate * 100).toLong() / 1.0}%)")
                 }
             }
         }

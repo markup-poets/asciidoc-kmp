@@ -285,4 +285,43 @@ class ReportersTest {
         assertTrue(html.contains("&amp;"))
         assertTrue(html.contains("&quot;"))
     }
+
+    @Test
+    fun `AsciidocReporter should generate valid Asciidoc`() {
+        val reporter = DefaultAsciidocReporter()
+        val report = createMockReport()
+        
+        val adoc = reporter.generateAsciidoc(report)
+        
+        assertNotNull(adoc)
+        assertTrue(adoc.isNotEmpty())
+        assertTrue(adoc.contains("= AsciiDoc Conformance Report"))
+        assertTrue(adoc.contains(":toc: left"))
+    }
+    
+    @Test
+    fun `AsciidocReporter should include tables`() {
+        val reporter = DefaultAsciidocReporter()
+        val report = createMockReport()
+        
+        val adoc = reporter.generateAsciidoc(report)
+        
+        assertTrue(adoc.contains("== Platform Results"))
+        assertTrue(adoc.contains("| Platform | Total | Passed | Failed | Pass Rate"))
+        assertTrue(adoc.contains("== Category Results"))
+        assertTrue(adoc.contains("| Category | Total | Passed | Failed | Pass Rate"))
+    }
+    
+    @Test
+    fun `AsciidocReporter should include certification status`() {
+        val reporter = DefaultAsciidocReporter()
+        val report = createMockReport()
+        
+        val adoc = reporter.generateAsciidoc(report)
+        
+        assertTrue(adoc.contains("== Certification Status"))
+        assertTrue(adoc.contains("NOT READY"))
+        assertTrue(adoc.contains("Blocking Issues"))
+        assertTrue(adoc.contains("Recommendations"))
+    }
 }
