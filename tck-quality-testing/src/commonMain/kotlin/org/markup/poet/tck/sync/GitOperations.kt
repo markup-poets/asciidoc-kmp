@@ -1,5 +1,9 @@
 package org.markup.poet.tck.sync
 
+import org.markup.poet.tck.currentTimeMillis
+import org.markup.poet.tck.getPlatformName
+import kotlinx.serialization.Serializable
+
 /**
  * Platform-agnostic interface for Git operations.
  * 
@@ -74,36 +78,11 @@ interface GitOperations {
 /**
  * Result of a git operation.
  */
+@Serializable
 sealed class GitResult {
-    /**
-     * Operation completed successfully.
-     * 
-     * @param message Success message with details
-     */
+    @Serializable
     data class Success(val message: String) : GitResult()
     
-    /**
-     * Operation failed.
-     * 
-     * @param error Error message describing what went wrong
-     * @param cause Optional exception that caused the failure
-     */
-    data class Failure(val error: String, val cause: Throwable? = null) : GitResult()
+    @Serializable
+    data class Failure(val error: String, val exceptionMessage: String? = null) : GitResult()
 }
-
-/**
- * Exception thrown when git operations fail.
- */
-class GitException(
-    message: String,
-    cause: Throwable? = null
-) : Exception(message, cause)
-
-/**
- * Platform-specific implementation of GitOperations.
- * 
- * This is an expect class that will have different implementations on each platform:
- * - JVM: Uses JGit library
- * - Native (iOS, Linux): Uses system git command
- */
-expect class PlatformGitOperations() : GitOperations

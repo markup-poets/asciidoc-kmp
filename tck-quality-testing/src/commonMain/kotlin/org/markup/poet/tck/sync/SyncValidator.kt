@@ -1,5 +1,8 @@
 package org.markup.poet.tck.sync
 
+import org.markup.poet.tck.*
+import kotlinx.serialization.json.Json
+
 /**
  * Validates the structure and integrity of the official TCK repository.
  * 
@@ -72,6 +75,7 @@ data class TestFileValidation(
  * Default implementation of SyncValidator.
  */
 class DefaultSyncValidator : SyncValidator {
+    private val json = Json { ignoreUnknownKeys = true }
     
     override fun validateStructure(repositoryPath: String): ValidationResult {
         val errors = mutableListOf<String>()
@@ -197,19 +201,10 @@ class DefaultSyncValidator : SyncValidator {
         return try {
             val content = platformReadFile(path)
             // Try to parse as JSON
-            kotlinx.serialization.json.Json.parseToJsonElement(content)
+            json.parseToJsonElement(content)
             true
         } catch (e: Exception) {
             false
         }
     }
 }
-
-/**
- * Platform-specific file operations.
- * These are expect functions that will be implemented per platform.
- */
-expect fun platformFileExists(path: String): Boolean
-expect fun platformIsReadable(path: String): Boolean
-expect fun platformFindFiles(directory: String, suffix: String): List<String>
-expect fun platformReadFile(path: String): String

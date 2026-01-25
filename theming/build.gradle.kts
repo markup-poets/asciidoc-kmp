@@ -1,15 +1,13 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
 }
 
 kotlin {
-    androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
+    androidLibrary {
+        namespace = "org.markup.poet.theming"
+        compileSdk = 36
+        minSdk = 24
     }
     
     jvm()
@@ -32,19 +30,5 @@ kotlin {
                 implementation(libs.kotlin.test)
             }
         }
-    }
-}
-
-android {
-    namespace = "org.markup.poet.theming"
-    compileSdk = 36
-    
-    defaultConfig {
-        minSdk = 24
-    }
-    
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
     }
 }

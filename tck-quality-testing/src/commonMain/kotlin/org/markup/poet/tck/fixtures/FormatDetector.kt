@@ -1,6 +1,6 @@
 package org.markup.poet.tck.fixtures
 
-import org.markup.poet.tck.sync.platformFileExists
+import org.markup.poet.tck.*
 
 /**
  * Detects the format of test fixture files.

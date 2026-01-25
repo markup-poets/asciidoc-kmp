@@ -3,6 +3,9 @@ package org.markup.poet.tck.publisher
 import org.markup.poet.asciidoc.parser.AsciidocParser
 import org.markup.poet.tck.execution.AggregatedResults
 import kotlin.time.measureTimedValue
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Default implementation of [TckResultsPublishWorkflow] that orchestrates the complete
@@ -465,7 +468,7 @@ class DefaultTckResultsPublishWorkflow(
      */
     private fun createExportMetadata(results: AggregatedResults): ExportMetadata {
         return ExportMetadata(
-            timestamp = System.currentTimeMillis(),
+            timestamp = Clock.System.now().toEpochMilliseconds(),
             specVersion = "1.0.0", // TODO: Make configurable
             tckCommitHash = "unknown", // TODO: Get from Git
             libraryVersion = "1.0.0", // TODO: Get from build configuration
@@ -478,12 +481,14 @@ class DefaultTckResultsPublishWorkflow(
      * Generate a unique run ID for this test execution.
      */
     private fun generateRunId(): String {
-        val timestamp = System.currentTimeMillis()
+        val now = Clock.System.now()
+        val localDateTime = now.toLocalDateTime(TimeZone.UTC)
+        
         // Format: YYYY-MM-DD-HHMMSS
-        val date = java.util.Date(timestamp)
-        val format = java.text.SimpleDateFormat("yyyy-MM-dd-HHmmss")
-        format.timeZone = java.util.TimeZone.getTimeZone("UTC")
-        return format.format(date)
+        return with(localDateTime) {
+            "${year}-${monthNumber.toString().padStart(2, '0')}-${dayOfMonth.toString().padStart(2, '0')}-" +
+            "${hour.toString().padStart(2, '0')}${minute.toString().padStart(2, '0')}${second.toString().padStart(2, '0')}"
+        }
     }
     
     /**
@@ -496,7 +501,7 @@ class DefaultTckResultsPublishWorkflow(
         
         return PublishMetadata(
             runId = generateRunId(),
-            timestamp = System.currentTimeMillis(),
+            timestamp = Clock.System.now().toEpochMilliseconds(),
             specVersion = "1.0.0", // TODO: Make configurable
             passRate = passRate,
             totalTests = totalTests,

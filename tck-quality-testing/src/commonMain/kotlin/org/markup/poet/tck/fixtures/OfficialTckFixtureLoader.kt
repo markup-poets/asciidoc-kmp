@@ -1,9 +1,9 @@
 package org.markup.poet.tck.fixtures
 
 import kotlinx.serialization.json.Json
-import org.markup.poet.tck.sync.platformFileExists
-import org.markup.poet.tck.sync.platformFindFiles
-import org.markup.poet.tck.sync.platformReadFile
+import org.markup.poet.tck.platformFileExists
+import org.markup.poet.tck.platformFindFiles
+import org.markup.poet.tck.platformReadFile
 
 /**
  * Loader for official Eclipse AsciiDoc TCK test fixtures.

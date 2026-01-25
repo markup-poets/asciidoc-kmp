@@ -1,5 +1,7 @@
 package org.markup.poet.tck.execution
 
+import org.markup.poet.tck.currentTimeMillis
+import org.markup.poet.tck.getPlatformName
 import org.markup.poet.tck.fixtures.TestFixture
 import org.markup.poet.tck.fixtures.FixtureCategory
 
@@ -256,13 +258,3 @@ class DefaultOutputValidator : OutputValidator {
  * Exception thrown when a test is pending implementation.
  */
 class PendingTestException(message: String) : Exception(message)
-
-/**
- * Get the current platform name.
- */
-expect fun getPlatformName(): String
-
-/**
- * Get current time in milliseconds.
- */
-expect fun currentTimeMillis(): Long

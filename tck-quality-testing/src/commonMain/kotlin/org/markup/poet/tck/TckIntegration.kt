@@ -2,7 +2,6 @@ package org.markup.poet.tck
 
 import org.markup.poet.tck.config.ConfigLoader
 import org.markup.poet.tck.config.JsonConfigLoader
-import org.markup.poet.tck.config.PlatformConfigFileOperations
 import org.markup.poet.tck.config.TckConfig
 import org.markup.poet.tck.conformance.CertificationChecker
 import org.markup.poet.tck.conformance.ConformanceReport
@@ -21,8 +20,6 @@ import org.markup.poet.tck.execution.TestExecutionResult
 import org.markup.poet.tck.execution.TestFilter
 import org.markup.poet.tck.execution.TestRunner
 import org.markup.poet.tck.execution.TestStatus
-import org.markup.poet.tck.execution.currentTimeMillis
-import org.markup.poet.tck.execution.getPlatformName
 import org.markup.poet.tck.fixtures.CompositeFixtureLoader
 import org.markup.poet.tck.fixtures.DefaultFormatDetector
 import org.markup.poet.tck.fixtures.FixtureLoader
@@ -32,11 +29,9 @@ import org.markup.poet.tck.fixtures.TestFixture
 import org.markup.poet.tck.sync.DefaultTckSyncService
 import org.markup.poet.tck.sync.DefaultSyncValidator
 import org.markup.poet.tck.sync.GitOperations
-import org.markup.poet.tck.sync.PlatformGitOperations
-import org.markup.poet.tck.sync.SyncResult
 import org.markup.poet.tck.sync.TckSyncService
+import org.markup.poet.tck.sync.SyncResult
 import org.markup.poet.tck.version.DefaultVersionTracker
-import org.markup.poet.tck.version.PlatformVersionFileOperations
 import org.markup.poet.tck.version.VersionTracker
 
 /**

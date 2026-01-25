@@ -1,5 +1,10 @@
 package org.markup.poet.tck.version
 
+import org.markup.poet.tck.platformReadFile
+import org.markup.poet.tck.platformWriteFile
+import org.markup.poet.tck.platformFileExists
+import org.markup.poet.tck.platformDeleteFile
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -168,8 +173,3 @@ interface VersionFileOperations {
      */
     fun fileExists(path: String): Boolean
 }
-
-/**
- * Platform-specific file operations.
- */
-expect class PlatformVersionFileOperations() : VersionFileOperations

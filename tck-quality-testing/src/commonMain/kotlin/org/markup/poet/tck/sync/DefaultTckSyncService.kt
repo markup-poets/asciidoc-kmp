@@ -1,5 +1,6 @@
 package org.markup.poet.tck.sync
 
+import org.markup.poet.tck.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
@@ -70,7 +71,7 @@ class DefaultTckSyncService(
                                 "Ensure git is installed and accessible",
                                 "Try running with force=true to perform fresh clone"
                             ),
-                            stackTrace = gitResult.cause?.stackTraceToString()
+                            stackTrace = gitResult.exceptionMessage
                         )
                     )
                     
@@ -343,18 +344,3 @@ class DefaultTckSyncService(
         platformDeleteDirectory(path)
     }
 }
-
-/**
- * Platform-specific file write operation.
- */
-expect fun platformWriteFile(path: String, content: String)
-
-/**
- * Platform-specific directory deletion.
- */
-expect fun platformDeleteDirectory(path: String)
-
-/**
- * Platform-specific current time in milliseconds.
- */
-expect fun currentTimeMillis(): Long

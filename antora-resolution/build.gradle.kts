@@ -38,6 +38,21 @@ kotlin {
             // No dependencies for the resolution library - it's standalone
         }
 
+        val appleMain by creating {
+            dependsOn(commonMain.get())
+        }
+
+        macosArm64Main.get().dependsOn(appleMain)
+        iosX64Main.get().dependsOn(appleMain)
+        iosArm64Main.get().dependsOn(appleMain)
+        iosSimulatorArm64Main.get().dependsOn(appleMain)
+
+        val linuxMain by creating {
+            dependsOn(commonMain.get())
+        }
+
+        linuxX64Main.get().dependsOn(linuxMain)
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotest.framework.engine)

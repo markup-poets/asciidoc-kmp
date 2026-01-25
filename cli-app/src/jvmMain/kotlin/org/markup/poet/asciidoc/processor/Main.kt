@@ -22,16 +22,26 @@ fun main(args: Array<String>) {
     
     // Create document processor with all its dependencies
     val includeResolver = DefaultIncludeResolver(parser)
+    val fragmentProcessor = DefaultFragmentProcessor()
+    val conditionalProcessor = DefaultConditionalProcessor()
     val attributeSubstitutor = DefaultAttributeSubstitutor()
     val macroExpander = DefaultMacroExpander()
+    val admonitionProcessor = DefaultAdmonitionProcessor()
+    val calloutProcessor = DefaultCalloutProcessor()
+    val bibliographyManager = DefaultBibliographyManager()
     val crossReferenceResolver = DefaultCrossReferenceResolver()
     val tocGenerator = DefaultTocGenerator()
     val documentValidator = DefaultDocumentValidator()
     
     val documentProcessor = DefaultDocumentProcessor(
         includeResolver = includeResolver,
+        fragmentProcessor = fragmentProcessor,
+        conditionalProcessor = conditionalProcessor,
         attributeSubstitutor = attributeSubstitutor,
         macroExpander = macroExpander,
+        admonitionProcessor = admonitionProcessor,
+        calloutProcessor = calloutProcessor,
+        bibliographyManager = bibliographyManager,
         crossReferenceResolver = crossReferenceResolver,
         tocGenerator = tocGenerator,
         documentValidator = documentValidator,

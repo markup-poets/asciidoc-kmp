@@ -43,13 +43,18 @@ kotlin {
             
             // JSON serialization for fixture loading
             implementation(libs.kotlinx.serialization.json)
+
+            // Multiplatform time and date
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
         }
         
-        jvmMain.dependencies {
-            // JGit for git operations on JVM
-            implementation(libs.jgit)
-            // Coroutines for async operations
-            implementation(libs.kotlinx.coroutines.core)
+        jvmMain {
+            dependencies {
+                // JGit for git operations on JVM
+                implementation("org.eclipse.jgit:org.eclipse.jgit:6.8.0.202311291450-r")
+                // Coroutines for async operations
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+            }
         }
 
         commonTest.dependencies {
@@ -57,7 +62,7 @@ kotlin {
             implementation(libs.kotest.framework.engine)
             implementation(libs.kotest.assertions.core)
             implementation(libs.kotest.property)
-            implementation(libs.kotlinx.coroutines.core)
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
         }
     }
 }

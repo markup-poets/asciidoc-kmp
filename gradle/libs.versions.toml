@@ -8,6 +8,7 @@ vanniktechMavenPublish = "0.35.0"
 kotest = "6.0.7"
 kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.10.2"
+kotlinx-datetime = "0.6.1"
 jgit = "6.8.0.202311291450-r"
 
 [libraries]
@@ -17,6 +18,7 @@ kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.
 kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 
 [plugins]

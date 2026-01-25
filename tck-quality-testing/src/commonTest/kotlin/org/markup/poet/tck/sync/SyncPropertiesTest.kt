@@ -5,6 +5,7 @@ import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
  * Property-based tests for TCK Sync System.
@@ -62,7 +63,7 @@ class SyncPropertiesTest {
         
         // The validation should only check the official TCK path
         // Custom fixtures should be completely separate
-        assert(result is ValidationResult.Valid)
+        assertTrue(result is ValidationResult.Valid)
     }
     
     @Test

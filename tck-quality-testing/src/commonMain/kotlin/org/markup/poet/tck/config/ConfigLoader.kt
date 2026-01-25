@@ -1,5 +1,7 @@
 package org.markup.poet.tck.config
 
+import org.markup.poet.tck.platformReadFile
+import org.markup.poet.tck.platformWriteFile
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -185,11 +187,6 @@ interface ConfigFileOperations {
      */
     fun writeFile(path: String, content: String)
 }
-
-/**
- * Platform-specific file operations for configuration.
- */
-expect class PlatformConfigFileOperations() : ConfigFileOperations
 
 /**
  * Exception thrown when configuration loading fails.

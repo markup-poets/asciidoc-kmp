@@ -58,6 +58,23 @@ class AsciiDocPrettyPrinter {
             is ListItem -> {} // ListItems are handled within printList
             is CalloutListItem -> {} // CalloutListItems are handled within printCalloutList
             is Document -> {} // Document is handled separately in print()
+            is AdmonitionBlock -> {
+                builder.appendLine("$indent${element.type}:")
+                element.content.forEach { printBlockElement(it, builder, indent) }
+            }
+            is BibliographyEntry -> {
+                builder.appendLine("${indent}[${element.id}] ${element.citation}")
+            }
+            is ConditionalDirective -> {
+                // Should not normally appear in processed output
+                builder.appendLine("${indent}${element.type}::${element.condition}[]")
+                element.content.forEach { printBlockElement(it, builder, indent) }
+                if (element.elseContent.isNotEmpty()) {
+                    builder.appendLine("${indent}else::[]")
+                    element.elseContent.forEach { printBlockElement(it, builder, indent) }
+                }
+                builder.appendLine("${indent}endif::[]")
+            }
         }
     }
     
@@ -193,6 +210,13 @@ class AsciiDocPrettyPrinter {
                 } else {
                     "${element.macroName}:[$params]"
                 }
+            }
+            is FootnoteReference -> {
+                val content = element.content.joinToString("") { printInlineElement(it) }
+                "footnote:[${content}]"
+            }
+            is BibliographyReference -> {
+                "[${element.citationId}]"
             }
         }
     }
