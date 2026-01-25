@@ -63,7 +63,23 @@ data class ParsedInline(
  */
 class DefaultInlineParser : InlineParser {
     
+    companion object {
+        private const val MAX_NESTING_DEPTH = 10
+    }
+    
     override fun parseInlineElements(text: String, startLineNumber: Int): List<InlineElement> {
+        return parseInlineElementsWithDepth(text, startLineNumber, 0)
+    }
+    
+    private fun parseInlineElementsWithDepth(text: String, startLineNumber: Int, depth: Int): List<InlineElement> {
+        // Prevent infinite recursion
+        if (depth > MAX_NESTING_DEPTH) {
+            return listOf(Text(
+                content = text,
+                sourceLocation = SourceLocation(startLineNumber)
+            ))
+        }
+        
         val elements = mutableListOf<InlineElement>()
         var currentIndex = 0
         
@@ -72,8 +88,8 @@ class DefaultInlineParser : InlineParser {
             
             // Try to parse different inline elements
             val parsed = when (char) {
-                '*' -> parseStrong(text, currentIndex, startLineNumber)
-                '_' -> parseEmphasis(text, currentIndex, startLineNumber)
+                '*' -> parseStrongWithDepth(text, currentIndex, startLineNumber, depth)
+                '_' -> parseEmphasisWithDepth(text, currentIndex, startLineNumber, depth)
                 '`' -> parseCode(text, currentIndex, startLineNumber)
                 '{' -> parseAttributeReference(text, currentIndex, startLineNumber)
                 'l' -> if (text.substring(currentIndex).startsWith("link:")) {
@@ -90,38 +106,76 @@ class DefaultInlineParser : InlineParser {
                 elements.add(parsed.element)
                 currentIndex = parsed.endIndex
             } else {
-                // Find the next markup character or end of text
-                val nextMarkupIndex = findNextMarkupCharacter(text, currentIndex)
-                val textContent = text.substring(currentIndex, nextMarkupIndex)
+                // If we couldn't parse a markup element at this position,
+                // find the next markup character (starting from currentIndex + 1)
+                val nextMarkupIndex = findNextMarkupCharacter(text, currentIndex + 1)
+                
+                // If nextMarkupIndex is still currentIndex (shouldn't happen with +1),
+                // or if we're at a markup char that failed to parse, include it as text
+                val endIndex = if (nextMarkupIndex > currentIndex) nextMarkupIndex else currentIndex + 1
+                val textContent = text.substring(currentIndex, endIndex)
                 
                 if (textContent.isNotEmpty()) {
-                    elements.add(
-                        Text(
-                            content = textContent,
-                            sourceLocation = SourceLocation(startLineNumber)
+                    // Trim trailing whitespace/newlines for position calculation
+                    val trimmedContent = textContent.trimEnd()
+                    
+                    if (trimmedContent.isNotEmpty()) {
+                        // Track actual character positions (1-based)
+                        // Start column is 1-based index of first character
+                        // End column is 1-based index of LAST character (INCLUSIVE, not exclusive!)
+                        val startCol = currentIndex + 1
+                        val endCol = currentIndex + trimmedContent.length  // Last char position (inclusive)
+                        
+                        elements.add(
+                            Text(
+                                content = trimmedContent,
+                                sourceLocation = SourceLocation(
+                                    line = startLineNumber,
+                                    column = startCol,
+                                    endLine = startLineNumber,
+                                    endColumn = endCol
+                                )
+                            )
                         )
-                    )
+                    }
                 }
                 
-                currentIndex = nextMarkupIndex
+                currentIndex = endIndex
             }
         }
         
         // If no elements were parsed, return the entire text as a single Text element
         if (elements.isEmpty() && text.isNotEmpty()) {
-            elements.add(
-                Text(
-                    content = text,
-                    sourceLocation = SourceLocation(startLineNumber)
+            val trimmedText = text.trimEnd()
+            if (trimmedText.isNotEmpty()) {
+                elements.add(
+                    Text(
+                        content = trimmedText,
+                        sourceLocation = SourceLocation(
+                            line = startLineNumber,
+                            column = 1,
+                            endLine = startLineNumber,
+                            endColumn = trimmedText.length  // Last char position (inclusive)
+                        )
+                    )
                 )
-            )
+            }
         }
         
         return elements
     }
     
     override fun parseStrong(text: String, startIndex: Int, lineNumber: Int): ParsedInline? {
+        return parseStrongWithDepth(text, startIndex, lineNumber, 0)
+    }
+    
+    private fun parseStrongWithDepth(text: String, startIndex: Int, lineNumber: Int, depth: Int): ParsedInline? {
         if (startIndex >= text.length || text[startIndex] != '*') {
+            return null
+        }
+        
+        // Prevent infinite recursion
+        if (depth > MAX_NESTING_DEPTH) {
             return null
         }
         
@@ -136,20 +190,38 @@ class DefaultInlineParser : InlineParser {
             return null
         }
         
-        // Parse nested inline elements within the strong text
-        val innerElements = parseInlineElements(innerText, lineNumber)
+        // Parse nested inline elements within the strong text with depth tracking
+        val innerElements = parseInlineElementsWithDepth(innerText, lineNumber, depth + 1)
+        
+        // Track actual character positions (1-based)
+        val startCol = startIndex + 1
+        val endCol = closingIndex + 2  // Position after the closing *
         
         return ParsedInline(
             element = Strong(
                 content = innerElements,
-                sourceLocation = SourceLocation(lineNumber)
+                sourceLocation = SourceLocation(
+                    line = lineNumber,
+                    column = startCol,
+                    endLine = lineNumber,
+                    endColumn = endCol
+                )
             ),
             endIndex = closingIndex + 1
         )
     }
     
     override fun parseEmphasis(text: String, startIndex: Int, lineNumber: Int): ParsedInline? {
+        return parseEmphasisWithDepth(text, startIndex, lineNumber, 0)
+    }
+    
+    private fun parseEmphasisWithDepth(text: String, startIndex: Int, lineNumber: Int, depth: Int): ParsedInline? {
         if (startIndex >= text.length || text[startIndex] != '_') {
+            return null
+        }
+        
+        // Prevent infinite recursion
+        if (depth > MAX_NESTING_DEPTH) {
             return null
         }
         
@@ -164,13 +236,22 @@ class DefaultInlineParser : InlineParser {
             return null
         }
         
-        // Parse nested inline elements within the emphasis text
-        val innerElements = parseInlineElements(innerText, lineNumber)
+        // Parse nested inline elements within the emphasis text with depth tracking
+        val innerElements = parseInlineElementsWithDepth(innerText, lineNumber, depth + 1)
+        
+        // Track actual character positions (1-based)
+        val startCol = startIndex + 1
+        val endCol = closingIndex + 2  // +2 to include the closing _
         
         return ParsedInline(
             element = Emphasis(
                 content = innerElements,
-                sourceLocation = SourceLocation(lineNumber)
+                sourceLocation = SourceLocation(
+                    line = lineNumber,
+                    column = startCol,
+                    endLine = lineNumber,
+                    endColumn = endCol
+                )
             ),
             endIndex = closingIndex + 1
         )
@@ -189,10 +270,19 @@ class DefaultInlineParser : InlineParser {
         
         val codeContent = text.substring(startIndex + 1, closingIndex)
         
+        // Track actual character positions (1-based)
+        val startCol = startIndex + 1
+        val endCol = closingIndex + 2  // +2 to include the closing `
+        
         return ParsedInline(
             element = Code(
                 content = codeContent,
-                sourceLocation = SourceLocation(lineNumber)
+                sourceLocation = SourceLocation(
+                    line = lineNumber,
+                    column = startCol,
+                    endLine = lineNumber,
+                    endColumn = endCol
+                )
             ),
             endIndex = closingIndex + 1
         )
@@ -221,11 +311,20 @@ class DefaultInlineParser : InlineParser {
             return null
         }
         
+        // Track actual character positions (1-based)
+        val startCol = startIndex + 1
+        val endCol = closingBracketIndex + 2  // +2 to include the closing ]
+        
         return ParsedInline(
             element = Link(
                 url = url,
                 text = linkText,
-                sourceLocation = SourceLocation(lineNumber)
+                sourceLocation = SourceLocation(
+                    line = lineNumber,
+                    column = startCol,
+                    endLine = lineNumber,
+                    endColumn = endCol
+                )
             ),
             endIndex = closingBracketIndex + 1
         )
@@ -254,11 +353,20 @@ class DefaultInlineParser : InlineParser {
             return null
         }
         
+        // Track actual character positions (1-based)
+        val startCol = startIndex + 1
+        val endCol = closingBracketIndex + 2  // +2 to include the closing ]
+        
         return ParsedInline(
             element = Image(
                 path = path,
                 altText = altText,
-                sourceLocation = SourceLocation(lineNumber)
+                sourceLocation = SourceLocation(
+                    line = lineNumber,
+                    column = startCol,
+                    endLine = lineNumber,
+                    endColumn = endCol
+                )
             ),
             endIndex = closingBracketIndex + 1
         )
@@ -286,10 +394,19 @@ class DefaultInlineParser : InlineParser {
             return null
         }
         
+        // Track actual character positions (1-based)
+        val startCol = startIndex + 1
+        val endCol = closingIndex + 2  // +2 to include the closing }
+        
         return ParsedInline(
             element = AttributeReference(
                 key = key,
-                sourceLocation = SourceLocation(lineNumber)
+                sourceLocation = SourceLocation(
+                    line = lineNumber,
+                    column = startCol,
+                    endLine = lineNumber,
+                    endColumn = endCol
+                )
             ),
             endIndex = closingIndex + 1
         )
@@ -304,10 +421,19 @@ class DefaultInlineParser : InlineParser {
         
         // Only escape markup characters
         if (escapedChar in setOf('*', '_', '`', '\\', '[', ']', '{', '}')) {
+            // Track actual character positions (1-based)
+            val startCol = startIndex + 1
+            val endCol = startIndex + 3  // +3 for backslash + escaped char
+            
             return ParsedInline(
                 element = Text(
                     content = escapedChar.toString(),
-                    sourceLocation = SourceLocation(lineNumber)
+                    sourceLocation = SourceLocation(
+                        line = lineNumber,
+                        column = startCol,
+                        endLine = lineNumber,
+                        endColumn = endCol
+                    )
                 ),
                 endIndex = startIndex + 2
             )

@@ -1,5 +1,19 @@
 # Requirements Document: Official AsciiDoc TCK Integration
 
+## Important: Kotlin-Only Implementation Approach
+
+**The official Eclipse AsciiDoc TCK is a JavaScript-based test harness.** This project follows a strict guideline: **no Ruby or JavaScript tools for Kotlin Multiplatform implementation.**
+
+**Our Integration Strategy:**
+- **Extract test data**: We sync the official TCK repository to access test case data (input.adoc and output.json files)
+- **Pure Kotlin execution**: We implement our own Kotlin-based test execution infrastructure
+- **No JavaScript dependencies**: We do NOT use the JavaScript test harness, Node.js, or any JavaScript runtime
+- **Data-only integration**: The official TCK serves as a source of canonical test data, not as an execution environment
+
+This approach allows us to validate conformance to the AsciiDoc specification using official test cases while maintaining a pure Kotlin Multiplatform implementation.
+
+---
+
 ## Introduction
 
 This document specifies the requirements for integrating the official Eclipse Foundation AsciiDoc Technology Compatibility Kit (TCK) into the Markup Poet AsciiDoc converter library. The integration will enable validation of spec conformance, certification eligibility, and automatic synchronization with the official test suite while maintaining the existing custom TCK infrastructure for Kotlin Multiplatform-specific testing.

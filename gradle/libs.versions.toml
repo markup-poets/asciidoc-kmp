@@ -7,6 +7,8 @@ android-compileSdk = "36"
 vanniktechMavenPublish = "0.35.0"
 kotest = "6.0.7"
 kotlinx-serialization = "1.7.3"
+kotlinx-coroutines = "1.10.2"
+jgit = "6.8.0.202311291450-r"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -14,6 +16,8 @@ kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", versio
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 
 [plugins]
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }

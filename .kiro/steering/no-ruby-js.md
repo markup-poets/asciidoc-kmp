@@ -6,4 +6,4 @@ inclusion: always
    
    Learn about inclusion modes: https://kiro.dev/docs/steering/#inclusion-modes
 -------------------------------------------------------------------------------------> 
-don't use any ruby or js bases asciidoc tools. ever.
+don't use any ruby or js bases asciidoc tools for Kotlin mutlplatofrm implemantation. You can use it as a part of offcial TCK suite ...

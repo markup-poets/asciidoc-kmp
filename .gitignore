@@ -40,6 +40,15 @@ out/
 .gradle/
 build/
 
+# Official TCK files
+tck-quality-testing/official-tck/repository/
+tck-quality-testing/official-tck/sync-metadata.json
+tck-quality-testing/official-tck/sync-log.json
+tck-quality-testing/official-tck/version.txt
+tck-quality-testing/official-tck/commit-hash.txt
+tck-quality-testing/official-tck/version-history.json
+tck-quality-testing/conformance-reports/
+
 # Local configuration file (sdk path, etc)
 local.properties
 

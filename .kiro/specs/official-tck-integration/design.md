@@ -1,5 +1,30 @@
 # Design Document: Official AsciiDoc TCK Integration
 
+## Important: Kotlin-Only Implementation Approach
+
+**The official Eclipse AsciiDoc TCK is a JavaScript-based test harness.** This project strictly avoids Ruby and JavaScript tools for the Kotlin Multiplatform implementation.
+
+**Our Design Philosophy:**
+1. **Test Data Extraction**: Sync the official TCK repository to access canonical test cases (input.adoc, output.json files)
+2. **Pure Kotlin Implementation**: All parsing, loading, execution, and reporting is implemented in Kotlin
+3. **No JavaScript Execution**: The JavaScript test harness in the official TCK is not used
+4. **Platform-Native Tools**: Use JGit (Java) for JVM, native git for iOS/Linux - no Node.js
+5. **Data Format Compatibility**: Parse the official test data format using kotlinx.serialization
+
+**What We Use from Official TCK:**
+- ✅ Test input files (*.adoc)
+- ✅ Expected output files (*.json)
+- ✅ Directory structure for categorization
+- ✅ Test case organization
+
+**What We DON'T Use from Official TCK:**
+- ❌ JavaScript test harness (harness/lib/)
+- ❌ Node.js dependencies (package.json)
+- ❌ JavaScript test runner
+- ❌ Any JavaScript execution
+
+---
+
 ## Overview
 
 This design document specifies the architecture and implementation approach for integrating the official Eclipse Foundation AsciiDoc Technology Compatibility Kit (TCK) into the Markup Poet AsciiDoc converter library. The integration enables validation of specification conformance, tracks progress toward certification, and maintains dual support for both custom and official test formats.

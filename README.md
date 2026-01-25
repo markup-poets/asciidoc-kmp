@@ -12,6 +12,7 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 - **Spec Compliant**: Follows AsciiDoc Language Specification
 - **Clean Architecture**: Clear separation between parsing, processing, conversion, and rendering phases
 - **Extensible**: Modular design allows custom processors and converters
+- **Pluggable Theming**: Flexible styling system with built-in themes and CSS customization
 - **Zero Dependencies**: No external libraries required
 
 ## Architecture
@@ -25,16 +26,36 @@ The library follows a clean pipeline architecture:
 
 ## Quick Start
 
+### Basic Rendering
+
 ```kotlin
-val parser = AsciidocParser()
-val ast = parser.parse(input)
+import org.markup.poet.asciidoc.render.*
+import org.markup.poet.asciidoc.ast.Document
 
-val processor = AsciidocProcessorPipeline()
-processor.process(ast)
+val renderer = DefaultHtmlRenderer(blockRenderer, inlineRenderer)
+val result = renderer.render(document)
 
-val html = HtmlConverter().convert(ast)
-HtmlRenderer().render(html, outputFile)
+result.onSuccess { html ->
+    println(html)
+}
 ```
+
+### With Custom Theme
+
+```kotlin
+val config = RenderConfig(
+    theme = KotlinTheme(),
+    cssOptions = CssOptions(
+        cssVariableOverrides = mapOf(
+            "--mp-color-primary" to "#DC2626"
+        )
+    )
+)
+
+val result = renderer.render(document, config)
+```
+
+See [THEMING_USAGE.md](THEMING_USAGE.md) for complete theming documentation.
 
 ## Installation
 
@@ -52,6 +73,68 @@ dependencies {
 - **Android** (API 24+)
 - **iOS** (x64, ARM64, Simulator ARM64)
 - **Linux** (x64)
+
+## Theming & Styling
+
+The library includes a powerful, pluggable theming system that strictly separates document structure from visual presentation.
+
+### Built-in Themes
+
+- **DefaultTheme** - Clean, minimal styling
+- **DarkTheme** - Dark mode for low-light environments
+- **KotlinTheme** - Kotlin-branded with red accents
+- **MinimalTheme** - Bare minimum for custom styling
+
+### Documentation
+
+📖 **[THEMING_INDEX.md](THEMING_INDEX.md)** - Complete documentation index (start here!)
+
+- **[THEMING_ARCHITECTURE.md](THEMING_ARCHITECTURE.md)** - Architecture overview and design principles
+- **[THEMING_USAGE.md](THEMING_USAGE.md)** - Usage guide with examples and best practices
+- **[THEMING_QUICK_REFERENCE.md](THEMING_QUICK_REFERENCE.md)** - Quick reference card
+- **[THEMING_VISUAL_GUIDE.md](THEMING_VISUAL_GUIDE.md)** - Visual diagrams and flow charts
+- **[KOTLIN_THEME.md](KOTLIN_THEME.md)** - Kotlin theme details and customization
+- **[examples/THEMING_EXAMPLES.md](examples/THEMING_EXAMPLES.md)** - Complete runnable examples
+
+### Quick Examples
+
+**Use a built-in theme:**
+```kotlin
+val config = RenderConfig(theme = DarkTheme())
+renderer.render(document, config)
+```
+
+**Customize with CSS variables:**
+```kotlin
+val config = RenderConfig(
+    theme = DefaultTheme(),
+    cssOptions = CssOptions(
+        cssVariableOverrides = mapOf(
+            "--mp-color-primary" to "#DC2626",
+            "--mp-font-family" to "Georgia, serif"
+        )
+    )
+)
+```
+
+**Add custom CSS:**
+```kotlin
+val config = RenderConfig(
+    theme = DefaultTheme(),
+    cssOptions = CssOptions(
+        customCssPath = "path/to/custom.css"
+    )
+)
+```
+
+**Create custom theme:**
+```kotlin
+class MyTheme : Theme {
+    override fun headingClasses(level: Int) = "my-heading my-h$level"
+    override fun getCss() = "/* your CSS */"
+    // ... implement other methods
+}
+```
 
 ## License
 
