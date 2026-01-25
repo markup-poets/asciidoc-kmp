@@ -32,15 +32,12 @@ HTML_REPORT="$OUTPUT_DIR/index.html"
 
 # We use the project's own HTML converter
 # Convert to absolute paths for gradle
-ADOC_ABS="$(pwd)/$ADOC_REPORT"
-HTML_ABS="$(pwd)/$HTML_REPORT"
+ADOC_ABS="$(cd "$(dirname "$ADOC_REPORT")" && pwd)/$(basename "$ADOC_REPORT")"
+HTML_ABS="$(cd "$(dirname "$HTML_REPORT")" && pwd)/$(basename "$HTML_REPORT")"
 
-# Get relative paths from html-cli directory
-ADOC_REL=$(realpath --relative-to="html-cli" "$ADOC_ABS")
-HTML_REL=$(realpath --relative-to="html-cli" "$HTML_ABS")
-
-echo "Running converter with kotlin theme: :html-cli:jvmRun --args=\"$ADOC_REL $HTML_REL --theme kotlin\""
-./gradlew :html-cli:jvmRun --args="$ADOC_REL $HTML_REL --theme kotlin" -q
+# We use absolute paths directly. Gradle's jvmRun handles them fine.
+echo "Running converter with kotlin theme: :html-cli:jvmRun --args=\"$ADOC_ABS $HTML_ABS --theme kotlin\""
+./gradlew :html-cli:jvmRun --args="$ADOC_ABS $HTML_ABS --theme kotlin" -q
 
 if [ ! -f "$HTML_REPORT" ]; then
     echo "❌ Error: HTML conversion failed - output file not created"

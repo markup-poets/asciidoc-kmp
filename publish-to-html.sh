@@ -66,16 +66,11 @@ echo ""
 echo "Step 2: Converting to HTML..."
 echo "------------------------------------------"
 
-# Convert to absolute paths for gradle
+# Convert to absolute paths
 ASSEMBLED_ABS="$(cd "$(dirname "$ASSEMBLED_FILE")" && pwd)/$(basename "$ASSEMBLED_FILE")"
 OUTPUT_ABS="$(cd "$(dirname "$OUTPUT_FILE")" && pwd)/$(basename "$OUTPUT_FILE")"
 
-# Get relative paths from html-cli directory
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ASSEMBLED_REL="$(realpath --relative-to="$SCRIPT_DIR/html-cli" "$ASSEMBLED_ABS")"
-OUTPUT_REL="$(realpath --relative-to="$SCRIPT_DIR/html-cli" "$OUTPUT_ABS")"
-
-./gradlew -q :html-cli:jvmRun --args="$ASSEMBLED_REL $OUTPUT_REL"
+./gradlew -q :html-cli:jvmRun --args="$ASSEMBLED_ABS $OUTPUT_ABS"
 
 if [ ! -f "$OUTPUT_FILE" ]; then
     echo "Error: HTML conversion failed - output file not created"

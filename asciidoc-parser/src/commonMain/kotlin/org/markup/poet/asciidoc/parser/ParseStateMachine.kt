@@ -85,6 +85,9 @@ sealed class StateTrigger {
 
     /** Include directive encountered */
     object IncludeDirective : StateTrigger()
+    
+    /** Block attribute encountered (e.g., [source,kotlin]) */
+    data class BlockAttribute(val attribute: String) : StateTrigger()
 }
 
 /**

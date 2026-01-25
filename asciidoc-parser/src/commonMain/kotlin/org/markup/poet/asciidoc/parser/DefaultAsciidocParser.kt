@@ -75,8 +75,19 @@ class DefaultAsciidocParser(
                 
                 // Check if this is a block attribute line like [source,kotlin]
                 if (trimmed.startsWith("[source") && trimmed.endsWith("]") && !stateMachine.getCurrentState().let { it == ParseState.IN_CODE_BLOCK }) {
+                    // Finalize current block if any
+                    if (currentBlockLines.isNotEmpty()) {
+                        processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes, pendingBlockAttribute)
+                        currentBlockLines.clear()
+                    }
+                    
                     // Store this as a pending block attribute for the next code block
                     pendingBlockAttribute = trimmed
+                    
+                    currentBlockType = BlockType.CODE_BLOCK_DELIMITER
+                    currentBlockStartLine = lineNumber
+                    currentBlockLines.add(line)
+                    
                     return@forEachIndexed
                 }
                 
@@ -95,6 +106,10 @@ class DefaultAsciidocParser(
                 
                 // Handle state transitions with error checking
                 val trigger = createStateTrigger(lineResult)
+                
+                // Special handling for [source] followed by ----
+                val isOpeningCodeDelimiter = !context.inCodeBlock && lineResult.blockType == BlockType.CODE_BLOCK_DELIMITER
+                
                 val transition = stateMachine.transition(trigger)
                 
                 if (!transition.success && transition.error != null) {
@@ -124,7 +139,7 @@ class DefaultAsciidocParser(
                         // In code block, we don't switch block type until the delimiter ends it
                         val isDelimiter = lineResult.blockType == BlockType.CODE_BLOCK_DELIMITER
                         val shouldSwitchBlock = !inCodeBlock && currentBlockType != lineResult.blockType
-                        val isClosingDelimiter = inCodeBlock && isDelimiter
+                        val isClosingDelimiter = inCodeBlock && isDelimiter && !isOpeningCodeDelimiter
 
                         if (shouldSwitchBlock || isClosingDelimiter) {
                             // Finalize previous block
@@ -134,9 +149,9 @@ class DefaultAsciidocParser(
                                 }
                                 processBlock(currentBlockLines, currentBlockType, currentBlockStartLine, children, documentAttributes, pendingBlockAttribute)
                                 currentBlockLines.clear()
-                                pendingBlockAttribute = null
                                 if (isClosingDelimiter) {
                                     currentBlockType = null
+                                    pendingBlockAttribute = null
                                     // NO RESET HERE
                                     return@forEachIndexed
                                 }
@@ -224,7 +239,22 @@ class DefaultAsciidocParser(
                     
                     // Extract content between delimiters
                     val codeContent = if (lines.size >= 2) {
-                        lines.drop(1).dropLast(1)
+                        if (lines.first().trim().startsWith("[")) {
+                            // Block attribute included
+                            if (lines.size >= 3) {
+                                lines.drop(2).dropLast(1)
+                            } else {
+                                // Missing closing delimiter after attribute and opening delimiter
+                                addError(
+                                    message = "Malformed code block: missing closing delimiter",
+                                    location = SourceLocation(startLineNumber),
+                                    severity = ErrorSeverity.ERROR
+                                )
+                                lines.drop(2)
+                            }
+                        } else {
+                            lines.drop(1).dropLast(1)
+                        }
                     } else {
                         // Malformed code block
                         addError(

@@ -76,6 +76,7 @@ class DefaultParseStateMachine : ParseStateMachine {
             }
             is StateTrigger.CommentLine -> context.currentState // Comments don't change state
             is StateTrigger.IncludeDirective -> context.currentState // Includes don't change state
+            is StateTrigger.BlockAttribute -> context.currentState // Attributes don't change state directly
         }
     }
     
@@ -93,13 +94,13 @@ class DefaultParseStateMachine : ParseStateMachine {
                 ParseState.IN_LIST -> trigger is StateTrigger.ListMarker
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
                 ParseState.IN_ATTRIBUTES -> trigger is StateTrigger.AttributeDefinition
-                ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine
+                ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine || trigger is StateTrigger.BlockAttribute
             }
             
             ParseState.IN_LIST -> when (newState) {
                 ParseState.DOCUMENT_START -> trigger is StateTrigger.EmptyLine
                 ParseState.IN_SECTION -> trigger is StateTrigger.SectionHeader
-                ParseState.IN_LIST -> trigger is StateTrigger.ListMarker || trigger is StateTrigger.TextLine
+                ParseState.IN_LIST -> trigger is StateTrigger.ListMarker || trigger is StateTrigger.TextLine || trigger is StateTrigger.BlockAttribute
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
                 ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine
                 else -> false
@@ -117,7 +118,7 @@ class DefaultParseStateMachine : ParseStateMachine {
             ParseState.IN_SECTION -> when (newState) {
                 ParseState.DOCUMENT_START -> trigger is StateTrigger.EmptyLine
                 ParseState.IN_SECTION -> trigger is StateTrigger.SectionHeader
-                ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine
+                ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine || trigger is StateTrigger.BlockAttribute
                 ParseState.IN_LIST -> trigger is StateTrigger.ListMarker
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
                 ParseState.IN_ATTRIBUTES -> trigger is StateTrigger.AttributeDefinition
@@ -127,7 +128,7 @@ class DefaultParseStateMachine : ParseStateMachine {
                 ParseState.DOCUMENT_START -> trigger is StateTrigger.EmptyLine
                 ParseState.IN_ATTRIBUTES -> trigger is StateTrigger.AttributeDefinition
                 ParseState.IN_SECTION -> trigger is StateTrigger.SectionHeader
-                ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine
+                ParseState.IN_PARAGRAPH -> trigger is StateTrigger.TextLine || trigger is StateTrigger.BlockAttribute
                 ParseState.IN_LIST -> trigger is StateTrigger.ListMarker
                 ParseState.IN_CODE_BLOCK -> trigger is StateTrigger.BlockDelimiter
             }

@@ -19,22 +19,17 @@ fi
 INPUT_FILE="$1"
 OUTPUT_FILE="${2:-${INPUT_FILE%.adoc}.html}"
 
-# Convert to absolute paths for gradle
+# Convert to absolute paths
 INPUT_ABS="$(cd "$(dirname "$INPUT_FILE")" && pwd)/$(basename "$INPUT_FILE")"
 OUTPUT_ABS="$(cd "$(dirname "$OUTPUT_FILE")" && pwd)/$(basename "$OUTPUT_FILE")"
-
-# Get relative paths from html-cli directory
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INPUT_REL="$(realpath --relative-to="$SCRIPT_DIR/html-cli" "$INPUT_ABS")"
-OUTPUT_REL="$(realpath --relative-to="$SCRIPT_DIR/html-cli" "$OUTPUT_ABS")"
 
 echo "Converting AsciiDoc to HTML..."
 echo "Input:  $INPUT_FILE"
 echo "Output: $OUTPUT_FILE"
 echo ""
 
-# Run the HTML renderer
-./gradlew -q :html-cli:jvmRun --args="$INPUT_REL $OUTPUT_REL"
+# Run the HTML renderer using absolute paths
+./gradlew -q :html-cli:jvmRun --args="$INPUT_ABS $OUTPUT_ABS"
 
 echo ""
 echo "Done! Open $OUTPUT_FILE in your browser to view the result."
