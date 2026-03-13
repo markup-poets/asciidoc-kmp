@@ -9,7 +9,7 @@ kotest = "6.0.7"
 kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.10.2"
 kotlinx-datetime = "0.6.1"
-jgit = "6.8.0.202311291450-r"
+jgit = "7.6.0.202603022253-r"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
