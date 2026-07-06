@@ -306,9 +306,10 @@ class AsgInlineParser(
         val name = text.substring(start, i)
         if (name in excludedMacroNames) return null
 
+        // Targets may themselves contain ':' (xref:module:page.adoc[], mailto:, URLs).
         val targetStart = i + 1
         var j = targetStart
-        while (j < to && text[j] != '[' && text[j] != ' ' && text[j] != '\n' && text[j] != ':') j++
+        while (j < to && text[j] != '[' && text[j] != ' ' && text[j] != '\n') j++
         if (j >= to || text[j] != '[') return null
         val target = text.substring(targetStart, j)
 
