@@ -7,6 +7,10 @@ actual fun readFileContent(path: String): String {
     return File(path).readText()
 }
 
+actual fun readFileBytes(path: String): ByteArray {
+    return File(path).readBytes()
+}
+
 actual fun writeFileContent(path: String, content: String) {
     File(path).writeText(content)
 }

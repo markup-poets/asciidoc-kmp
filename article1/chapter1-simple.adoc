@@ -1,0 +1,5 @@
+== Chapter 1: Getting Started
+
+This is a simple chapter with just text.
+
+No special formatting or code blocks.
