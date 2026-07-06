@@ -47,7 +47,7 @@ The official Eclipse AsciiDoc TCK (`tck-quality-testing/official-tck/repository/
 
 Pipeline: Parse (`asciidoc-parser`) → Process (`document-processing`) → Render (`html-renderer`). Every phase operates on the ASG model (`org.markup.poet.asciidoc.asg`), which mirrors the official schema: node axes `name`/`variant`/`form` are fields, so new syntax mostly means parser work, not new node classes.
 
-Parser: `DefaultAsciidocParser` facade (`parse(source): ParseResult`) → `BlockTreeParser`/`AsgInlineParser` (`parser/asg/`) → `AsgDocument` (sealed `Block`/`Inline` hierarchies). `AsgProcessingNodes.kt` adds non-schema extension nodes (includes, conditionals, comments, callouts, footnotes, citations, raw pre-rendered output) that the parser core never emits; they are injected/consumed by document-processing and extension plugins, and the TCK serialization path never sees them.
+Parser: `DefaultAsciidocParser` facade (`parse(source): ParseResult`) → `BlockTreeParser`/`AsgInlineParser` (`parser/asg/`) → `AsgDocument` (sealed `Block`/`Inline` hierarchies). `AsgProcessingNodes.kt` adds non-schema extension nodes: the parser core emits includes, conditionals, custom block macros, and tables for the corresponding syntax; the rest (comments, callouts, footnotes, citations, raw pre-rendered output) are injected/consumed by document-processing and extension plugins. The TCK serialization path refuses all of them (no TCK fixture contains these constructs).
 
 ## Testing
 
