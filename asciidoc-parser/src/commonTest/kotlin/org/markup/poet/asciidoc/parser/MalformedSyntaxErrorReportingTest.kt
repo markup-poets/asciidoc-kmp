@@ -118,6 +118,15 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
 // Helper function to create a test parser with malformed syntax error detection
 private fun createTestParser(): AsciidocParser {
     return object : AsciidocParser {
+        override fun parseToAsg(source: String): AsgParseResult {
+            val result = parse(source)
+            return AsgParseResult(
+                document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                errors = result.errors,
+                warnings = result.warnings,
+            )
+        }
+
         override fun parse(source: String): ParseResult {
             return parse(source.lines())
         }

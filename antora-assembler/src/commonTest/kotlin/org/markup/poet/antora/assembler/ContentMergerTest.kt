@@ -3,6 +3,7 @@ package org.markup.poet.antora.assembler
 import org.markup.poet.antora.*
 import org.markup.poet.asciidoc.ast.*
 import org.markup.poet.asciidoc.parser.AsciidocParser
+import org.markup.poet.asciidoc.parser.AsgParseResult
 import org.markup.poet.asciidoc.parser.ParseResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1402,6 +1403,15 @@ class MockAntoraResolver(private val fileSystem: FileSystemAccess) : AntoraResol
 }
 
 class MockAsciidocParser : AsciidocParser {
+    override fun parseToAsg(source: String): AsgParseResult {
+        val result = parse(source)
+        return AsgParseResult(
+            document = org.markup.poet.asciidoc.asg.AsgDocument(),
+            errors = result.errors,
+            warnings = result.warnings,
+        )
+    }
+
     override fun parse(source: String): ParseResult {
         // Simple mock parser that creates a paragraph for non-include content
         val lines = source.lines()

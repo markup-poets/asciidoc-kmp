@@ -2,6 +2,7 @@ package org.markup.poet.asciidoc.processing
 
 import org.markup.poet.asciidoc.ast.*
 import org.markup.poet.asciidoc.parser.AsciidocParser
+import org.markup.poet.asciidoc.parser.AsgParseResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,6 +27,15 @@ class IncludeResolverTest {
     
     // Mock parser that creates simple documents
     private class MockParser : AsciidocParser {
+        override fun parseToAsg(source: String): AsgParseResult {
+            val result = parse(source)
+            return AsgParseResult(
+                document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                errors = result.errors,
+                warnings = result.warnings,
+            )
+        }
+
         override fun parse(input: String): org.markup.poet.asciidoc.parser.ParseResult {
             val lines = input.lines()
             val children = lines.map { line ->
@@ -218,6 +228,15 @@ Line 5"""
         
         // Create a parser that can handle nested includes
         val parser = object : AsciidocParser {
+            override fun parseToAsg(source: String): AsgParseResult {
+                val result = parse(source)
+                return AsgParseResult(
+                    document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                    errors = result.errors,
+                    warnings = result.warnings,
+                )
+            }
+
             override fun parse(input: String): org.markup.poet.asciidoc.parser.ParseResult {
                 val children = mutableListOf<BlockElement>()
                 
@@ -295,6 +314,15 @@ Line 5"""
     fun `should detect circular dependency`() {
         // Arrange
         val parser = object : AsciidocParser {
+            override fun parseToAsg(source: String): AsgParseResult {
+                val result = parse(source)
+                return AsgParseResult(
+                    document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                    errors = result.errors,
+                    warnings = result.warnings,
+                )
+            }
+
             override fun parse(input: String): org.markup.poet.asciidoc.parser.ParseResult {
                 val children = when {
                     input.contains("include::file2.adoc") -> listOf(
@@ -374,6 +402,15 @@ Line 5"""
     fun `should enforce max depth limit`() {
         // Arrange
         val parser = object : AsciidocParser {
+            override fun parseToAsg(source: String): AsgParseResult {
+                val result = parse(source)
+                return AsgParseResult(
+                    document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                    errors = result.errors,
+                    warnings = result.warnings,
+                )
+            }
+
             override fun parse(input: String): org.markup.poet.asciidoc.parser.ParseResult {
                 val children = when {
                     input.contains("include::level1.adoc") -> listOf(

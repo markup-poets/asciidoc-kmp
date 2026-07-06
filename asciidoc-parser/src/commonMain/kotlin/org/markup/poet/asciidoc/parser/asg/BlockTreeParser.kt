@@ -227,8 +227,8 @@ class BlockTreeParser {
                         continue
                     }
                     if (stopHeadingLevel != null && level <= stopHeadingLevel) return blocks
+                    blocks += parseSection(heading, pending)
                     pending = null
-                    blocks += parseSection(heading)
                     continue
                 }
 
@@ -283,7 +283,7 @@ class BlockTreeParser {
             )
         }
 
-        private fun parseSection(heading: MatchResult): SectionBlock {
+        private fun parseSection(heading: MatchResult, metadata: BlockMetadata?): SectionBlock {
             val headingLineIndex = reader.index
             reader.next()
             val level = heading.groupValues[1].length - 1
@@ -294,6 +294,7 @@ class BlockTreeParser {
                 title = headingTitle(heading, headingLineIndex),
                 level = level,
                 blocks = children,
+                metadata = metadata,
                 location = Location(Position(headingLineIndex + 1, 1), end),
             )
         }

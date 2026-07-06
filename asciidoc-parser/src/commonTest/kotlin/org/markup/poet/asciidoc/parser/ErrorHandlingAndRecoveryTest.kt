@@ -123,6 +123,15 @@ class ErrorHandlingAndRecoveryTest : StringSpec({
 private fun createTestParser(): AsciidocParser {
     // For now, return a mock parser that demonstrates error handling
     return object : AsciidocParser {
+        override fun parseToAsg(source: String): AsgParseResult {
+            val result = parse(source)
+            return AsgParseResult(
+                document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                errors = result.errors,
+                warnings = result.warnings,
+            )
+        }
+
         override fun parse(source: String): ParseResult {
             return parse(source.lines())
         }

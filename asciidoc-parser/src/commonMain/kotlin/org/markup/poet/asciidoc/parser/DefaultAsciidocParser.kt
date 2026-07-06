@@ -22,6 +22,28 @@ class DefaultAsciidocParser : AsciidocParser {
 
     private val blockTreeParser = BlockTreeParser()
 
+    override fun parseToAsg(source: String): AsgParseResult {
+        return try {
+            AsgParseResult(
+                document = blockTreeParser.parseDocument(source),
+                errors = emptyList(),
+                warnings = emptyList(),
+            )
+        } catch (e: Exception) {
+            AsgParseResult(
+                document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                errors = listOf(
+                    ParseError(
+                        message = "Critical parsing failure: ${e.message}",
+                        location = SourceLocation(1),
+                        severity = ErrorSeverity.FATAL,
+                    )
+                ),
+                warnings = emptyList(),
+            )
+        }
+    }
+
     override fun parse(source: String): ParseResult {
         return try {
             val asg = blockTreeParser.parseDocument(source)

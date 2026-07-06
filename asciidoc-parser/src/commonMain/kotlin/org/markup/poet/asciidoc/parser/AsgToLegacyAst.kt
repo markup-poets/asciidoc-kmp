@@ -1,16 +1,25 @@
 package org.markup.poet.asciidoc.parser
 
 import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.BibliographyEntryBlock
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.BlockMacro
 import org.markup.poet.asciidoc.asg.BlockMacroName
 import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.BreakVariant
+import org.markup.poet.asciidoc.asg.CommentBlock
+import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DiscreteHeading
+import org.markup.poet.asciidoc.asg.IncludeBlock
 import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineAttributeRef
+import org.markup.poet.asciidoc.asg.InlineCallout
+import org.markup.poet.asciidoc.asg.InlineCitation
+import org.markup.poet.asciidoc.asg.InlineFootnote
 import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRaw
 import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
@@ -21,20 +30,30 @@ import org.markup.poet.asciidoc.asg.ListVariant
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.ParentBlockName
+import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.SpanVariant
 import org.markup.poet.asciidoc.ast.AdmonitionBlock
 import org.markup.poet.asciidoc.ast.AdmonitionType
 import org.markup.poet.asciidoc.ast.AsciiDocList
+import org.markup.poet.asciidoc.ast.AttributeReference
+import org.markup.poet.asciidoc.ast.BibliographyEntry
+import org.markup.poet.asciidoc.ast.BibliographyReference
 import org.markup.poet.asciidoc.ast.BlockElement
+import org.markup.poet.asciidoc.ast.Callout
 import org.markup.poet.asciidoc.ast.Code
 import org.markup.poet.asciidoc.ast.CodeBlock
+import org.markup.poet.asciidoc.ast.Comment
+import org.markup.poet.asciidoc.ast.ConditionalDirective
+import org.markup.poet.asciidoc.ast.ConditionalType
 import org.markup.poet.asciidoc.ast.CrossReference
 import org.markup.poet.asciidoc.ast.CustomBlock
 import org.markup.poet.asciidoc.ast.Document
 import org.markup.poet.asciidoc.ast.Emphasis
+import org.markup.poet.asciidoc.ast.FootnoteReference
 import org.markup.poet.asciidoc.ast.Image
+import org.markup.poet.asciidoc.ast.IncludeDirective
 import org.markup.poet.asciidoc.ast.InlineElement
 import org.markup.poet.asciidoc.ast.Link
 import org.markup.poet.asciidoc.ast.MacroInvocation
@@ -42,6 +61,7 @@ import org.markup.poet.asciidoc.ast.ListItem
 import org.markup.poet.asciidoc.ast.ListType
 import org.markup.poet.asciidoc.ast.Paragraph
 import org.markup.poet.asciidoc.ast.PassthroughBlock
+import org.markup.poet.asciidoc.ast.RawInline
 import org.markup.poet.asciidoc.ast.Section
 import org.markup.poet.asciidoc.ast.SourceLocation
 import org.markup.poet.asciidoc.ast.Strong
@@ -105,6 +125,7 @@ object AsgToLegacyAst {
                 level = block.level + 1, // legacy level == number of '=' chars
                 title = plainText(block.title),
                 children = mapBlocks(block.blocks),
+                attributes = buildMap { block.metadata?.id?.let { put("id", it) } },
                 sourceLocation = block.location.toLegacy(),
             )
         )
@@ -253,6 +274,44 @@ object AsgToLegacyAst {
                 sourceLocation = block.location.toLegacy(),
             )
         )
+
+        // Processing-phase extension nodes (never produced by the parser core)
+        // map 1:1 onto their legacy counterparts.
+        is CommentBlock -> listOf(
+            Comment(content = block.text, sourceLocation = block.location.toLegacy())
+        )
+        is IncludeBlock -> listOf(
+            IncludeDirective(
+                path = block.path,
+                lineRange = block.lineRange,
+                attributes = block.attributes,
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
+        is ConditionalBlock -> listOf(
+            ConditionalDirective(
+                type = ConditionalType.valueOf(block.variant.name),
+                condition = block.condition,
+                content = mapBlocks(block.blocks),
+                elseContent = mapBlocks(block.elseBlocks),
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
+        is BibliographyEntryBlock -> listOf(
+            BibliographyEntry(
+                id = block.id,
+                citation = block.citation,
+                metadata = block.entryMetadata,
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
+        is RawBlock -> listOf(
+            PassthroughBlock(
+                format = block.format,
+                content = block.content,
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
     }
 
     // -----------------------------------------------------------------------
@@ -333,6 +392,31 @@ object AsgToLegacyAst {
                 )
             )
         }
+
+        // Processing-phase extension nodes map 1:1 onto their legacy counterparts.
+        is InlineAttributeRef -> listOf(
+            AttributeReference(key = inline.name, sourceLocation = inline.location.toLegacy())
+        )
+        is InlineCallout -> listOf(
+            Callout(number = inline.number, sourceLocation = inline.location.toLegacy())
+        )
+        is InlineFootnote -> listOf(
+            FootnoteReference(
+                id = inline.id,
+                content = mapInlines(inline.inlines),
+                sourceLocation = inline.location.toLegacy(),
+            )
+        )
+        is InlineCitation -> listOf(
+            BibliographyReference(citationId = inline.citationId, sourceLocation = inline.location.toLegacy())
+        )
+        is InlineRaw -> listOf(
+            RawInline(
+                format = inline.format,
+                content = inline.content,
+                sourceLocation = inline.location.toLegacy(),
+            )
+        )
     }
 
     /** Concatenated plain-text value of [inlines], recursing into spans/refs. */
@@ -343,6 +427,10 @@ object AsgToLegacyAst {
                 is InlineSpan -> inline.inlines.forEach(::visit)
                 is InlineRef -> inline.inlines.forEach(::visit)
                 is InlineMacro -> append("${inline.name}:${inline.target}[]")
+                is InlineAttributeRef -> append("{${inline.name}}")
+                is InlineFootnote -> inline.inlines.forEach(::visit)
+                is InlineCitation -> append(inline.citationId)
+                is InlineCallout, is InlineRaw -> Unit
             }
         }
         inlines.forEach(::visit)

@@ -5,6 +5,7 @@ import org.markup.poet.asciidoc.ast.*
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.error.ParseWarning
 import org.markup.poet.asciidoc.parser.AsciidocParser
+import org.markup.poet.asciidoc.parser.AsgParseResult
 import org.markup.poet.asciidoc.parser.ParseResult
 import kotlin.test.*
 
@@ -51,6 +52,15 @@ class DefaultDocumentAssemblerTest {
     
     // Mock AsciidocParser for testing
     private class MockAsciidocParser : AsciidocParser {
+        override fun parseToAsg(source: String): AsgParseResult {
+            val result = parse(source)
+            return AsgParseResult(
+                document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                errors = result.errors,
+                warnings = result.warnings,
+            )
+        }
+
         override fun parse(source: String): ParseResult {
             // Simple parser that creates a document with paragraphs
             val lines = source.lines()
@@ -380,6 +390,15 @@ class DefaultDocumentAssemblerTest {
     fun `should handle parse errors in index file`() {
         // Create a parser that returns errors
         val parserWithErrors = object : AsciidocParser {
+            override fun parseToAsg(source: String): AsgParseResult {
+                val result = parse(source)
+                return AsgParseResult(
+                    document = org.markup.poet.asciidoc.asg.AsgDocument(),
+                    errors = result.errors,
+                    warnings = result.warnings,
+                )
+            }
+
             override fun parse(source: String): ParseResult {
                 return ParseResult(
                     document = Document(
