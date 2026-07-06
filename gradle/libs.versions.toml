@@ -1,15 +1,16 @@
 [versions]
 agp = "8.13.0"
-kotlin = "2.2.20"
-shadow = "9.3.1"
+kotlin = "2.3.21"
+shadow = "9.4.1"
 android-minSdk = "24"
 android-compileSdk = "36"
-vanniktechMavenPublish = "0.35.0"
+vanniktechMavenPublish = "0.36.0"
 kotest = "6.1.11"
 kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.6.1"
-jgit = "6.8.0.202311291450-r"
+kotlinx-datetime = "0.7.1"
+jgit = "7.6.0.202603022253-r"
+chasm = "1.4.6"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -20,6 +21,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
+chasm = { module = "io.github.charlietap.chasm:chasm", version.ref = "chasm" }
 
 [plugins]
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }

@@ -1,0 +1,12 @@
+= My Simple Article
+Author Name
+
+== Introduction
+
+This is the introduction.
+
+include::chapter1-simple.adoc[]
+
+== Conclusion
+
+This is the conclusion.

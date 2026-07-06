@@ -65,6 +65,17 @@ class AsciiDocPrettyPrinter {
             is BibliographyEntry -> {
                 builder.appendLine("${indent}[${element.id}] ${element.citation}")
             }
+            is CustomBlock -> {
+                builder.appendLine("${indent}[${element.name}]")
+                builder.appendLine("$indent----")
+                element.rawContent.lines().forEach { builder.appendLine("$indent$it") }
+                builder.appendLine("$indent----")
+            }
+            is PassthroughBlock -> {
+                builder.appendLine("$indent++++")
+                element.content.lines().forEach { builder.appendLine("$indent$it") }
+                builder.appendLine("$indent++++")
+            }
             is ConditionalDirective -> {
                 // Should not normally appear in processed output
                 builder.appendLine("${indent}${element.type}::${element.condition}[]")
@@ -183,6 +194,7 @@ class AsciiDocPrettyPrinter {
     private fun printInlineElement(element: InlineElement): String {
         return when (element) {
             is Text -> element.content
+            is RawInline -> element.content
             is Strong -> {
                 val content = element.content.joinToString("") { printInlineElement(it) }
                 "*$content*"
