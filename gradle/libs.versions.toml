@@ -1,16 +1,16 @@
 [versions]
-agp = "9.1.1"
-kotlin = "2.3.21"
-shadow = "9.4.1"
+agp = "9.2.1"
+kotlin = "2.4.0"
+shadow = "9.5.1"
 android-minSdk = "24"
 android-compileSdk = "36"
-vanniktechMavenPublish = "0.36.0"
-kotest = "6.1.11"
+vanniktechMavenPublish = "0.37.0"
+kotest = "6.2.1"
 kotlinx-serialization = "1.11.0"
-kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.7.1"
-jgit = "7.6.0.202603022253-r"
-chasm = "1.4.6"
+kotlinx-coroutines = "1.11.0"
+kotlinx-datetime = "0.8.0"
+jgit = "7.7.0.202606012155-r"
+chasm = "1.4.7"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

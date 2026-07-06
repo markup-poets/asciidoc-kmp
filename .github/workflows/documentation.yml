@@ -23,7 +23,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Set up JDK 22
         uses: actions/setup-java@v5
@@ -32,7 +32,7 @@ jobs:
           distribution: 'temurin'
           
       - name: Cache Gradle packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -98,7 +98,7 @@ jobs:
           echo "Preview server started at http://localhost:3000"
           
       - name: Create PR comment with preview link
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { data: comments } = await github.rest.issues.listComments({
