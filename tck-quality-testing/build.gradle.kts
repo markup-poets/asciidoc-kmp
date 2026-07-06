@@ -51,7 +51,7 @@ kotlin {
         jvmMain {
             dependencies {
                 // JGit for git operations on JVM
-                implementation("org.eclipse.jgit:org.eclipse.jgit:7.6.0.202603022253-r")
+                implementation("org.eclipse.jgit:org.eclipse.jgit:7.7.0.202606012155-r")
                 // Coroutines for async operations
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             }

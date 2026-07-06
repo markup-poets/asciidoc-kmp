@@ -9,7 +9,7 @@ kotest = "6.1.11"
 kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.10.2"
 kotlinx-datetime = "0.7.1"
-jgit = "7.6.0.202603022253-r"
+jgit = "7.7.0.202606012155-r"
 chasm = "1.4.6"
 
 [libraries]
