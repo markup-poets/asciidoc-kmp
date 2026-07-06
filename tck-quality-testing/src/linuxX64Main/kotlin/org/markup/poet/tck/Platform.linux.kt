@@ -68,7 +68,11 @@ actual fun platformDeleteFile(path: String) {
 }
 
 actual class PlatformConfigFileOperations actual constructor() : ConfigFileOperations {
-    actual override fun readFile(path: String): String? = try { platformReadFile(path) } catch(e: Exception) { null }
+    // platformReadFile returns "" for unreadable files, but the ConfigFileOperations
+    // contract (and the JVM actual) requires null for a missing file so the caller
+    // can fall back to defaults instead of failing to parse an empty document.
+    actual override fun readFile(path: String): String? =
+        if (platformFileExists(path)) platformReadFile(path) else null
     actual override fun writeFile(path: String, content: String) { platformWriteFile(path, content) }
 }
 
@@ -82,7 +86,9 @@ actual class PlatformGitOperations actual constructor() : GitOperations {
 }
 
 actual class PlatformVersionFileOperations actual constructor() : VersionFileOperations {
-    actual override fun readFile(path: String): String? = try { platformReadFile(path) } catch(e: Exception) { null }
+    // See PlatformConfigFileOperations.readFile: null (not "") for missing files.
+    actual override fun readFile(path: String): String? =
+        if (platformFileExists(path)) platformReadFile(path) else null
     actual override fun writeFile(path: String, content: String) { platformWriteFile(path, content) }
     actual override fun deleteFile(path: String) { platformDeleteFile(path) }
     actual override fun fileExists(path: String): Boolean = platformFileExists(path)
