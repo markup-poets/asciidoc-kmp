@@ -1,13 +1,19 @@
 package org.markup.poet.asciidoc.parser.asg
 
+import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.ConditionalVariant
+import org.markup.poet.asciidoc.asg.IncludeBlock
+import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.asg.LeafBlock
 import org.markup.poet.asciidoc.asg.LeafBlockName
 import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.ListVariant
 import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.Position
+import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.SpanForm
 import org.markup.poet.asciidoc.asg.SpanVariant
@@ -322,5 +328,271 @@ class BlockTreeParserTest {
         val substituted = paragraph.inlines[1]
         assertEquals(Position(4, 5), substituted.location?.start)
         assertEquals(Position(4, 13), substituted.location?.end)
+    }
+
+    // -----------------------------------------------------------------------
+    // Include directives
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun includeDirectiveBecomesIncludeBlock() {
+        val doc = parser.parseDocument("include::chapters/intro.adoc[]")
+        val include = assertIs<IncludeBlock>(doc.blocks.single())
+        assertEquals("chapters/intro.adoc", include.path)
+        assertNull(include.lineRange)
+        assertEquals(emptyMap(), include.attributes)
+        assertEquals(Position(1, 1), include.location?.start)
+        assertEquals(Position(1, 30), include.location?.end)
+    }
+
+    @Test
+    fun includeWithLinesAttributeGetsLineRange() {
+        val doc = parser.parseDocument("include::part.adoc[lines=2..5,leveloffset=+1]")
+        val include = assertIs<IncludeBlock>(doc.blocks.single())
+        assertEquals("part.adoc", include.path)
+        assertEquals(2..5, include.lineRange)
+        // All named attributes stay in the map, `lines` included.
+        assertEquals(mapOf("lines" to "2..5", "leveloffset" to "+1"), include.attributes)
+    }
+
+    @Test
+    fun includeWithSingleLineAttributeGetsDegenerateRange() {
+        val doc = parser.parseDocument("include::part.adoc[lines=7]")
+        val include = assertIs<IncludeBlock>(doc.blocks.single())
+        assertEquals(7..7, include.lineRange)
+    }
+
+    @Test
+    fun includeBetweenParagraphsSplitsThem() {
+        val doc = parser.parseDocument("before\ninclude::x.adoc[]\nafter")
+        assertEquals(3, doc.blocks.size)
+        assertEquals("before", assertIs<InlineText>(assertIs<LeafBlock>(doc.blocks[0]).inlines.single()).value)
+        assertIs<IncludeBlock>(doc.blocks[1])
+        assertEquals("after", assertIs<InlineText>(assertIs<LeafBlock>(doc.blocks[2]).inlines.single()).value)
+    }
+
+    // -----------------------------------------------------------------------
+    // Conditional directives
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun ifdefRegionWrapsEnclosedBlocks() {
+        val doc = parser.parseDocument("ifdef::feature[]\nconditional content\nendif::[]")
+        val conditional = assertIs<ConditionalBlock>(doc.blocks.single())
+        assertEquals(ConditionalVariant.IFDEF, conditional.variant)
+        assertEquals("feature", conditional.condition)
+        assertTrue(conditional.elseBlocks.isEmpty())
+        val paragraph = assertIs<LeafBlock>(conditional.blocks.single())
+        assertEquals("conditional content", assertIs<InlineText>(paragraph.inlines.single()).value)
+        assertEquals(Position(1, 1), conditional.location?.start)
+        assertEquals(Position(3, 9), conditional.location?.end)
+    }
+
+    @Test
+    fun ifndefRegionKeepsRawCondition() {
+        val doc = parser.parseDocument("ifndef::attr1,attr2[]\ntext\nendif::[]")
+        val conditional = assertIs<ConditionalBlock>(doc.blocks.single())
+        assertEquals(ConditionalVariant.IFNDEF, conditional.variant)
+        assertEquals("attr1,attr2", conditional.condition) // raw: evaluation is the processor's job
+    }
+
+    @Test
+    fun nestedIfdefRegionsNest() {
+        val doc = parser.parseDocument(
+            "ifdef::outer[]\nouter text\n\nifdef::inner[]\ninner text\nendif::[]\nendif::[]",
+        )
+        val outer = assertIs<ConditionalBlock>(doc.blocks.single())
+        assertEquals("outer", outer.condition)
+        assertEquals(2, outer.blocks.size)
+        val inner = assertIs<ConditionalBlock>(outer.blocks[1])
+        assertEquals("inner", inner.condition)
+        assertEquals(
+            "inner text",
+            assertIs<InlineText>(assertIs<LeafBlock>(inner.blocks.single()).inlines.single()).value,
+        )
+    }
+
+    @Test
+    fun singleLineIfdefWrapsContentAsOneParagraph() {
+        val doc = parser.parseDocument("ifdef::debug[verbose *output* enabled]")
+        val conditional = assertIs<ConditionalBlock>(doc.blocks.single())
+        assertEquals(ConditionalVariant.IFDEF, conditional.variant)
+        assertEquals("debug", conditional.condition)
+        val paragraph = assertIs<LeafBlock>(conditional.blocks.single())
+        assertEquals(LeafBlockName.PARAGRAPH, paragraph.name)
+        assertEquals("verbose ", assertIs<InlineText>(paragraph.inlines[0]).value)
+        assertIs<InlineSpan>(paragraph.inlines[1]) // inline markup inside the content is parsed
+        assertEquals(" enabled", assertIs<InlineText>(paragraph.inlines[2]).value)
+    }
+
+    @Test
+    fun ifevalRegionKeepsExpressionRaw() {
+        val doc = parser.parseDocument("ifeval::[{version} >= \"2.0\"]\nnew feature\nendif::[]")
+        val conditional = assertIs<ConditionalBlock>(doc.blocks.single())
+        assertEquals(ConditionalVariant.IFEVAL, conditional.variant)
+        assertEquals("{version} >= \"2.0\"", conditional.condition)
+        assertIs<LeafBlock>(conditional.blocks.single())
+    }
+
+    @Test
+    fun unclosedIfdefTakesRestOfInputAsBody() {
+        val doc = parser.parseDocument("ifdef::attr[]\none\n\ntwo")
+        val conditional = assertIs<ConditionalBlock>(doc.blocks.single())
+        assertEquals(2, conditional.blocks.size)
+        assertEquals(Position(4, 3), conditional.location?.end)
+    }
+
+    @Test
+    fun strayEndifIsDroppedLeniently() {
+        val doc = parser.parseDocument("endif::[]\ntext")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("text", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
+    fun ifdefRegionInsideSectionStopsAtEndif() {
+        val doc = parser.parseDocument("== Section\n\nifdef::a[]\nhidden\nendif::[]\n\nvisible")
+        val section = assertIs<SectionBlock>(doc.blocks.single())
+        assertEquals(2, section.blocks.size)
+        val conditional = assertIs<ConditionalBlock>(section.blocks[0])
+        assertEquals(1, conditional.blocks.size)
+        assertEquals(
+            "visible",
+            assertIs<InlineText>(assertIs<LeafBlock>(section.blocks[1]).inlines.single()).value,
+        )
+    }
+
+    @Test
+    fun sectionInsideIfdefRegionEndsAtEndif() {
+        val doc = parser.parseDocument("ifdef::a[]\n== Hidden Section\n\ntext\nendif::[]\n\nvisible")
+        assertEquals(2, doc.blocks.size)
+        val conditional = assertIs<ConditionalBlock>(doc.blocks[0])
+        val section = assertIs<SectionBlock>(conditional.blocks.single())
+        assertIs<LeafBlock>(section.blocks.single())
+        assertEquals(
+            "visible",
+            assertIs<InlineText>(assertIs<LeafBlock>(doc.blocks[1]).inlines.single()).value,
+        )
+    }
+
+    // -----------------------------------------------------------------------
+    // Callout lists
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun calloutLinesFormCalloutList() {
+        val doc = parser.parseDocument("----\nfun x() {} <1>\nval y = 1 <2>\n----\n<1> a function\n<2> a value")
+        assertEquals(2, doc.blocks.size)
+        val listing = assertIs<LeafBlock>(doc.blocks[0])
+        // Verbatim content stays plain text: markers are NOT turned into InlineCallout.
+        assertEquals("fun x() {} <1>\nval y = 1 <2>", assertIs<InlineText>(listing.inlines.single()).value)
+        val list = assertIs<ListBlock>(doc.blocks[1])
+        assertEquals(ListVariant.CALLOUT, list.variant)
+        assertEquals("<1>", list.marker)
+        assertEquals(2, list.items.size)
+        assertEquals("<1>", list.items[0].marker)
+        assertEquals("a function", assertIs<InlineText>(list.items[0].principal.single()).value)
+        assertEquals("<2>", list.items[1].marker)
+        assertEquals(Position(5, 1), list.location?.start)
+        assertEquals(Position(6, 11), list.location?.end)
+    }
+
+    @Test
+    fun autoNumberedCalloutMarkersAreKeptRaw() {
+        val doc = parser.parseDocument("<.> first\n<.> second")
+        val list = assertIs<ListBlock>(doc.blocks.single())
+        assertEquals(ListVariant.CALLOUT, list.variant)
+        assertEquals(listOf("<.>", "<.>"), list.items.map { it.marker })
+    }
+
+    @Test
+    fun calloutListEndsParagraph() {
+        val doc = parser.parseDocument("some text\n<1> explanation")
+        assertEquals(2, doc.blocks.size)
+        assertIs<LeafBlock>(doc.blocks[0])
+        assertIs<ListBlock>(doc.blocks[1])
+    }
+
+    // -----------------------------------------------------------------------
+    // Xref shorthand
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun xrefShorthandBecomesXrefRef() {
+        val inlines = parser.parseInline("see <<intro>> now")
+        assertEquals(3, inlines.size)
+        val ref = assertIs<InlineRef>(inlines[1])
+        assertEquals(RefVariant.XREF, ref.variant)
+        assertEquals("intro", ref.target)
+        assertTrue(ref.inlines.isEmpty())
+        // The location includes the `<<`/`>>` delimiters.
+        assertEquals(Position(1, 5), ref.location?.start)
+        assertEquals(Position(1, 13), ref.location?.end)
+    }
+
+    @Test
+    fun xrefShorthandWithCustomText() {
+        val inlines = parser.parseInline("<<intro,the intro>>")
+        val ref = assertIs<InlineRef>(inlines.single())
+        assertEquals("intro", ref.target)
+        val label = assertIs<InlineText>(ref.inlines.single())
+        assertEquals("the intro", label.value)
+        assertEquals(Position(1, 9), label.location?.start)
+        assertEquals(Position(1, 17), label.location?.end)
+    }
+
+    @Test
+    fun xrefDoesNotFireInsideCodeSpans() {
+        val inlines = parser.parseInline("`<<intro>>`")
+        val span = assertIs<InlineSpan>(inlines.single())
+        assertEquals(SpanVariant.CODE, span.variant)
+        assertEquals("<<intro>>", assertIs<InlineText>(span.inlines.single()).value)
+    }
+
+    @Test
+    fun tripleAngleBracketIsNotAnXref() {
+        val inlines = parser.parseInline("a <<<b>> c")
+        assertTrue(inlines.filterIsInstance<InlineRef>().isEmpty())
+    }
+
+    @Test
+    fun unclosedDoubleAngleStaysPlainText() {
+        val inlines = parser.parseInline("shift << left")
+        val text = assertIs<InlineText>(inlines.single())
+        assertEquals("shift << left", text.value)
+    }
+
+    // -----------------------------------------------------------------------
+    // Mixed document
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun mixedDocumentWithDirectivesAndCallouts() {
+        val doc = parser.parseDocument(
+            """
+            = Title
+
+            intro referencing <<setup>>
+
+            include::setup.adoc[lines=1..3]
+
+            ifdef::examples[]
+            ----
+            run() <1>
+            ----
+            <1> entry point
+            endif::[]
+            """.trimIndent(),
+        )
+        assertEquals(3, doc.blocks.size)
+        val intro = assertIs<LeafBlock>(doc.blocks[0])
+        assertEquals("setup", assertIs<InlineRef>(intro.inlines[1]).target)
+        val include = assertIs<IncludeBlock>(doc.blocks[1])
+        assertEquals("setup.adoc", include.path)
+        assertEquals(1..3, include.lineRange)
+        val conditional = assertIs<ConditionalBlock>(doc.blocks[2])
+        assertEquals(2, conditional.blocks.size)
+        assertEquals(LeafBlockName.LISTING, assertIs<LeafBlock>(conditional.blocks[0]).name)
+        assertEquals(ListVariant.CALLOUT, assertIs<ListBlock>(conditional.blocks[1]).variant)
     }
 }

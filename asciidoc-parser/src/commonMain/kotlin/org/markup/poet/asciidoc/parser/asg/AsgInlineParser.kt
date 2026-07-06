@@ -80,7 +80,13 @@ class AsgInlineParser(
 
     fun parse(text: String, map: SegmentMap): List<Inline> = parseRange(text, 0, text.length, map)
 
-    private fun parseRange(text: String, from: Int, to: Int, map: SegmentMap): List<Inline> {
+    private fun parseRange(
+        text: String,
+        from: Int,
+        to: Int,
+        map: SegmentMap,
+        inCode: Boolean = false,
+    ): List<Inline> {
         val inlines = mutableListOf<Inline>()
         val plain = StringBuilder()
         var plainStart = -1
@@ -113,9 +119,16 @@ class AsgInlineParser(
             }
             val variant = spanDelimiters[c]
             if (variant != null) {
-                val span = tryParseSpan(text, i, to, c, variant, map)
+                val span = tryParseSpan(text, i, to, c, variant, map, inCode)
                 if (span != null) {
                     consume(span)
+                    continue
+                }
+            }
+            if (c == '<' && !inCode) {
+                val xref = tryParseXref(text, i, to, map)
+                if (xref != null) {
+                    consume(xref)
                     continue
                 }
             }
@@ -127,7 +140,7 @@ class AsgInlineParser(
                 }
             }
             if (c.isLetter() && (i == from || !text[i - 1].isLetterOrDigit())) {
-                val autolink = tryParseAutolink(text, i, to, map)
+                val autolink = tryParseAutolink(text, i, to, map, inCode)
                 if (autolink != null) {
                     consume(autolink)
                     continue
@@ -178,6 +191,7 @@ class AsgInlineParser(
         start: Int,
         to: Int,
         map: SegmentMap,
+        inCode: Boolean = false,
     ): Pair<Inline, Int>? {
         val scheme = autolinkSchemes.firstOrNull { text.startsWith(it, start) && start + it.length < to }
             ?: return null
@@ -196,7 +210,7 @@ class AsgInlineParser(
                 val labelInlines = if (label.isEmpty()) {
                     listOf(InlineText(url, Location(map.position(start), map.position(end - 1))))
                 } else {
-                    parseRange(text, end + 1, close, map)
+                    parseRange(text, end + 1, close, map, inCode)
                 }
                 val ref = InlineRef(
                     variant = RefVariant.LINK,
@@ -271,6 +285,48 @@ class AsgInlineParser(
     }
 
     /**
+     * An xref shorthand `<<id>>` or `<<id,custom text>>` starting at [start]
+     * (which must be a `<`). The location includes the `<<`/`>>` delimiters.
+     * `<<<` (a page-break line, handled at block level) never opens an xref.
+     */
+    private fun tryParseXref(
+        text: String,
+        start: Int,
+        to: Int,
+        map: SegmentMap,
+    ): Pair<Inline, Int>? {
+        if (start + 1 >= to || text[start + 1] != '<') return null
+        // `<<<` (page break) never opens an xref, whichever `<` we start from.
+        if (start + 2 < to && text[start + 2] == '<') return null
+        if (start > 0 && text[start - 1] == '<') return null
+        val close = text.indexOf(">>", start + 2)
+        if (close < 0 || close + 1 >= to) return null
+        val inner = text.substring(start + 2, close)
+        if (inner.isEmpty() || inner.contains('\n') || inner.contains('<')) return null
+        val comma = inner.indexOf(',')
+        val target = if (comma < 0) inner else inner.substring(0, comma)
+        if (target.isEmpty()) return null
+        val label = if (comma < 0) "" else inner.substring(comma + 1)
+        val inlines = if (label.isEmpty()) {
+            emptyList()
+        } else {
+            listOf(
+                InlineText(
+                    value = label,
+                    location = Location(map.position(start + 2 + comma + 1), map.position(close - 1)),
+                ),
+            )
+        }
+        val ref = InlineRef(
+            variant = RefVariant.XREF,
+            target = target,
+            inlines = inlines,
+            location = Location(map.position(start), map.position(close + 1)),
+        )
+        return ref to (close + 2)
+    }
+
+    /**
      * Attempts a span starting at [start]. Returns the span and the offset just
      * after its closing delimiter, or null if no valid span starts here.
      */
@@ -281,13 +337,14 @@ class AsgInlineParser(
         delimiter: Char,
         variant: SpanVariant,
         map: SegmentMap,
+        inCode: Boolean,
     ): Pair<InlineSpan, Int>? {
         val double = start + 1 < to && text[start + 1] == delimiter
         return if (double) {
-            tryUnconstrained(text, start, to, delimiter, variant, map)
-                ?: tryConstrained(text, start, to, delimiter, variant, map)
+            tryUnconstrained(text, start, to, delimiter, variant, map, inCode)
+                ?: tryConstrained(text, start, to, delimiter, variant, map, inCode)
         } else {
-            tryConstrained(text, start, to, delimiter, variant, map)
+            tryConstrained(text, start, to, delimiter, variant, map, inCode)
         }
     }
 
@@ -298,6 +355,7 @@ class AsgInlineParser(
         delimiter: Char,
         variant: SpanVariant,
         map: SegmentMap,
+        inCode: Boolean,
     ): Pair<InlineSpan, Int>? {
         val contentStart = start + 2
         var j = contentStart
@@ -307,7 +365,7 @@ class AsgInlineParser(
                 val span = InlineSpan(
                     variant = variant,
                     form = SpanForm.UNCONSTRAINED,
-                    inlines = parseRange(text, contentStart, j, map),
+                    inlines = parseRange(text, contentStart, j, map, inCode || variant == SpanVariant.CODE),
                     location = Location(map.position(start), map.position(j + 1)),
                 )
                 return span to (j + 2)
@@ -324,6 +382,7 @@ class AsgInlineParser(
         delimiter: Char,
         variant: SpanVariant,
         map: SegmentMap,
+        inCode: Boolean,
     ): Pair<InlineSpan, Int>? {
         // Opening: not preceded by a word char; followed by non-space, non-delimiter.
         val prev = if (start > 0) text[start - 1] else null
@@ -343,7 +402,7 @@ class AsgInlineParser(
                     val span = InlineSpan(
                         variant = variant,
                         form = SpanForm.CONSTRAINED,
-                        inlines = parseRange(text, contentStart, j, map),
+                        inlines = parseRange(text, contentStart, j, map, inCode || variant == SpanVariant.CODE),
                         location = Location(map.position(start), map.position(j)),
                     )
                     return span to (j + 1)

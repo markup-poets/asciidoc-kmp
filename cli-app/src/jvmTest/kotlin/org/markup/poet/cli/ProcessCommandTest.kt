@@ -578,6 +578,93 @@ class ProcessCommandTest {
         }
     }
     
+    // -----------------------------------------------------------------------
+    // End-to-end: real parser + document processor (mirrors Main.kt wiring)
+    // -----------------------------------------------------------------------
+
+    private fun realProcessCommand(): ProcessCommand {
+        val parser = org.markup.poet.asciidoc.parser.DefaultAsciidocParser()
+        val fileReader = JvmFileReader()
+        val documentProcessor = DefaultDocumentProcessor(
+            includeResolver = DefaultIncludeResolver(parser),
+            fragmentProcessor = DefaultFragmentProcessor(),
+            conditionalProcessor = DefaultConditionalProcessor(),
+            attributeSubstitutor = DefaultAttributeSubstitutor(),
+            macroExpander = DefaultMacroExpander(),
+            admonitionProcessor = DefaultAdmonitionProcessor(),
+            calloutProcessor = DefaultCalloutProcessor(),
+            bibliographyManager = DefaultBibliographyManager(),
+            crossReferenceResolver = DefaultCrossReferenceResolver(),
+            tocGenerator = DefaultTocGenerator(),
+            documentValidator = DefaultDocumentValidator(),
+            fileReaderFactory = { basePath ->
+                object : org.markup.poet.asciidoc.processing.FileReader {
+                    override fun readFile(path: String): FileReadResult {
+                        val resolvedPath = if (path.startsWith("/") || path.contains(":")) {
+                            path
+                        } else {
+                            if (basePath.isEmpty()) path else "$basePath/$path"
+                        }
+                        return fileReader.readFile(resolvedPath)
+                    }
+                }
+            }
+        )
+        return ProcessCommand(fileReader, parser, documentProcessor)
+    }
+
+    @Test
+    fun `should resolve include directive end-to-end with a real file`() {
+        val tempDir = java.nio.file.Files.createTempDirectory("process-cmd-include").toFile()
+        try {
+            tempDir.resolve("part.adoc").writeText("included paragraph from part")
+            val inputFile = tempDir.resolve("main.adoc")
+            inputFile.writeText("= Main Document\n\nintro text\n\ninclude::part.adoc[]\n\noutro text")
+            val outputFile = tempDir.resolve("out.adoc")
+
+            val result = realProcessCommand().execute(
+                CommandArgs(
+                    positional = listOf(inputFile.absolutePath),
+                    options = mapOf("output" to outputFile.absolutePath),
+                    flags = emptySet()
+                )
+            )
+
+            assertTrue(result is CommandResult.Success, "expected success, got $result")
+            val output = outputFile.readText()
+            assertTrue(output.contains("included paragraph from part"), "include content missing:\n$output")
+            assertTrue(!output.contains("include::"), "include directive not resolved:\n$output")
+            assertTrue(output.contains("intro text") && output.contains("outro text"))
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `should drop ifdef region for undefined attribute end-to-end`() {
+        val tempDir = java.nio.file.Files.createTempDirectory("process-cmd-ifdef").toFile()
+        try {
+            val inputFile = tempDir.resolve("main.adoc")
+            inputFile.writeText("ifdef::internal-build[]\nsecret internal notes\nendif::[]\n\npublic content")
+            val outputFile = tempDir.resolve("out.adoc")
+
+            val result = realProcessCommand().execute(
+                CommandArgs(
+                    positional = listOf(inputFile.absolutePath),
+                    options = mapOf("output" to outputFile.absolutePath),
+                    flags = emptySet()
+                )
+            )
+
+            assertTrue(result is CommandResult.Success, "expected success, got $result")
+            val output = outputFile.readText()
+            assertTrue(!output.contains("secret internal notes"), "undefined ifdef content leaked:\n$output")
+            assertTrue(output.contains("public content"))
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
+
     @Test
     fun `should handle input file in root directory`() {
         // This test verifies that when input file parent is null (root directory),

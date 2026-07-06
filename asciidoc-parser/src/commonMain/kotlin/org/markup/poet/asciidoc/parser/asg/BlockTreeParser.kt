@@ -7,10 +7,13 @@ import org.markup.poet.asciidoc.asg.BlockMacroName
 import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.BreakVariant
+import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.ConditionalVariant
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DListItem
 import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.Header
+import org.markup.poet.asciidoc.asg.IncludeBlock
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.asg.LeafBlock
@@ -86,6 +89,18 @@ class BlockTreeParser {
         val blockMacroRegex = Regex("""^([a-z]+)::([^\[\s]*)\[([^\]]*)\]$""")
         const val PAGE_BREAK = "<<<"
 
+        // Processing directives (block level). These share the block-macro shape
+        // (`name::target[attrs]`) and must be recognized before the generic
+        // blockMacro/dlist checks so they are not eaten by them.
+        val includeRegex = Regex("""^include::([^\[\s]+)\[(.*)\]$""")
+        val conditionalRegex = Regex("""^(ifdef|ifndef)::([^\[\s]+)\[(.*)\]$""")
+        val ifevalRegex = Regex("""^ifeval::\[(.*)\]$""")
+        val endifRegex = Regex("""^endif::([^\[\s]*)\[\]$""")
+        val includeLineRangeRegex = Regex("""^(\d+)\.\.(\d+)$""")
+
+        /** A callout-list line: `<1> text` or `<.> text`. */
+        val calloutItemRegex = Regex("""^(<(?:\d+|\.)>) (.+)$""")
+
         val admonitionParagraphRegex = Regex("""^(NOTE|TIP|IMPORTANT|WARNING|CAUTION): (.+)$""")
         val admonitionNames = setOf("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
         val blockMacroNames = mapOf(
@@ -159,9 +174,10 @@ class BlockTreeParser {
         /**
          * Parses blocks until EOF, [closingDelimiter], or — when
          * [stopHeadingLevel] is non-null — a heading of level <= that
-         * (left unconsumed for the caller).
+         * (left unconsumed for the caller). With [stopAtEndif] an `endif::[]`
+         * line also ends the run (left for the enclosing conditional).
          */
-        fun parseBlocks(stopHeadingLevel: Int?, closingDelimiter: String?): List<Block> {
+        fun parseBlocks(stopHeadingLevel: Int?, closingDelimiter: String?, stopAtEndif: Boolean = false): List<Block> {
             val blocks = mutableListOf<Block>()
             var pending: BlockMetadata? = null
             while (!reader.eof) {
@@ -173,6 +189,12 @@ class BlockTreeParser {
                 }
                 if (closingDelimiter != null && line == closingDelimiter) {
                     return blocks // caller consumes the delimiter
+                }
+                if (endifRegex.matchEntire(line) != null) {
+                    if (stopAtEndif) return blocks // enclosing conditional consumes it
+                    reader.next() // stray endif: drop it (lenient, parser never errors)
+                    pending = null
+                    continue
                 }
 
                 val blockAttribute = blockAttributeRegex.matchEntire(line)
@@ -204,6 +226,39 @@ class BlockTreeParser {
                     continue
                 }
 
+                val include = includeRegex.matchEntire(line)
+                if (include != null) {
+                    blocks += parseInclude(include)
+                    pending = null
+                    continue
+                }
+                val conditional = conditionalRegex.matchEntire(line)
+                if (conditional != null) {
+                    blocks += parseConditional(
+                        variant = if (conditional.groupValues[1] == "ifdef") {
+                            ConditionalVariant.IFDEF
+                        } else {
+                            ConditionalVariant.IFNDEF
+                        },
+                        condition = conditional.groupValues[2],
+                        inlineContent = conditional.groupValues[3],
+                        closingDelimiter = closingDelimiter,
+                    )
+                    pending = null
+                    continue
+                }
+                val ifeval = ifevalRegex.matchEntire(line)
+                if (ifeval != null) {
+                    blocks += parseConditional(
+                        variant = ConditionalVariant.IFEVAL,
+                        condition = ifeval.groupValues[1],
+                        inlineContent = "", // ifeval brackets hold the expression, never content
+                        closingDelimiter = closingDelimiter,
+                    )
+                    pending = null
+                    continue
+                }
+
                 val blockMacro = blockMacroRegex.matchEntire(line)
                 if (blockMacro != null && blockMacro.groupValues[1] in blockMacroNames) {
                     val lineIndex = reader.index
@@ -227,12 +282,12 @@ class BlockTreeParser {
                         continue
                     }
                     if (stopHeadingLevel != null && level <= stopHeadingLevel) return blocks
-                    blocks += parseSection(heading, pending)
+                    blocks += parseSection(heading, pending, stopAtEndif)
                     pending = null
                     continue
                 }
 
-                val delimited = tryParseDelimitedBlock(pending)
+                val delimited = tryParseDelimitedBlock(pending, stopAtEndif)
                 if (delimited != null) {
                     pending = null
                     blocks += delimited
@@ -246,6 +301,11 @@ class BlockTreeParser {
                     continue
                 }
 
+                if (calloutItemRegex.matchEntire(line) != null) {
+                    blocks += parseCalloutList(pending)
+                    pending = null
+                    continue
+                }
                 if (listItemRegex.matchEntire(line) != null) {
                     blocks += parseList(pending)
                     pending = null
@@ -265,7 +325,13 @@ class BlockTreeParser {
 
         private fun isStructuralLine(line: String): Boolean =
             isDelimiterLine(line) || headingRegex.matches(line) || listItemRegex.matches(line) ||
-                thematicBreakRegex.matches(line) || line == PAGE_BREAK
+                thematicBreakRegex.matches(line) || line == PAGE_BREAK ||
+                isDirectiveLine(line) || calloutItemRegex.matches(line)
+
+        /** True for `include::`/`ifdef::`/`ifndef::`/`ifeval::`/`endif::` lines. */
+        private fun isDirectiveLine(line: String): Boolean =
+            includeRegex.matches(line) || conditionalRegex.matches(line) ||
+                ifevalRegex.matches(line) || endifRegex.matches(line)
 
         // -------------------------------------------------------------------
         // Headings and sections
@@ -283,11 +349,15 @@ class BlockTreeParser {
             )
         }
 
-        private fun parseSection(heading: MatchResult, metadata: BlockMetadata?): SectionBlock {
+        private fun parseSection(
+            heading: MatchResult,
+            metadata: BlockMetadata?,
+            stopAtEndif: Boolean = false,
+        ): SectionBlock {
             val headingLineIndex = reader.index
             reader.next()
             val level = heading.groupValues[1].length - 1
-            val children = parseBlocks(stopHeadingLevel = level, closingDelimiter = null)
+            val children = parseBlocks(stopHeadingLevel = level, closingDelimiter = null, stopAtEndif = stopAtEndif)
             val end = children.lastOrNull()?.location?.end
                 ?: Position(headingLineIndex + 1, reader.endCol(headingLineIndex))
             return SectionBlock(
@@ -324,7 +394,7 @@ class BlockTreeParser {
             return line.all { it == c }
         }
 
-        private fun tryParseDelimitedBlock(metadata: BlockMetadata?): Block? {
+        private fun tryParseDelimitedBlock(metadata: BlockMetadata?, stopAtEndif: Boolean = false): Block? {
             val line = reader.peek()
             if (!isDelimiterLine(line)) return null
             val openLineIndex = reader.index
@@ -366,7 +436,7 @@ class BlockTreeParser {
             }
 
             val style = metadata?.positional?.firstOrNull()
-            val children = parseBlocks(stopHeadingLevel = null, closingDelimiter = line)
+            val children = parseBlocks(stopHeadingLevel = null, closingDelimiter = line, stopAtEndif = stopAtEndif)
             var closeLineIndex = reader.lines.size - 1
             if (!reader.eof && reader.peek() == line) {
                 closeLineIndex = reader.index
@@ -394,6 +464,134 @@ class BlockTreeParser {
                 blocks = children,
                 metadata = metadata,
                 location = location,
+            )
+        }
+
+        // -------------------------------------------------------------------
+        // Processing directives (include, ifdef/ifndef/ifeval)
+        // -------------------------------------------------------------------
+
+        /**
+         * `include::path[attrlist]` — the attrlist's named attributes are kept
+         * as-is; a `lines=N..M` (or `lines=N`) attribute additionally becomes
+         * the structured [IncludeBlock.lineRange].
+         */
+        private fun parseInclude(match: MatchResult): IncludeBlock {
+            val lineIndex = reader.index
+            reader.next()
+            val attributes = parseBlockAttributes(match.groupValues[2]).named
+            val lineRange = attributes["lines"]?.trim()?.let { spec ->
+                includeLineRangeRegex.matchEntire(spec)
+                    ?.let { it.groupValues[1].toInt()..it.groupValues[2].toInt() }
+                    ?: spec.toIntOrNull()?.let { it..it }
+            }
+            return IncludeBlock(
+                path = match.groupValues[1],
+                lineRange = lineRange,
+                attributes = attributes,
+                location = lineLocation(lineIndex),
+            )
+        }
+
+        /**
+         * A conditional directive. `ifdef::attrs[content]` is the single-line
+         * form: the bracketed content becomes one paragraph. `ifdef::attrs[]`
+         * opens a region closed by `endif::[]`; regions nest (each inner
+         * conditional consumes its own endif), and an unclosed region extends
+         * to the end of the enclosing scope (lenient, the parser never errors).
+         * The [condition] stays raw (`attr1,attr2` / `attr1+attr2` / an ifeval
+         * expression) — evaluation is the document-processing phase's job.
+         */
+        private fun parseConditional(
+            variant: ConditionalVariant,
+            condition: String,
+            inlineContent: String,
+            closingDelimiter: String?,
+        ): ConditionalBlock {
+            val openLineIndex = reader.index
+            val openLine = reader.next()
+
+            if (inlineContent.isNotEmpty()) {
+                val startCol = openLine.indexOf('[') + 2 // 1-based col of the first content char
+                val inlines = inlineParser.parse(
+                    inlineContent,
+                    SegmentMap.ofLines(listOf(inlineContent), firstSourceLine = openLineIndex + 1, startCol = startCol),
+                )
+                val paragraph = LeafBlock(
+                    name = LeafBlockName.PARAGRAPH,
+                    form = LeafBlockForm.PARAGRAPH,
+                    inlines = inlines,
+                    location = Location(
+                        Position(openLineIndex + 1, startCol),
+                        Position(openLineIndex + 1, startCol + inlineContent.length - 1),
+                    ),
+                )
+                return ConditionalBlock(
+                    variant = variant,
+                    condition = condition,
+                    blocks = listOf(paragraph),
+                    location = lineLocation(openLineIndex),
+                )
+            }
+
+            val children = parseBlocks(
+                stopHeadingLevel = null,
+                closingDelimiter = closingDelimiter,
+                stopAtEndif = true,
+            )
+            var endLineIndex = reader.lines.size - 1 // unclosed region: rest of input is the body
+            if (!reader.eof) {
+                if (endifRegex.matchEntire(reader.peek()) != null) {
+                    endLineIndex = reader.index
+                    reader.next()
+                } else {
+                    // Stopped at the enclosing delimiter: the region ends before it.
+                    endLineIndex = (reader.index - 1).coerceAtLeast(openLineIndex)
+                }
+            }
+            return ConditionalBlock(
+                variant = variant,
+                condition = condition,
+                blocks = children,
+                location = Location(
+                    Position(openLineIndex + 1, 1),
+                    Position(endLineIndex + 1, reader.endCol(endLineIndex)),
+                ),
+            )
+        }
+
+        // -------------------------------------------------------------------
+        // Callout lists
+        // -------------------------------------------------------------------
+
+        /** A run of `<n> text` lines below a verbatim block forms a callout list. */
+        private fun parseCalloutList(metadata: BlockMetadata?): ListBlock {
+            val items = mutableListOf<ListItem>()
+            while (!reader.eof) {
+                val match = calloutItemRegex.matchEntire(reader.peek()) ?: break
+                val lineIndex = reader.index
+                reader.next()
+                val marker = match.groupValues[1]
+                val text = match.groupValues[2]
+                val principal = inlineParser.parse(
+                    text,
+                    SegmentMap.ofLines(listOf(text), firstSourceLine = lineIndex + 1, startCol = marker.length + 2),
+                )
+                items += ListItem(
+                    marker = marker,
+                    principal = principal,
+                    location = Location(
+                        Position(lineIndex + 1, 1),
+                        Position(lineIndex + 1, reader.endCol(lineIndex)),
+                    ),
+                )
+            }
+            return ListBlock(
+                variant = ListVariant.CALLOUT,
+                marker = items.first().marker,
+                items = items,
+                metadata = metadata,
+                location = Location(items.first().location!!.start, items.last().location!!.end),
             )
         }
 
