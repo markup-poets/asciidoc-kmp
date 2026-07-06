@@ -31,6 +31,8 @@ import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.SpanVariant
+import org.markup.poet.asciidoc.asg.TableBlock
+import org.markup.poet.asciidoc.asg.TableRow
 import org.markup.poet.asciidoc.asg.builtInBlockStyles
 import org.markup.poet.asciidoc.asg.plainText
 
@@ -127,7 +129,26 @@ class AsciiDocPrettyPrinter {
                 block.content.lines().forEach { builder.appendLine("$indent$it") }
                 builder.appendLine("$indent++++")
             }
+            is TableBlock -> printTable(block, builder, indent)
         }
+    }
+
+    /**
+     * Print a `|===` table: one row per line, cells joined with ` |`, the
+     * header row (when present) separated from the body by a blank line.
+     */
+    private fun printTable(table: TableBlock, builder: StringBuilder, indent: String) {
+        fun rowText(row: TableRow): String = row.cells.joinToString(" ") { cell ->
+            val spec = if (cell.colSpan > 1) "${cell.colSpan}+" else ""
+            "$spec|" + cell.inlines.joinToString("") { printInline(it) }
+        }
+        builder.appendLine("$indent|===")
+        table.header?.let { header ->
+            builder.appendLine("$indent${rowText(header)}")
+            builder.appendLine()
+        }
+        table.rows.forEach { builder.appendLine("$indent${rowText(it)}") }
+        builder.appendLine("$indent|===")
     }
 
     /**
@@ -279,6 +300,8 @@ class AsciiDocPrettyPrinter {
                     SpanVariant.EMPHASIS -> "_${content}_"
                     SpanVariant.CODE -> "`$content`"
                     SpanVariant.MARK -> "#$content#"
+                    SpanVariant.SUBSCRIPT -> "~$content~"
+                    SpanVariant.SUPERSCRIPT -> "^$content^"
                 }
             }
             is InlineRef -> when (inline.variant) {

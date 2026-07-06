@@ -10,6 +10,8 @@ import org.markup.poet.asciidoc.asg.ListVariant
 import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.TableBlock
+import org.markup.poet.asciidoc.asg.TableColumnAlignment
 import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.tck.fixtures.FixtureLoader
@@ -20,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -113,10 +116,12 @@ class BlockParsingCompatibilityTest : CompatibilityTest() {
 
     @Test
     fun `should reject heading level 7 and above`() {
-        pending(
-            "Heading level cap not yet implemented: the parser accepts '=======' (7+ markers) " +
-                "as a level-6 section instead of falling back to a paragraph"
-        )
+        // Asciidoctor caps headings at 6 markers; 7+ '=' stays a plain paragraph.
+        val document = parse("======= Too deep\n\nContent.")
+        val paragraph = assertIs<LeafBlock>(document.blocks.first())
+        assertEquals(LeafBlockName.PARAGRAPH, paragraph.name)
+        assertEquals("======= Too deep", plainText(paragraph.inlines))
+        assertTrue(document.blocks.none { it is SectionBlock })
     }
 
     // List Tests
@@ -232,16 +237,52 @@ class BlockParsingCompatibilityTest : CompatibilityTest() {
 
     @Test
     fun `should parse simple table`() {
-        pending("Tables not yet implemented (no table ASG node or |=== parsing)")
+        val document = parse("|===\n|Cell 1 |Cell 2\n|Cell 3 |Cell 4\n|===")
+        val table = assertIs<TableBlock>(document.blocks.single())
+        assertNull(table.header)
+        assertEquals(2, table.columns.size)
+        assertEquals(2, table.rows.size)
+        assertEquals(
+            listOf(listOf("Cell 1", "Cell 2"), listOf("Cell 3", "Cell 4")),
+            table.rows.map { row -> row.cells.map { plainText(it.inlines) } },
+        )
     }
 
     @Test
     fun `should parse table with header row`() {
-        pending("Tables not yet implemented (no table ASG node or |=== parsing)")
+        // Implicit header: first row on the delimiter-adjacent line, then a blank line.
+        val document = parse("|===\n|Name |Age\n\n|Alice |30\n|Bob |29\n|===")
+        val table = assertIs<TableBlock>(document.blocks.single())
+        val header = assertNotNull(table.header)
+        assertEquals(listOf("Name", "Age"), header.cells.map { plainText(it.inlines) })
+        assertEquals(
+            listOf(listOf("Alice", "30"), listOf("Bob", "29")),
+            table.rows.map { row -> row.cells.map { plainText(it.inlines) } },
+        )
+
+        // Explicit header via options="header" (no blank-line separation needed).
+        val explicit = parse("[options=\"header\"]\n|===\n|Name |Age\n|Alice |30\n|===")
+        val explicitTable = assertIs<TableBlock>(explicit.blocks.single())
+        val explicitHeader = assertNotNull(explicitTable.header)
+        assertEquals(listOf("Name", "Age"), explicitHeader.cells.map { plainText(it.inlines) })
+        assertEquals(1, explicitTable.rows.size)
     }
 
     @Test
     fun `should parse table with column alignment`() {
-        pending("Tables not yet implemented (no table ASG node or |=== parsing)")
+        val document = parse("[cols=\"<,^,>\"]\n|===\n|Left |Center |Right\n|===")
+        val table = assertIs<TableBlock>(document.blocks.single())
+        assertEquals(
+            listOf(TableColumnAlignment.LEFT, TableColumnAlignment.CENTER, TableColumnAlignment.RIGHT),
+            table.columns.map { it.alignment },
+        )
+        val row = table.rows.single()
+        assertEquals(listOf("Left", "Center", "Right"), row.cells.map { plainText(it.inlines) })
+
+        // `N*` repetition expands to N identical columns.
+        val repeated = parse("[cols=\"2*\"]\n|===\n|A |B\n|C |D\n|===")
+        val repeatedTable = assertIs<TableBlock>(repeated.blocks.single())
+        assertEquals(2, repeatedTable.columns.size)
+        assertEquals(2, repeatedTable.rows.size)
     }
 }

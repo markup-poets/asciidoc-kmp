@@ -567,6 +567,131 @@ class BlockTreeParserTest {
     // -----------------------------------------------------------------------
 
     @Test
+    fun headingWithSevenMarkersFallsBackToParagraph() {
+        val doc = parser.parseDocument("======= Too deep\n\nafter")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.first())
+        assertEquals(LeafBlockName.PARAGRAPH, paragraph.name)
+        assertEquals("======= Too deep", assertIs<InlineText>(paragraph.inlines.single()).value)
+        assertTrue(doc.blocks.none { it is SectionBlock })
+    }
+
+    @Test
+    fun headingWithSixMarkersStillOpensASection() {
+        val doc = parser.parseDocument("====== Level 5")
+        val section = assertIs<SectionBlock>(doc.blocks.single())
+        assertEquals(5, section.level)
+    }
+
+    @Test
+    fun sevenMarkerLineInsideParagraphStaysInParagraph() {
+        val doc = parser.parseDocument("first line\n======= not a heading\nlast line")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals(
+            "first line\n======= not a heading\nlast line",
+            assertIs<InlineText>(paragraph.inlines.single()).value,
+        )
+    }
+
+    @Test
+    fun authorLineBelowTitleBecomesAuthorAttributes() {
+        val doc = parser.parseDocument("= Title\nJane Mary Doe <jane@example.com>\n:toc:\n\nbody")
+        assertEquals("Jane Mary Doe", doc.attributes["author"])
+        assertEquals("jane@example.com", doc.attributes["email"])
+        assertEquals("Jane", doc.attributes["firstname"])
+        assertEquals("Mary", doc.attributes["middlename"])
+        assertEquals("Doe", doc.attributes["lastname"])
+        assertEquals("JMD", doc.attributes["authorinitials"])
+        assertEquals("", doc.attributes["toc"])
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("body", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
+    fun authorLineWithoutEmailNeedsTwoCapitalizedWords() {
+        val doc = parser.parseDocument("= Title\nJohn Doe\n\nbody")
+        assertEquals("John Doe", doc.attributes["author"])
+        assertNull(doc.attributes["email"])
+    }
+
+    @Test
+    fun nonAuthorShapedLineBelowTitleStaysAParagraph() {
+        val doc = parser.parseDocument("= Title\nsome ordinary text right below")
+        assertNull(doc.attributes["author"])
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("some ordinary text right below", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
+    fun authorShapedParagraphInBodyIsNotAuthorMetadata() {
+        val doc = parser.parseDocument("= Title\n\nJohn Doe <john@example.com>")
+        assertNull(doc.attributes["author"])
+        assertIs<LeafBlock>(doc.blocks.single())
+    }
+
+    @Test
+    fun listContinuationAttachesParagraphToItem() {
+        val doc = parser.parseDocument("* first\n+\nattached paragraph\n* second")
+        val list = assertIs<ListBlock>(doc.blocks.single())
+        assertEquals(2, list.items.size)
+        val attached = assertIs<LeafBlock>(list.items.first().blocks.single())
+        assertEquals("attached paragraph", assertIs<InlineText>(attached.inlines.single()).value)
+        assertTrue(list.items.last().blocks.isEmpty())
+    }
+
+    @Test
+    fun listContinuationAttachesDelimitedBlockToItem() {
+        val doc = parser.parseDocument("* first\n+\n----\ncode\n----\n* second")
+        val list = assertIs<ListBlock>(doc.blocks.single())
+        val listing = assertIs<LeafBlock>(list.items.first().blocks.single())
+        assertEquals(LeafBlockName.LISTING, listing.name)
+        assertEquals("code", assertIs<InlineText>(listing.inlines.single()).value)
+        assertEquals("second", assertIs<InlineText>(list.items.last().principal.single()).value)
+    }
+
+    @Test
+    fun linkMacroBecomesLinkRef() {
+        val doc = parser.parseDocument("see link:https://example.com/a[the docs] now")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        val ref = paragraph.inlines.filterIsInstance<InlineRef>().single()
+        assertEquals(RefVariant.LINK, ref.variant)
+        assertEquals("https://example.com/a", ref.target)
+        assertEquals("the docs", assertIs<InlineText>(ref.inlines.single()).value)
+    }
+
+    @Test
+    fun linkMacroWithRelativeTargetAndEmptyText() {
+        val doc = parser.parseDocument("link:index.html[]")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        val ref = assertIs<InlineRef>(paragraph.inlines.single())
+        assertEquals("index.html", ref.target)
+        assertEquals("index.html", assertIs<InlineText>(ref.inlines.single()).value)
+    }
+
+    @Test
+    fun subscriptAndSuperscriptSpans() {
+        val doc = parser.parseDocument("H~2~O and E=mc^2^")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        val spans = paragraph.inlines.filterIsInstance<InlineSpan>()
+        assertEquals(listOf(SpanVariant.SUBSCRIPT, SpanVariant.SUPERSCRIPT), spans.map { it.variant })
+        assertTrue(spans.all { it.form == SpanForm.UNCONSTRAINED })
+        assertEquals("2", assertIs<InlineText>(spans[0].inlines.single()).value)
+    }
+
+    @Test
+    fun subSupWithWhitespaceOrNoCloserStaysLiteral() {
+        val doc = parser.parseDocument("a ~ b and 2^10 done")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("a ~ b and 2^10 done", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
+    fun escapedSubSupDelimitersStayLiteral() {
+        val doc = parser.parseDocument("""H\~2~O stays flat""")
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("H~2~O stays flat", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
     fun mixedDocumentWithDirectivesAndCallouts() {
         val doc = parser.parseDocument(
             """

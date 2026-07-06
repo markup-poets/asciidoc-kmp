@@ -84,6 +84,7 @@ class DefaultInlineRenderer(
      * - EMPHASIS -> `<em>` with nested inlines
      * - CODE -> `<code>` holding the span's concatenated text, escaped
      * - MARK -> `<mark>` with nested inlines
+     * - SUBSCRIPT/SUPERSCRIPT -> `<sub>`/`<sup>` with nested inlines
      */
     private fun renderSpan(span: InlineSpan, context: RenderContext): String {
         return when (span.variant) {
@@ -91,6 +92,8 @@ class DefaultInlineRenderer(
             SpanVariant.EMPHASIS -> "<em>${renderNested(span.inlines, context)}</em>"
             SpanVariant.CODE -> "<code>${builder.escape(plainText(span.inlines))}</code>"
             SpanVariant.MARK -> "<mark>${renderNested(span.inlines, context)}</mark>"
+            SpanVariant.SUBSCRIPT -> "<sub>${renderNested(span.inlines, context)}</sub>"
+            SpanVariant.SUPERSCRIPT -> "<sup>${renderNested(span.inlines, context)}</sup>"
         }
     }
 

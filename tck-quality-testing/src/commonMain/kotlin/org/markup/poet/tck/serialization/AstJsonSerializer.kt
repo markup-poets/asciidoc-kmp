@@ -33,6 +33,7 @@ import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.TableBlock
 import org.markup.poet.asciidoc.asg.SpanVariant
 import org.markup.poet.asciidoc.asg.builtInBlockStyles
 import org.markup.poet.asciidoc.asg.plainText
@@ -229,6 +230,9 @@ class AstJsonSerializer {
         is BibliographyEntryBlock,
         is RawBlock,
         is CustomBlockMacro -> listOf(unknownBlock())
+
+        // The legacy AST predates table support: report an unknown block.
+        is TableBlock -> listOf(unknownBlock())
     }
 
     private fun unknownBlock(): JsonObject = buildJsonObject {
@@ -448,8 +452,11 @@ class AstJsonSerializer {
                 serializeSpan("emphasis", element.inlines.flatMap { serializeInlineElement(it) }, element.location)
             )
             SpanVariant.CODE -> listOf(serializeCode(plainText(element.inlines), element.location))
-            // Legacy AST had no mark element: splice the inner inlines.
-            SpanVariant.MARK -> element.inlines.flatMap { serializeInlineElement(it) }
+            // Legacy AST had no mark/sub/sup elements: splice the inner inlines.
+            SpanVariant.MARK,
+            SpanVariant.SUBSCRIPT,
+            SpanVariant.SUPERSCRIPT,
+            -> element.inlines.flatMap { serializeInlineElement(it) }
         }
 
         is InlineMacro -> when (element.name) {

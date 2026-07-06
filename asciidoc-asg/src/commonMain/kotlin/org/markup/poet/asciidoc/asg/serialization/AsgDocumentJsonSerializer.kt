@@ -39,6 +39,7 @@ import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.TableBlock
 
 /**
  * Near-identity mapping from the ASG model to the official ASG JSON
@@ -167,9 +168,10 @@ class AsgDocumentJsonSerializer(
         }
         // Extension nodes are not part of the official schema; they must be
         // resolved (by document-processing or an extension plugin) before
-        // serializing.
+        // serializing. TableBlock stays here until the official schema defines
+        // a table shape (asg/schema.json draft-01 has none).
         is CommentBlock, is IncludeBlock, is ConditionalBlock, is BibliographyEntryBlock, is RawBlock,
-        is CustomBlockMacro,
+        is CustomBlockMacro, is TableBlock,
         -> error(
             "${block::class.simpleName} has no official ASG serialization; " +
                 "it must be resolved by document-processing or an extension before serializing",

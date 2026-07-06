@@ -161,6 +161,8 @@ class DefaultAsciidocRenderer : AsciidocRenderer {
                 SpanVariant.EMPHASIS -> "__${renderInlines(inline.inlines)}__"
                 SpanVariant.CODE -> "`${renderInlines(inline.inlines)}`"
                 SpanVariant.MARK -> "#${renderInlines(inline.inlines)}#"
+                SpanVariant.SUBSCRIPT -> "~${renderInlines(inline.inlines)}~"
+                SpanVariant.SUPERSCRIPT -> "^${renderInlines(inline.inlines)}^"
             }
             is InlineRef -> when (inline.variant) {
                 RefVariant.LINK -> "link:${inline.target}[${renderInlines(inline.inlines)}]"

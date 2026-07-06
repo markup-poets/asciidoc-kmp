@@ -27,6 +27,15 @@ enum class SpanVariant(val asgName: String) {
     EMPHASIS("emphasis"),
     CODE("code"),
     MARK("mark"),
+
+    /**
+     * `~sub~` / `^super^`. Not yet part of the official ASG schema (its
+     * inlineSpan variant enum stops at strong/emphasis/code/mark), so the
+     * asgNames follow the language-documentation terms until the spec pins
+     * them down.
+     */
+    SUBSCRIPT("subscript"),
+    SUPERSCRIPT("superscript"),
 }
 
 enum class SpanForm(val asgName: String) {

@@ -5,10 +5,15 @@ import org.markup.poet.asciidoc.asg.BlockMacro
 import org.markup.poet.asciidoc.asg.BlockMacroName
 import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRef
+import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.LeafBlock
 import org.markup.poet.asciidoc.asg.ListBlock
 import org.markup.poet.asciidoc.asg.ListVariant
+import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.SpanVariant
+import org.markup.poet.asciidoc.asg.TableBlock
 import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.asciidoc.processing.ConditionalConfig
@@ -66,10 +71,18 @@ class ConformanceTest : CompatibilityTest() {
     @Test
     fun `should parse document with header and author`() {
         // Fixture: conformance-document-structure-header
-        pending(
-            "Author line metadata not yet implemented: the line below the document title " +
-                "parses as a plain paragraph instead of author/email attributes"
+        // The line directly below the title becomes author metadata, not a paragraph.
+        val document = parse(
+            "= Document Title\nJohn Doe <john.doe@example.com>\n:revdate: 2024-01-15\n\nDocument content."
         )
+        assertEquals("Document Title", plainText(assertNotNull(document.header).title))
+        assertEquals("John Doe", document.attributes["author"])
+        assertEquals("john.doe@example.com", document.attributes["email"])
+        assertEquals("John", document.attributes["firstname"])
+        assertEquals("Doe", document.attributes["lastname"])
+        assertEquals("2024-01-15", document.attributes["revdate"])
+        val paragraph = assertIs<LeafBlock>(document.blocks.single())
+        assertEquals("Document content.", plainText(paragraph.inlines))
     }
 
     @Test
@@ -168,10 +181,20 @@ class ConformanceTest : CompatibilityTest() {
     @Test
     fun `should parse link macro with text`() {
         // Fixture: conformance-macro-link
-        pending(
-            "link: macro not yet implemented: only bare-URL autolinks are parsed, " +
-                "so 'link:url[text]' leaves the 'link:' prefix as literal text"
-        )
+        // link:url[text] produces the same LINK ref as a bare-URL autolink.
+        val document = parse("Visit link:https://example.com[Example Website] for more information.")
+        val paragraph = assertIs<LeafBlock>(document.blocks.single())
+        val link = paragraph.inlines.filterIsInstance<InlineRef>().single()
+        assertEquals(RefVariant.LINK, link.variant)
+        assertEquals("https://example.com", link.target)
+        assertEquals("Example Website", plainText(link.inlines))
+        assertEquals("Visit Example Website for more information.", plainText(paragraph.inlines))
+
+        // Empty brackets fall back to the target as the link text.
+        val bare = parse("See link:https://example.org[] here.")
+        val bareLink = assertIs<LeafBlock>(bare.blocks.single()).inlines.filterIsInstance<InlineRef>().single()
+        assertEquals("https://example.org", bareLink.target)
+        assertEquals("https://example.org", plainText(bareLink.inlines))
     }
 
     @Test
@@ -243,7 +266,19 @@ class ConformanceTest : CompatibilityTest() {
     @Test
     fun `should parse list with continuation`() {
         // Fixture: conformance-list-nesting-continuation
-        pending("List continuation ('+' on a line by itself) not yet implemented")
+        // Interpretation note 1: a `+` line by itself attaches the following
+        // block to the previous list item.
+        val document = parse(
+            "* First item\n+\nThis paragraph belongs to the first item.\n* Second item"
+        )
+        val list = assertIs<ListBlock>(document.blocks.single())
+        assertEquals(2, list.items.size)
+        val first = list.items.first()
+        assertEquals("First item", plainText(first.principal))
+        val attached = assertIs<LeafBlock>(first.blocks.single())
+        assertEquals("This paragraph belongs to the first item.", plainText(attached.inlines))
+        assertEquals("Second item", plainText(list.items.last().principal))
+        assertTrue(list.items.last().blocks.isEmpty())
     }
 
     // Table Syntax Tests (Requirements 8.6)
@@ -251,18 +286,48 @@ class ConformanceTest : CompatibilityTest() {
     @Test
     fun `should parse basic table with header`() {
         // Fixture: conformance-table-basic
-        pending("Tables not yet implemented (no table ASG node or |=== parsing)")
+        val document = parse(
+            "[cols=\"1,1,1\", options=\"header\"]\n|===\n|Name |Age |City\n\n" +
+                "|Alice\n|30\n|New York\n\n|Bob\n|25\n|London\n|==="
+        )
+        val table = assertIs<TableBlock>(document.blocks.single())
+        assertEquals(3, table.columns.size)
+        val header = assertNotNull(table.header)
+        assertEquals(listOf("Name", "Age", "City"), header.cells.map { plainText(it.inlines) })
+        assertEquals(
+            listOf(listOf("Alice", "30", "New York"), listOf("Bob", "25", "London")),
+            table.rows.map { row -> row.cells.map { plainText(it.inlines) } },
+        )
     }
 
     @Test
     fun `should parse table with column spans`() {
         // Fixture: conformance-table-column-spans
-        pending("Tables not yet implemented (no table ASG node or |=== parsing)")
+        // `2+|` makes a cell span two columns.
+        val document = parse("|===\n|A |B\n2+|Spans both columns\n|===")
+        val table = assertIs<TableBlock>(document.blocks.single())
+        assertEquals(2, table.columns.size)
+        assertEquals(2, table.rows.size)
+        val spanning = table.rows.last().cells.single()
+        assertEquals(2, spanning.colSpan)
+        assertEquals("Spans both columns", plainText(spanning.inlines))
     }
 
     @Test
     fun `should parse table with formatted cells`() {
         // Fixture: conformance-table-formatted-cells
-        pending("Tables not yet implemented (no table ASG node or |=== parsing)")
+        // Interpretation note 3: cell content is inline-parsed after the table
+        // structure, so formatting spans work inside cells.
+        val document = parse("|===\n|*bold* |_italic_\n|`mono` |plain\n|===")
+        val table = assertIs<TableBlock>(document.blocks.single())
+        val (firstRow, secondRow) = table.rows
+        val bold = firstRow.cells[0].inlines.filterIsInstance<InlineSpan>().single()
+        assertEquals(SpanVariant.STRONG, bold.variant)
+        assertEquals("bold", plainText(bold.inlines))
+        val italic = firstRow.cells[1].inlines.filterIsInstance<InlineSpan>().single()
+        assertEquals(SpanVariant.EMPHASIS, italic.variant)
+        val mono = secondRow.cells[0].inlines.filterIsInstance<InlineSpan>().single()
+        assertEquals(SpanVariant.CODE, mono.variant)
+        assertEquals("plain", plainText(secondRow.cells[1].inlines))
     }
 }

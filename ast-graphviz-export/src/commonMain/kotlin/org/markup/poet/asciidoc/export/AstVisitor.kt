@@ -35,6 +35,9 @@ import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.SpanVariant
+import org.markup.poet.asciidoc.asg.TableBlock
+import org.markup.poet.asciidoc.asg.TableCell
+import org.markup.poet.asciidoc.asg.TableRow
 import org.markup.poet.asciidoc.asg.builtInBlockStyles
 import org.markup.poet.asciidoc.asg.metadataOf
 import org.markup.poet.asciidoc.asg.plainText
@@ -102,12 +105,17 @@ internal fun asgNodeKind(node: AsgNode): String = when (node) {
     is ConditionalBlock -> "Conditional"
     is BibliographyEntryBlock -> "BibliographyEntry"
     is RawBlock -> "RawBlock"
+    is TableBlock -> "Table"
+    is TableRow -> "TableRow"
+    is TableCell -> "TableCell"
     is InlineText -> "Text"
     is InlineSpan -> when (node.variant) {
         SpanVariant.STRONG -> "Strong"
         SpanVariant.EMPHASIS -> "Emphasis"
         SpanVariant.CODE -> "CodeSpan"
         SpanVariant.MARK -> "Mark"
+        SpanVariant.SUBSCRIPT -> "Subscript"
+        SpanVariant.SUPERSCRIPT -> "Superscript"
     }
     is InlineRef -> if (node.variant == RefVariant.XREF) "XRef" else "Link"
     is InlineMacro -> if (node.name == "image") "Image" else "InlineMacro"
@@ -231,6 +239,12 @@ class GraphvizAstVisitor(
                 visitAll(node.blocks, parentId)
                 visitAll(node.elseBlocks, parentId)
             }
+            is TableBlock -> {
+                node.header?.let { visitAll(listOf(it), parentId) }
+                visitAll(node.rows, parentId)
+            }
+            is TableRow -> visitAll(node.cells, parentId)
+            is TableCell -> visitAll(node.inlines, parentId)
             is InlineSpan -> visitAll(node.inlines, parentId)
             is InlineRef -> visitAll(node.inlines, parentId)
             is InlineFootnote -> visitAll(node.inlines, parentId)
@@ -280,6 +294,9 @@ class GraphvizAstVisitor(
             is ConditionalBlock -> "${node.variant.name.lowercase()}::${node.condition}"
             is BibliographyEntryBlock -> "Bibliography [${node.id}]"
             is RawBlock -> "Raw Block (${node.format})"
+            is TableBlock -> "Table (${node.columns.size} cols, ${node.rows.size} rows)"
+            is TableRow -> "Table Row (${node.cells.size} cells)"
+            is TableCell -> "Cell: ${truncateText(plainText(node.inlines), 25)}"
             is InlineText -> "Text: ${truncateText(node.value, 40)}"
             is InlineSpan -> {
                 val name = when (node.variant) {
@@ -287,6 +304,8 @@ class GraphvizAstVisitor(
                     SpanVariant.EMPHASIS -> "Emphasis"
                     SpanVariant.CODE -> "Code"
                     SpanVariant.MARK -> "Mark"
+                    SpanVariant.SUBSCRIPT -> "Subscript"
+                    SpanVariant.SUPERSCRIPT -> "Superscript"
                 }
                 "$name: ${truncateText(plainText(node.inlines), 30)}"
             }
