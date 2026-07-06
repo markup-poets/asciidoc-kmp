@@ -1,4 +1,3 @@
-import com.android.build.api.dsl.androidLibrary
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -18,7 +17,7 @@ kotlin {
             mainClass.set("org.markup.poet.antora.assembler.cli.MainKt")
         }
     }
-    androidLibrary {
+    android {
         namespace = "org.markup.poet.antora.assembler"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
@@ -26,10 +25,10 @@ kotlin {
         withJava() // enable java compilation support
 
         compilations.configureEach {
-            compilerOptions.configure {
-                jvmTarget.set(
-                    JvmTarget.JVM_11
-                )
+            compileTaskProvider.configure {
+                compilerOptions {
+                    jvmTarget.set(JvmTarget.JVM_11)
+                }
             }
         }
     }

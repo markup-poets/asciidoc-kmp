@@ -2,8 +2,8 @@ package org.markup.poet.tck.publisher
 
 import org.markup.poet.asciidoc.parser.AsciidocParser
 import org.markup.poet.tck.execution.AggregatedResults
+import kotlin.time.Clock
 import kotlin.time.measureTimedValue
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
