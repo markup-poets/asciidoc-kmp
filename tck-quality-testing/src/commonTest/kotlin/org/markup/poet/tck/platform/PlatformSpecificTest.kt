@@ -1,140 +1,122 @@
 package org.markup.poet.tck.platform
 
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.plainText
+import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.tck.compatibility.CompatibilityTest
 import org.markup.poet.tck.fixtures.FixtureLoader
 import org.markup.poet.tck.fixtures.ResourceFixtureLoader
 import org.markup.poet.tck.validation.DefaultOutputValidator
 import org.markup.poet.tck.validation.OutputValidator
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Platform-specific validation tests.
- * 
- * Tests file I/O, encoding handling, and path resolution across all platforms.
- * 
+ * Platform-specific validation tests for encoding and line-ending handling.
+ *
+ * File-system-dependent tests (file I/O, include path resolution) live in the
+ * JVM source set (`PlatformFileSystemTest`), since they need a real file system.
+ *
  * Requirements: 7.1, 7.2, 7.3
  */
 class PlatformSpecificTest : CompatibilityTest() {
-    
+
     override val fixtureLoader: FixtureLoader = ResourceFixtureLoader()
     override val validator: OutputValidator = DefaultOutputValidator()
-    
-    // File I/O Tests
-    
-    @Test
-    fun `should read simple file content`() {
-        pending("File I/O implementation not yet available")
-        
-        val fixture = fixtureLoader.loadFixture("platform-file-io-simple-read")
-        assertNotNull(fixture)
-        assertNotNull(fixture.input)
-        assertTrue(fixture.input.isNotEmpty())
-    }
-    
-    @Test
-    fun `should read multiline file content`() {
-        pending("File I/O implementation not yet available")
-        
-        val fixture = fixtureLoader.loadFixture("platform-file-io-multiline-read")
-        assertNotNull(fixture)
-        assertTrue(fixture.input.contains("\n"))
-    }
-    
+
+    private val parser = DefaultAsciidocParser()
+
+    private fun parse(source: String): AsgDocument = parser.parse(source).document
+
+    /** All plain text of the document body, concatenated. */
+    private fun bodyText(document: AsgDocument): String =
+        document.blocks.filterIsInstance<LeafBlock>().joinToString("\n") { plainText(it.inlines) }
+
+    // Line Ending Tests
+
     @Test
     fun `should handle different line endings across platforms`() {
-        pending("File I/O implementation not yet available")
-        
-        // Test that line endings are normalized or handled correctly
-        val fixture = fixtureLoader.loadFixture("platform-file-io-multiline-read")
-        val lines = fixture.input.split("\n")
-        assertTrue(lines.size > 1)
+        val lf = "= Title\n\nFirst line.\nSecond line.\n\nSecond paragraph."
+        val crlf = lf.replace("\n", "\r\n")
+
+        val lfDoc = parse(lf)
+        val crlfDoc = parse(crlf)
+
+        // CRLF input is normalized: both variants produce the same document structure.
+        assertEquals(lfDoc.blocks.size, crlfDoc.blocks.size)
+        assertEquals(bodyText(lfDoc), bodyText(crlfDoc))
+        assertEquals("First line.\nSecond line.", plainText((lfDoc.blocks[0] as LeafBlock).inlines))
     }
-    
+
     // Encoding Tests
-    
+
     @Test
     fun `should handle basic UTF-8 characters`() {
-        pending("Encoding handling not yet implemented")
-        
         val fixture = fixtureLoader.loadFixture("platform-encoding-utf8-basic")
-        assertNotNull(fixture)
         assertTrue(fixture.input.contains("café"))
         assertTrue(fixture.input.contains("naïve"))
         assertTrue(fixture.input.contains("résumé"))
+
+        val document = parse(fixture.input)
+        val body = bodyText(document)
+        assertTrue(body.contains("café"))
+        assertTrue(body.contains("naïve"))
+        assertTrue(body.contains("résumé"))
     }
-    
+
     @Test
     fun `should handle emoji and special symbols`() {
-        pending("Encoding handling not yet implemented")
-        
         val fixture = fixtureLoader.loadFixture("platform-encoding-utf8-emoji")
-        assertNotNull(fixture)
         assertTrue(fixture.input.contains("📚"))
         assertTrue(fixture.input.contains("🎉"))
         assertTrue(fixture.input.contains("©"))
+
+        val document = parse(fixture.input)
+        val header = assertNotNull(document.header)
+        assertTrue(plainText(header.title).contains("📚"))
+        val body = bodyText(document)
+        assertTrue(body.contains("🎉"))
+        assertTrue(body.contains("©"))
     }
-    
+
     @Test
     fun `should handle multilingual content`() {
-        pending("Encoding handling not yet implemented")
-        
         val fixture = fixtureLoader.loadFixture("platform-encoding-utf8-multilingual")
-        assertNotNull(fixture)
-        assertTrue(fixture.input.contains("こんにちは世界")) // Japanese
-        assertTrue(fixture.input.contains("你好世界")) // Chinese
-        assertTrue(fixture.input.contains("Привет мир")) // Russian
-        assertTrue(fixture.input.contains("مرحبا بالعالم")) // Arabic
+        val document = parse(fixture.input)
+        val body = bodyText(document)
+        assertTrue(body.contains("こんにちは世界")) // Japanese
+        assertTrue(body.contains("你好世界")) // Chinese
+        assertTrue(body.contains("Привет мир")) // Russian
+        assertTrue(body.contains("مرحبا بالعالم")) // Arabic
     }
-    
+
     @Test
     fun `should handle special typographic characters`() {
-        pending("Encoding handling not yet implemented")
-        
         val fixture = fixtureLoader.loadFixture("platform-encoding-special-chars")
-        assertNotNull(fixture)
-        assertTrue(fixture.input.contains("–")) // en-dash
-        assertTrue(fixture.input.contains("—")) // em-dash
-        assertTrue(fixture.input.contains("∑")) // summation
+        val document = parse(fixture.input)
+        val body = bodyText(document)
+        assertTrue(body.contains("–")) // en-dash
+        assertTrue(body.contains("—")) // em-dash
+        assertTrue(body.contains("∑")) // summation
+        assertTrue(body.contains("«guillemets»"))
     }
-    
+
     @Test
     fun `should handle zero-width and combining characters`() {
-        pending("Encoding handling not yet implemented")
-        
+        val zeroWidthJoiner = "\u200D"
+        val zeroWidthNonJoiner = "\u200C"
         val fixture = fixtureLoader.loadFixture("platform-encoding-zero-width")
-        assertNotNull(fixture)
-        // Zero-width characters are present but not visible
-        assertTrue(fixture.input.isNotEmpty())
-    }
-    
-    // Path Resolution Tests
-    
-    @Test
-    fun `should resolve absolute paths`() {
-        pending("Path resolution not yet implemented")
-        
-        val fixture = fixtureLoader.loadFixture("platform-path-resolution-absolute")
-        assertNotNull(fixture)
-        assertTrue(fixture.input.startsWith("/"))
-    }
-    
-    @Test
-    fun `should resolve relative paths with parent directory`() {
-        pending("Path resolution not yet implemented")
-        
-        val fixture = fixtureLoader.loadFixture("platform-path-resolution-relative")
-        assertNotNull(fixture)
-        assertTrue(fixture.input.contains(".."))
-    }
-    
-    @Test
-    fun `should resolve current directory paths`() {
-        pending("Path resolution not yet implemented")
-        
-        val fixture = fixtureLoader.loadFixture("platform-path-resolution-current-dir")
-        assertNotNull(fixture)
-        assertTrue(fixture.input.startsWith("./"))
+        assertTrue(fixture.input.contains(zeroWidthJoiner))
+        assertTrue(fixture.input.contains(zeroWidthNonJoiner))
+
+        val document = parse(fixture.input)
+        val body = bodyText(document)
+        // Zero-width and combining characters survive parsing unchanged.
+        assertTrue(body.contains(zeroWidthJoiner))
+        assertTrue(body.contains(zeroWidthNonJoiner))
+        assertTrue(body.contains("combining acute"))
     }
 }
