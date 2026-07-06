@@ -1,349 +1,237 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMetadata
+import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineSpan
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockForm
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.Location
+import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.ParentBlockName
+import org.markup.poet.asciidoc.asg.Position
+import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.SpanForm
+import org.markup.poet.asciidoc.asg.SpanVariant
+import org.markup.poet.asciidoc.asg.plainText
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class AdmonitionProcessorTest {
-    
+
     private val processor = DefaultAdmonitionProcessor()
-    private val testLocation = SourceLocation(1, 1)
-    
+    private val testLocation = Location(Position(1, 1), Position(1, 1))
+
+    private fun paragraphOf(inlines: List<Inline>, metadata: BlockMetadata? = null) = LeafBlock(
+        name = LeafBlockName.PARAGRAPH,
+        form = LeafBlockForm.PARAGRAPH,
+        inlines = inlines,
+        metadata = metadata,
+        location = testLocation
+    )
+
+    private fun textParagraph(text: String, metadata: BlockMetadata? = null) =
+        paragraphOf(listOf(InlineText(text, testLocation)), metadata)
+
+    private fun document(vararg blocks: Block) = AsgDocument(
+        blocks = blocks.toList(),
+        location = testLocation
+    )
+
     @Test
     fun `should recognize NOTE admonition with inline syntax`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("NOTE: This is a note", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("NOTE: This is a note"))
+
         val result = processor.process(document)
-        
-        assertEquals(1, result.document.children.size)
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.NOTE, admonition.type)
-        assertEquals(1, result.admonitionCount[AdmonitionType.NOTE])
+
+        assertEquals(1, result.document.blocks.size)
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals(ParentBlockName.ADMONITION, admonition.name)
+        assertEquals("note", admonition.variant)
+        assertEquals(1, result.admonitionCount["note"])
     }
-    
+
     @Test
     fun `should recognize TIP admonition with inline syntax`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("TIP: This is a tip", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("TIP: This is a tip"))
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.TIP, admonition.type)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("tip", admonition.variant)
     }
-    
+
     @Test
     fun `should recognize WARNING admonition with inline syntax`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("WARNING: This is a warning", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("WARNING: This is a warning"))
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.WARNING, admonition.type)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("warning", admonition.variant)
     }
-    
+
     @Test
     fun `should recognize CAUTION admonition with inline syntax`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("CAUTION: This is a caution", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("CAUTION: This is a caution"))
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.CAUTION, admonition.type)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("caution", admonition.variant)
     }
-    
+
     @Test
     fun `should recognize IMPORTANT admonition with inline syntax`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("IMPORTANT: This is important", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("IMPORTANT: This is important"))
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.IMPORTANT, admonition.type)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("important", admonition.variant)
     }
-    
+
     @Test
     fun `should recognize admonition with block syntax using style attribute`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("This is the content", emptyMap(), testLocation)),
-            attributes = mapOf("style" to "NOTE"),
-            sourceLocation = testLocation
+        val document = document(
+            textParagraph("This is the content", metadata = BlockMetadata(positional = listOf("NOTE")))
         )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.NOTE, admonition.type)
-        assertEquals(1, admonition.content.size)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("note", admonition.variant)
+        assertEquals(1, admonition.blocks.size)
     }
-    
+
     @Test
     fun `should handle custom title in admonition`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("Content here", emptyMap(), testLocation)),
-            attributes = mapOf("style" to "TIP", "title" to "Custom Title"),
-            sourceLocation = testLocation
+        val document = document(
+            textParagraph(
+                "Content here",
+                metadata = BlockMetadata(
+                    positional = listOf("TIP"),
+                    title = listOf(InlineText("Custom Title", testLocation))
+                )
+            )
         )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.TIP, admonition.type)
-        assertEquals("Custom Title", admonition.title)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("tip", admonition.variant)
+        assertEquals("Custom Title", admonition.metadata?.title?.let { plainText(it) })
     }
-    
+
     @Test
     fun `should report warning for invalid admonition type`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("Content", emptyMap(), testLocation)),
-            attributes = mapOf("style" to "INVALID"),
-            sourceLocation = testLocation
+        val document = document(
+            textParagraph("Content", metadata = BlockMetadata(positional = listOf("INVALID")))
         )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+
         val result = processor.process(document)
-        
+
         assertEquals(1, result.warnings.size)
         assertEquals(ProcessingWarningType.ADMONITION_INVALID_TYPE, result.warnings.first().warningType)
         assertTrue(result.warnings.first().message.contains("INVALID"))
     }
-    
+
     @Test
     fun `should count admonitions by type`() {
-        val doc = Document(
-            title = null,
-            children = listOf(
-                Paragraph(
-                    content = listOf(Text("NOTE: First note", emptyMap(), testLocation)),
-                    attributes = emptyMap(),
-                    sourceLocation = testLocation
-                ),
-                Paragraph(
-                    content = listOf(Text("NOTE: Second note", emptyMap(), testLocation)),
-                    attributes = emptyMap(),
-                    sourceLocation = testLocation
-                ),
-                Paragraph(
-                    content = listOf(Text("TIP: A tip", emptyMap(), testLocation)),
-                    attributes = emptyMap(),
-                    sourceLocation = testLocation
-                )
-            ),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
+        val doc = document(
+            textParagraph("NOTE: First note"),
+            textParagraph("NOTE: Second note"),
+            textParagraph("TIP: A tip")
         )
-        
+
         val result = processor.process(doc)
-        
-        assertEquals(2, result.admonitionCount[AdmonitionType.NOTE])
-        assertEquals(1, result.admonitionCount[AdmonitionType.TIP])
+
+        assertEquals(2, result.admonitionCount["note"])
+        assertEquals(1, result.admonitionCount["tip"])
     }
-    
+
     @Test
     fun `should process nested admonitions in sections`() {
-        val section = Section(
+        val section = SectionBlock(
+            title = listOf(InlineText("Test Section", testLocation)),
             level = 1,
-            title = "Test Section",
-            children = listOf(
-                Paragraph(
-                    content = listOf(Text("WARNING: Nested warning", emptyMap(), testLocation)),
-                    attributes = emptyMap(),
-                    sourceLocation = testLocation
-                )
-            ),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
+            blocks = listOf(textParagraph("WARNING: Nested warning")),
+            location = testLocation
         )
-        val document = Document(
-            title = null,
-            children = listOf(section),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(section)
+
         val result = processor.process(document)
-        
-        val processedSection = result.document.children.first() as Section
-        val admonition = processedSection.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.WARNING, admonition.type)
-        assertEquals(1, result.admonitionCount[AdmonitionType.WARNING])
+
+        val processedSection = result.document.blocks.first() as SectionBlock
+        val admonition = processedSection.blocks.first() as ParentBlock
+        assertEquals("warning", admonition.variant)
+        assertEquals(1, result.admonitionCount["warning"])
     }
-    
+
     @Test
     fun `should preserve content after colon in inline syntax`() {
-        val paragraph = Paragraph(
-            content = listOf(
-                Text("NOTE: This is ", emptyMap(), testLocation),
-                Strong(listOf(Text("important", emptyMap(), testLocation)), emptyMap(), testLocation),
-                Text(" content", emptyMap(), testLocation)
-            ),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
+        val paragraph = paragraphOf(
+            listOf(
+                InlineText("NOTE: This is ", testLocation),
+                InlineSpan(
+                    variant = SpanVariant.STRONG,
+                    form = SpanForm.CONSTRAINED,
+                    inlines = listOf(InlineText("important", testLocation)),
+                    location = testLocation
+                ),
+                InlineText(" content", testLocation)
+            )
         )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(paragraph)
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.NOTE, admonition.type)
-        assertEquals(1, admonition.content.size)
-        val contentParagraph = admonition.content.first() as Paragraph
-        assertTrue(contentParagraph.content.size >= 2)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("note", admonition.variant)
+        assertEquals(1, admonition.blocks.size)
+        val contentParagraph = admonition.blocks.first() as LeafBlock
+        assertTrue(contentParagraph.inlines.size >= 2)
     }
-    
+
     @Test
     fun `should not process regular paragraphs as admonitions`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("This is just regular text", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("This is just regular text"))
+
         val result = processor.process(document)
-        
-        assertEquals(1, result.document.children.size)
-        assertTrue(result.document.children.first() is Paragraph)
+
+        assertEquals(1, result.document.blocks.size)
+        assertTrue(result.document.blocks.first() is LeafBlock)
         assertTrue(result.admonitionCount.isEmpty())
     }
-    
+
     @Test
     fun `should handle case-insensitive admonition type recognition`() {
-        val paragraph = Paragraph(
-            content = listOf(Text("note: lowercase note", emptyMap(), testLocation)),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        val document = Document(
-            title = null,
-            children = listOf(paragraph),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(textParagraph("note: lowercase note"))
+
         val result = processor.process(document)
-        
-        val admonition = result.document.children.first() as AdmonitionBlock
-        assertEquals(AdmonitionType.NOTE, admonition.type)
+
+        val admonition = result.document.blocks.first() as ParentBlock
+        assertEquals("note", admonition.variant)
     }
-    
+
     @Test
-    fun `should process already existing AdmonitionBlock nodes`() {
-        val existingAdmonition = AdmonitionBlock(
-            type = AdmonitionType.TIP,
-            title = "Existing",
-            content = listOf(
-                Paragraph(
-                    content = listOf(Text("Content", emptyMap(), testLocation)),
-                    attributes = emptyMap(),
-                    sourceLocation = testLocation
-                )
-            ),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
+    fun `should process already existing admonition blocks`() {
+        val existingAdmonition = ParentBlock(
+            name = ParentBlockName.ADMONITION,
+            variant = "tip",
+            blocks = listOf(textParagraph("Content")),
+            metadata = BlockMetadata(title = listOf(InlineText("Existing", testLocation))),
+            location = testLocation
         )
-        val document = Document(
-            title = null,
-            children = listOf(existingAdmonition),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = testLocation
-        )
-        
+        val document = document(existingAdmonition)
+
         val result = processor.process(document)
-        
-        assertEquals(1, result.admonitionCount[AdmonitionType.TIP])
-        assertTrue(result.document.children.first() is AdmonitionBlock)
+
+        assertEquals(1, result.admonitionCount["tip"])
+        assertTrue(result.document.blocks.first() is ParentBlock)
     }
 }

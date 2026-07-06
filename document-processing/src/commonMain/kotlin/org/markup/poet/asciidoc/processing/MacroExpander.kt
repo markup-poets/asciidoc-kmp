@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Interface for expanding macros in AsciiDoc documents.
@@ -14,7 +14,7 @@ interface MacroExpander {
      * @param config Configuration for macro expansion
      * @return Result containing the processed document and any errors
      */
-    fun expand(document: Document, config: MacroConfig): MacroResult
+    fun expand(document: AsgDocument, config: MacroConfig): MacroResult
 }
 
 /**
@@ -29,6 +29,6 @@ data class MacroConfig(
  * Result of macro expansion.
  */
 data class MacroResult(
-    val document: Document,
+    val document: AsgDocument,
     val errors: List<ProcessingError>
 )

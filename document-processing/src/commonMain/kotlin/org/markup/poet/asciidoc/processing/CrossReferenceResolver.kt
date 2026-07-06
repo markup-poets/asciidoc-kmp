@@ -1,7 +1,7 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.AstNode
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.AsgNode
 
 /**
  * Resolves cross-references within a document by matching reference IDs to anchor targets.
@@ -9,18 +9,18 @@ import org.markup.poet.asciidoc.ast.Document
 interface CrossReferenceResolver {
     /**
      * Resolves all cross-references in the document.
-     * 
+     *
      * @param document The document to process
      * @return Result containing the processed document with resolved references and any errors/warnings
      */
-    fun resolve(document: Document): CrossReferenceResult
+    fun resolve(document: AsgDocument): CrossReferenceResult
 }
 
 /**
  * Result of cross-reference resolution.
  */
 data class CrossReferenceResult(
-    val document: Document,
+    val document: AsgDocument,
     val errors: List<ProcessingError>,
     val warnings: List<ProcessingWarning>,
     val resolvedReferences: Map<String, AnchorTarget>
@@ -31,6 +31,6 @@ data class CrossReferenceResult(
  */
 data class AnchorTarget(
     val anchorId: String,
-    val targetNode: AstNode,
+    val targetNode: AsgNode,
     val generatedText: String
 )

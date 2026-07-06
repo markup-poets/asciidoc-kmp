@@ -1,166 +1,145 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineAttributeRef
+import org.markup.poet.asciidoc.asg.InlineSpan
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.Location
+import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.SpanVariant
 
 /**
  * Default implementation of AttributeSubstitutor.
- * Traverses the document AST and substitutes attribute references with their values.
+ * Traverses the ASG tree and substitutes attribute references with their values.
  */
 class DefaultAttributeSubstitutor : AttributeSubstitutor {
-    
-    override fun substitute(document: Document, config: AttributeConfig): SubstitutionResult {
+
+    override fun substitute(document: AsgDocument, config: AttributeConfig): SubstitutionResult {
         val errors = mutableListOf<ProcessingError>()
         val substitutedAttributes = mutableSetOf<String>()
-        
+
         // Build the attribute map from document attributes and defaults
         val attributeMap = config.defaults.toMutableMap()
-        attributeMap.putAll(document.documentAttributes)
-        
-        // Process the document
-        val processedDocument = processDocument(document, attributeMap, config, errors, substitutedAttributes)
-        
+        attributeMap.putAll(document.attributes)
+
+        val processedBlocks = document.blocks.map { block ->
+            processBlock(block, attributeMap, config, errors, substitutedAttributes)
+        }
+
         return SubstitutionResult(
-            document = processedDocument,
+            document = document.copy(blocks = processedBlocks),
             errors = errors,
             substitutedAttributes = substitutedAttributes
         )
     }
-    
-    private fun processDocument(
-        document: Document,
+
+    private fun processBlock(
+        block: Block,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>
-    ): Document {
-        val processedChildren = document.children.map { child ->
-            processBlockElement(child, attributeMap, config, errors, substitutedAttributes)
+    ): Block {
+        fun recurse(blocks: List<Block>): List<Block> =
+            blocks.map { processBlock(it, attributeMap, config, errors, substitutedAttributes) }
+
+        fun mapInlines(inlines: List<Inline>): List<Inline> =
+            inlines.map { processInline(it, attributeMap, config, errors, substitutedAttributes) }
+
+        return when (block) {
+            is SectionBlock -> block.copy(blocks = recurse(block.blocks))
+            // DO NOT substitute attributes in verbatim blocks (listing/literal/pass/stem/verse).
+            is LeafBlock -> if (block.name == LeafBlockName.PARAGRAPH) {
+                block.copy(inlines = mapInlines(block.inlines))
+            } else {
+                block
+            }
+            is ParentBlock -> block.copy(blocks = recurse(block.blocks))
+            is ListBlock -> block.copy(items = block.items.map { item ->
+                item.copy(principal = mapInlines(item.principal), blocks = recurse(item.blocks))
+            })
+            is DListBlock -> block.copy(items = block.items.map { item ->
+                item.copy(
+                    terms = item.terms.map { mapInlines(it) },
+                    principal = mapInlines(item.principal),
+                    blocks = recurse(item.blocks)
+                )
+            })
+            else -> block
         }
-        
-        return document.copy(children = processedChildren)
     }
-    
-    private fun processBlockElement(
-        element: BlockElement,
+
+    private fun processInline(
+        inline: Inline,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>
-    ): BlockElement {
-        return when (element) {
-            is Section -> element.copy(
-                children = element.children.map { child ->
-                    processBlockElement(child, attributeMap, config, errors, substitutedAttributes)
-                }
-            )
-            is Paragraph -> element.copy(
-                content = element.content.map { inline ->
-                    processInlineElement(inline, attributeMap, config, errors, substitutedAttributes)
-                }
-            )
-            is AsciiDocList -> element.copy(
-                items = element.items.map { item ->
-                    processListItem(item, attributeMap, config, errors, substitutedAttributes)
-                }
-            )
-            is ListItem -> processListItem(element, attributeMap, config, errors, substitutedAttributes)
-            is CalloutList -> element.copy(
-                items = element.items.map { item ->
-                    item.copy(
-                        content = item.content.map { inline ->
-                            processInlineElement(inline, attributeMap, config, errors, substitutedAttributes)
-                        }
-                    )
-                }
-            )
-            is CodeBlock -> element // DO NOT substitute attributes in code blocks
-            is Document -> processDocument(element, attributeMap, config, errors, substitutedAttributes)
-            else -> element
+    ): Inline {
+        return when (inline) {
+            is InlineText -> processTextElement(inline, attributeMap, config, errors, substitutedAttributes)
+            // Code spans are verbatim; other spans get their content substituted.
+            is InlineSpan -> if (inline.variant == SpanVariant.CODE) {
+                inline
+            } else {
+                inline.copy(inlines = inline.inlines.map { nested ->
+                    processInline(nested, attributeMap, config, errors, substitutedAttributes)
+                })
+            }
+            is InlineAttributeRef -> processAttributeReference(inline, attributeMap, config, errors, substitutedAttributes)
+            else -> inline
         }
     }
-    
-    private fun processListItem(
-        item: ListItem,
-        attributeMap: Map<String, String>,
-        config: AttributeConfig,
-        errors: MutableList<ProcessingError>,
-        substitutedAttributes: MutableSet<String>
-    ): ListItem {
-        val processedContent = item.content.map { inline ->
-            processInlineElement(inline, attributeMap, config, errors, substitutedAttributes)
-        }
-        val processedNestedList = item.nestedList?.let { nestedList ->
-            processBlockElement(nestedList, attributeMap, config, errors, substitutedAttributes) as AsciiDocList
-        }
-        return item.copy(content = processedContent, nestedList = processedNestedList)
-    }
-    
-    private fun processInlineElement(
-        element: InlineElement,
-        attributeMap: Map<String, String>,
-        config: AttributeConfig,
-        errors: MutableList<ProcessingError>,
-        substitutedAttributes: MutableSet<String>
-    ): InlineElement {
-        return when (element) {
-            is Text -> processTextElement(element, attributeMap, config, errors, substitutedAttributes)
-            is Strong -> element.copy(
-                content = element.content.map { inline ->
-                    processInlineElement(inline, attributeMap, config, errors, substitutedAttributes)
-                }
-            )
-            is Emphasis -> element.copy(
-                content = element.content.map { inline ->
-                    processInlineElement(inline, attributeMap, config, errors, substitutedAttributes)
-                }
-            )
-            is AttributeReference -> processAttributeReference(element, attributeMap, config, errors, substitutedAttributes)
-            else -> element
-        }
-    }
-    
+
     /**
-     * Process a Text element by finding and replacing {key} patterns.
+     * Process an InlineText element by finding and replacing {key} patterns.
      */
     private fun processTextElement(
-        text: Text,
+        text: InlineText,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>
-    ): InlineElement {
+    ): Inline {
         val pattern = Regex("""\{([a-zA-Z_][a-zA-Z0-9_-]*)\}""")
-        val matches = pattern.findAll(text.content).toList()
-        
+        val matches = pattern.findAll(text.value).toList()
+
         if (matches.isEmpty()) {
             return text
         }
-        
-        var result = text.content
+
+        var result = text.value
         // Process matches in reverse order to maintain correct indices
         for (match in matches.reversed()) {
             val key = match.groupValues[1]
-            val replacement = resolveAttribute(key, attributeMap, config, text.sourceLocation, errors, substitutedAttributes)
+            val replacement = resolveAttribute(key, attributeMap, config, text.location, errors, substitutedAttributes)
             result = result.replaceRange(match.range, replacement)
         }
-        
-        return text.copy(content = result)
+
+        return text.copy(value = result)
     }
-    
+
     /**
-     * Process an AttributeReference element.
+     * Process an InlineAttributeRef element.
      */
     private fun processAttributeReference(
-        ref: AttributeReference,
+        ref: InlineAttributeRef,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>
-    ): InlineElement {
-        val value = resolveAttribute(ref.key, attributeMap, config, ref.sourceLocation, errors, substitutedAttributes)
-        return Text(content = value, attributes = ref.attributes, sourceLocation = ref.sourceLocation)
+    ): Inline {
+        val value = resolveAttribute(ref.name, attributeMap, config, ref.location, errors, substitutedAttributes)
+        return InlineText(value = value, location = ref.location)
     }
-    
+
     /**
      * Resolve an attribute key to its value, handling recursive references.
      */
@@ -168,13 +147,13 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
         key: String,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
-        location: SourceLocation,
+        location: Location?,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>
     ): String {
         return resolveAttributeRecursive(key, attributeMap, config, location, errors, substitutedAttributes, emptySet(), 0)
     }
-    
+
     /**
      * Recursively resolve an attribute, tracking the resolution chain to detect cycles.
      */
@@ -182,7 +161,7 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
         key: String,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
-        location: SourceLocation,
+        location: Location?,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>,
         resolutionChain: Set<String>,
@@ -200,7 +179,7 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
             )
             return "{$key}"
         }
-        
+
         // Check for circular reference
         if (key in resolutionChain) {
             val cycle = (resolutionChain + key).joinToString(" -> ")
@@ -214,9 +193,9 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
             )
             return "{$key}"
         }
-        
+
         val value = attributeMap[key]
-        
+
         return when {
             value != null -> {
                 substitutedAttributes.add(key)
@@ -263,7 +242,7 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
             }
         }
     }
-    
+
     /**
      * Resolve all attribute references in a string.
      */
@@ -271,7 +250,7 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
         text: String,
         attributeMap: Map<String, String>,
         config: AttributeConfig,
-        location: SourceLocation,
+        location: Location?,
         errors: MutableList<ProcessingError>,
         substitutedAttributes: MutableSet<String>,
         resolutionChain: Set<String>,
@@ -279,11 +258,11 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
     ): String {
         val pattern = Regex("""\{([a-zA-Z_][a-zA-Z0-9_-]*)\}""")
         val matches = pattern.findAll(text).toList()
-        
+
         if (matches.isEmpty()) {
             return text
         }
-        
+
         var result = text
         // Process matches in reverse order to maintain correct indices
         for (match in matches.reversed()) {
@@ -291,7 +270,7 @@ class DefaultAttributeSubstitutor : AttributeSubstitutor {
             val replacement = resolveAttributeRecursive(key, attributeMap, config, location, errors, substitutedAttributes, resolutionChain, depth)
             result = result.replaceRange(match.range, replacement)
         }
-        
+
         return result
     }
 }

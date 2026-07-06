@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Interface for resolving include directives in AsciiDoc documents.
@@ -9,12 +9,12 @@ import org.markup.poet.asciidoc.ast.Document
 interface IncludeResolver {
     /**
      * Resolve all include directives in the document.
-     * 
+     *
      * @param document The document containing include directives
      * @param config Configuration for include resolution
      * @return IncludeResult containing the processed document and any errors
      */
-    fun resolve(document: Document, config: IncludeConfig): IncludeResult
+    fun resolve(document: AsgDocument, config: IncludeConfig): IncludeResult
 }
 
 /**
@@ -30,7 +30,7 @@ data class IncludeConfig(
  * Result of include directive resolution.
  */
 data class IncludeResult(
-    val document: Document,
+    val document: AsgDocument,
     val errors: List<ProcessingError>,
     val includedFiles: Set<String>
 )

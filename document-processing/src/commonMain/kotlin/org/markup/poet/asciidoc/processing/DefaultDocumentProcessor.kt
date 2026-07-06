@@ -1,11 +1,11 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.ListBlock
 
 /**
  * Default implementation of DocumentProcessor that orchestrates the processing pipeline.
- * 
+ *
  * Executes processors in the following order:
  * 1. Include Resolver - Embeds external content
  * 2. Fragment Processor - Extracts tagged sections
@@ -39,8 +39,8 @@ class DefaultDocumentProcessor(
         }
     }
 ) : DocumentProcessor {
-    
-    override fun process(document: Document, config: ProcessingConfig): ProcessingResult {
+
+    override fun process(document: AsgDocument, config: ProcessingConfig): ProcessingResult {
         // Validate configuration first
         val configErrors = validateConfiguration(config)
         if (configErrors.isNotEmpty()) {
@@ -50,21 +50,21 @@ class DefaultDocumentProcessor(
                 warnings = emptyList()
             )
         }
-        
+
         val errors = mutableListOf<ProcessingError>()
         val warnings = mutableListOf<ProcessingWarning>()
         var currentDoc = document
         var shouldHalt = false
         val sharedData = mutableMapOf<String, Any>()
-        
+
         // Helper function to execute custom processors for a phase
         fun executeCustomProcessors(phase: ProcessingPhase): Boolean {
             val registry = config.extensionRegistry ?: return false
             val processors = registry.getProcessors(phase)
-            
+
             for (processor in processors) {
                 if (shouldHalt) break
-                
+
                 try {
                     val context = ProcessingContext(
                         config = config,
@@ -72,14 +72,14 @@ class DefaultDocumentProcessor(
                         sharedData = sharedData
                     )
                     val result = processor.process(currentDoc, context)
-                    
+
                     // Validate AST modifications
                     val validationErrors = AstValidator.validateDocument(result.document)
                     if (validationErrors.isNotEmpty()) {
                         errors.add(
                             ProcessingError(
                                 message = "Custom processor '${processor.name}' produced invalid AST: ${validationErrors.joinToString(", ")}",
-                                location = org.markup.poet.asciidoc.ast.SourceLocation(0, 0),
+                                location = null,
                                 errorType = ProcessingErrorType.CONFIGURATION_INVALID,
                                 severity = ErrorSeverity.ERROR
                             )
@@ -87,16 +87,16 @@ class DefaultDocumentProcessor(
                         // Continue with next processor, don't use the invalid document
                         continue
                     }
-                    
+
                     currentDoc = result.document
                     errors.addAll(result.errors)
                     warnings.addAll(result.warnings)
-                    
+
                     if (!result.continueProcessing) {
                         shouldHalt = true
                         break
                     }
-                    
+
                     // Check for fatal errors
                     if (result.errors.any { it.severity == ErrorSeverity.FATAL }) {
                         shouldHalt = true
@@ -107,7 +107,7 @@ class DefaultDocumentProcessor(
                     errors.add(
                         ProcessingError(
                             message = "Custom processor '${processor.name}' failed: ${e.message}",
-                            location = org.markup.poet.asciidoc.ast.SourceLocation(0, 0),
+                            location = null,
                             errorType = ProcessingErrorType.CONFIGURATION_INVALID,
                             severity = ErrorSeverity.ERROR
                         )
@@ -115,13 +115,13 @@ class DefaultDocumentProcessor(
                     // Continue with next processor
                 }
             }
-            
+
             return shouldHalt
         }
-        
+
         // Execute PRE_INCLUDE custom processors
         executeCustomProcessors(ProcessingPhase.PRE_INCLUDE)
-        
+
         // 1. Include resolution
         if (config.enableIncludes && !shouldHalt) {
             try {
@@ -133,7 +133,7 @@ class DefaultDocumentProcessor(
                 val includeResult = includeResolver.resolve(currentDoc, includeConfig)
                 currentDoc = includeResult.document
                 errors.addAll(includeResult.errors)
-                
+
                 // Check for fatal errors
                 if (includeResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -143,10 +143,10 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // Execute POST_INCLUDE custom processors
         executeCustomProcessors(ProcessingPhase.POST_INCLUDE)
-        
+
         // 2. Fragment processing
         if (config.enableFragmentProcessing && !shouldHalt) {
             try {
@@ -159,7 +159,7 @@ class DefaultDocumentProcessor(
                 currentDoc = fragmentResult.document
                 errors.addAll(fragmentResult.errors)
                 warnings.addAll(fragmentResult.warnings)
-                
+
                 // Check for fatal errors
                 if (fragmentResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -169,7 +169,7 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // 3. Conditional processing
         if (config.enableConditionalProcessing && !shouldHalt) {
             try {
@@ -182,7 +182,7 @@ class DefaultDocumentProcessor(
                 currentDoc = conditionalResult.document
                 errors.addAll(conditionalResult.errors)
                 warnings.addAll(conditionalResult.warnings)
-                
+
                 // Check for fatal errors
                 if (conditionalResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -192,10 +192,10 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // Execute PRE_ATTRIBUTE custom processors
         executeCustomProcessors(ProcessingPhase.PRE_ATTRIBUTE)
-        
+
         // 4. Attribute substitution
         if (config.enableAttributeSubstitution && !shouldHalt) {
             try {
@@ -207,7 +207,7 @@ class DefaultDocumentProcessor(
                 val subResult = attributeSubstitutor.substitute(currentDoc, attributeConfig)
                 currentDoc = subResult.document
                 errors.addAll(subResult.errors)
-                
+
                 // Check for fatal errors
                 if (subResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -217,13 +217,13 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // Execute POST_ATTRIBUTE custom processors
         executeCustomProcessors(ProcessingPhase.POST_ATTRIBUTE)
-        
+
         // Execute PRE_MACRO custom processors
         executeCustomProcessors(ProcessingPhase.PRE_MACRO)
-        
+
         // 5. Macro expansion
         if (config.enableMacroExpansion && !shouldHalt) {
             try {
@@ -234,7 +234,7 @@ class DefaultDocumentProcessor(
                 val macroResult = macroExpander.expand(currentDoc, macroConfig)
                 currentDoc = macroResult.document
                 errors.addAll(macroResult.errors)
-                
+
                 // Check for fatal errors
                 if (macroResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -244,10 +244,10 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // Execute POST_MACRO custom processors
         executeCustomProcessors(ProcessingPhase.POST_MACRO)
-        
+
         // 6. Admonition processing
         if (config.enableAdmonitionProcessing && !shouldHalt) {
             try {
@@ -259,7 +259,7 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // 7. Callout processing
         if (config.enableCalloutProcessing && !shouldHalt) {
             try {
@@ -267,7 +267,7 @@ class DefaultDocumentProcessor(
                 currentDoc = calloutResult.document
                 errors.addAll(calloutResult.errors)
                 warnings.addAll(calloutResult.warnings)
-                
+
                 // Check for fatal errors
                 if (calloutResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -277,7 +277,7 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // 8. Bibliography management
         if (config.enableBibliographyManagement && !shouldHalt) {
             try {
@@ -289,7 +289,7 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // 9. Cross-reference resolution
         if (config.enableCrossReferences && !shouldHalt) {
             try {
@@ -297,7 +297,7 @@ class DefaultDocumentProcessor(
                 currentDoc = xrefResult.document
                 errors.addAll(xrefResult.errors)
                 warnings.addAll(xrefResult.warnings)
-                
+
                 // Check for fatal errors
                 if (xrefResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -307,7 +307,7 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // 10. TOC generation
         if (config.enableTocGeneration && !shouldHalt) {
             try {
@@ -320,7 +320,7 @@ class DefaultDocumentProcessor(
                     currentDoc = insertToc(currentDoc, tocResult.tocNode)
                 }
                 errors.addAll(tocResult.errors)
-                
+
                 // Check for fatal errors
                 if (tocResult.errors.any { it.severity == ErrorSeverity.FATAL }) {
                     shouldHalt = true
@@ -330,10 +330,10 @@ class DefaultDocumentProcessor(
                 shouldHalt = true
             }
         }
-        
+
         // Execute PRE_VALIDATION custom processors
         executeCustomProcessors(ProcessingPhase.PRE_VALIDATION)
-        
+
         // 11. Validation (always run unless halted)
         if (!shouldHalt) {
             try {
@@ -350,68 +350,68 @@ class DefaultDocumentProcessor(
                 errors.add(createFatalError("Document validation failed: ${e.message}"))
             }
         }
-        
+
         // Execute POST_VALIDATION custom processors
         executeCustomProcessors(ProcessingPhase.POST_VALIDATION)
-        
+
         return ProcessingResult(
             document = currentDoc,
             errors = errors,
             warnings = warnings
         )
     }
-    
+
     /**
      * Validates the processing configuration before starting.
      * Returns a list of configuration errors if any are found.
      */
     private fun validateConfiguration(config: ProcessingConfig): List<ProcessingError> {
         val errors = mutableListOf<ProcessingError>()
-        
+
         // Validate maxIncludeDepth
         if (config.maxIncludeDepth < 1) {
             errors.add(
                 ProcessingError(
                     message = "maxIncludeDepth must be at least 1, got ${config.maxIncludeDepth}",
-                    location = SourceLocation(0, 0),
+                    location = null,
                     errorType = ProcessingErrorType.CONFIGURATION_INVALID,
                     severity = ErrorSeverity.FATAL
                 )
             )
         }
-        
+
         // Validate tocDepth
         if (config.tocDepth < 1) {
             errors.add(
                 ProcessingError(
                     message = "tocDepth must be at least 1, got ${config.tocDepth}",
-                    location = SourceLocation(0, 0),
+                    location = null,
                     errorType = ProcessingErrorType.CONFIGURATION_INVALID,
                     severity = ErrorSeverity.FATAL
                 )
             )
         }
-        
+
         return errors
     }
-    
+
     /**
-     * Creates a fatal error with a generic source location.
+     * Creates a fatal error with no source location.
      */
     private fun createFatalError(message: String): ProcessingError {
         return ProcessingError(
             message = message,
-            location = SourceLocation(0, 0),
+            location = null,
             errorType = ProcessingErrorType.CONFIGURATION_INVALID,
             severity = ErrorSeverity.FATAL
         )
     }
-    
+
     /**
      * Inserts the TOC into the document at the appropriate location.
      * For now, this is a placeholder that returns the document unchanged.
      */
-    private fun insertToc(document: Document, tocNode: org.markup.poet.asciidoc.ast.AsciiDocList): Document {
+    private fun insertToc(document: AsgDocument, tocNode: ListBlock): AsgDocument {
         // TODO: Implement TOC insertion logic
         // This would typically insert the TOC at the beginning of the document or at a designated location
         return document

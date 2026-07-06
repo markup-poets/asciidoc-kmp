@@ -1,8 +1,9 @@
 package org.markup.poet.cli
 
-import org.markup.poet.asciidoc.processing.FileReader
 import org.markup.poet.asciidoc.parser.AsciidocParser
+import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.processing.DocumentProcessor
+import org.markup.poet.asciidoc.processing.FileReader
 import org.markup.poet.asciidoc.processing.ProcessingConfig
 
 /**
@@ -105,7 +106,7 @@ class ProcessCommand(
             System.err.println("Parsing AsciiDoc content...")
         }
         
-        val parseResult = parser.parse(fileContent)
+        val parseResult = parser.parseToAsg(fileContent)
         
         // Report parse errors if any
         if (parseResult.errors.isNotEmpty()) {
@@ -168,8 +169,10 @@ class ProcessCommand(
             System.err.println("Generating AsciiDoc output...")
         }
         
+        // Interim pipeline until the renderer migrates to the ASG (M3): the
+        // processed ASG document is bridged back to the legacy AST for output.
         val prettyPrinter = AsciiDocPrettyPrinter()
-        val outputContent = prettyPrinter.print(processingResult.document)
+        val outputContent = prettyPrinter.print(AsgToLegacyAst.convert(processingResult.document))
         
         // Write output to file or stdout
         val outputWriter: OutputWriter = if (outputFile != null) {

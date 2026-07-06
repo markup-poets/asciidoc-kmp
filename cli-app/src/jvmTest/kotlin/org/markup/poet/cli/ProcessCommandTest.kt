@@ -1,50 +1,52 @@
 package org.markup.poet.cli
 
-import org.markup.poet.asciidoc.processing.*
+import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.parser.AsciidocParser
+import org.markup.poet.asciidoc.parser.AsgParseResult
+import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.parser.ParseResult
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.processing.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * Unit tests for ProcessCommand.
- * 
+ *
  * Tests argument parsing and validation for the process command.
  */
 class ProcessCommandTest {
-    
+
     // Mock FileReader for testing
     private val mockFileReader = object : FileReader {
         override fun readFile(path: String): FileReadResult {
             return FileReadResult.Success("mock content")
         }
     }
-    
+
     // Mock Parser for testing
     private val mockParser = object : AsciidocParser {
-        override fun parse(source: String): ParseResult {
-            return ParseResult(
-                document = Document(
-                    title = null,
-                    children = emptyList(),
-                    documentAttributes = emptyMap(),
-                    sourceLocation = SourceLocation(0, 0)
-                ),
+        override fun parseToAsg(source: String): AsgParseResult {
+            return AsgParseResult(
+                document = AsgDocument(),
                 errors = emptyList(),
                 warnings = emptyList()
             )
         }
-        
+
+        override fun parse(source: String): ParseResult {
+            val asg = parseToAsg(source)
+            return ParseResult(AsgToLegacyAst.convert(asg.document), asg.errors, asg.warnings)
+        }
+
         override fun parse(lines: List<String>): ParseResult {
             return parse(lines.joinToString("\n"))
         }
     }
-    
+
     // Mock DocumentProcessor for testing
     private val mockDocumentProcessor = object : DocumentProcessor {
-        override fun process(document: Document, config: ProcessingConfig): ProcessingResult {
+        override fun process(document: AsgDocument, config: ProcessingConfig): ProcessingResult {
             return ProcessingResult(
                 document = document,
                 errors = emptyList(),

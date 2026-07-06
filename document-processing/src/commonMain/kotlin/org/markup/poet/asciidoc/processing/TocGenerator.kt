@@ -1,7 +1,7 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.AsciiDocList
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.ListBlock
 
 /**
  * Generates a table of contents from document sections.
@@ -9,12 +9,12 @@ import org.markup.poet.asciidoc.ast.Document
 interface TocGenerator {
     /**
      * Generates a table of contents for the given document.
-     * 
+     *
      * @param document The document to generate TOC for
      * @param config Configuration for TOC generation
      * @return Result containing the generated TOC and any errors
      */
-    fun generate(document: Document, config: TocConfig): TocResult
+    fun generate(document: AsgDocument, config: TocConfig): TocResult
 }
 
 /**
@@ -29,6 +29,6 @@ data class TocConfig(
  * Result of table of contents generation.
  */
 data class TocResult(
-    val tocNode: AsciiDocList?,
+    val tocNode: ListBlock?,
     val errors: List<ProcessingError>
 )

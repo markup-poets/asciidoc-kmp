@@ -1,13 +1,13 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.Location
 
 /**
  * Represents an error that occurred during document processing.
  */
 data class ProcessingError(
     val message: String,
-    val location: SourceLocation,
+    val location: Location?,
     val errorType: ProcessingErrorType,
     val severity: ErrorSeverity = ErrorSeverity.ERROR
 )
@@ -41,7 +41,7 @@ enum class ProcessingErrorType {
  */
 data class ProcessingWarning(
     val message: String,
-    val location: SourceLocation,
+    val location: Location?,
     val warningType: ProcessingWarningType
 )
 

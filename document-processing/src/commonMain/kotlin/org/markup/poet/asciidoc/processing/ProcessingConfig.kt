@@ -1,5 +1,9 @@
 package org.markup.poet.asciidoc.processing
 
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.AsgNode
+import org.markup.poet.asciidoc.asg.Location
+
 /**
  * Configuration for document processing pipeline.
  * Controls which processors are enabled and their behavior.
@@ -44,14 +48,14 @@ interface MacroProcessor {
  * Context information available to macro processors.
  */
 data class MacroContext(
-    val document: org.markup.poet.asciidoc.ast.Document,
-    val sourceLocation: org.markup.poet.asciidoc.ast.SourceLocation
+    val document: AsgDocument,
+    val location: Location?
 )
 
 /**
  * Result of macro expansion.
  */
 sealed class MacroExpansionResult {
-    data class Success(val nodes: List<org.markup.poet.asciidoc.ast.AstNode>) : MacroExpansionResult()
+    data class Success(val nodes: List<AsgNode>) : MacroExpansionResult()
     data class Error(val message: String) : MacroExpansionResult()
 }

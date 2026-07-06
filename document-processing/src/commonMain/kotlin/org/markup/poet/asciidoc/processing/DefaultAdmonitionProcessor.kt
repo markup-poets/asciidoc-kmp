@@ -1,127 +1,97 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMetadata
+import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.ParentBlockName
+import org.markup.poet.asciidoc.asg.SectionBlock
 
 /**
  * Default implementation of AdmonitionProcessor.
  * Processes admonition blocks by identifying types, extracting content,
  * handling custom titles, and validating structure.
+ *
+ * Admonitions already parsed into [ParentBlock]s with name ADMONITION are
+ * counted; paragraphs using the inline (`NOTE: text`) or style (`[NOTE]`)
+ * forms are upgraded into admonition parent blocks.
  */
 class DefaultAdmonitionProcessor : AdmonitionProcessor {
-    
-    override fun process(document: Document): AdmonitionResult {
+
+    /** Valid admonition variants (ASG spelling, lowercase). */
+    private val admonitionVariants = setOf("note", "tip", "warning", "caution", "important")
+
+    override fun process(document: AsgDocument): AdmonitionResult {
         val warnings = mutableListOf<ProcessingWarning>()
-        val admonitionCounts = mutableMapOf<AdmonitionType, Int>()
-        
-        val processedDocument = processDocument(document, warnings, admonitionCounts)
-        
+        val admonitionCounts = mutableMapOf<String, Int>()
+
+        val processedBlocks = processBlocks(document.blocks, warnings, admonitionCounts)
+
         return AdmonitionResult(
-            document = processedDocument,
+            document = document.copy(blocks = processedBlocks),
             warnings = warnings,
             admonitionCount = admonitionCounts.toMap()
         )
     }
-    
-    private fun processDocument(
-        document: Document,
+
+    private fun processBlocks(
+        blocks: List<Block>,
         warnings: MutableList<ProcessingWarning>,
-        counts: MutableMap<AdmonitionType, Int>
-    ): Document {
-        val processedChildren = processBlockElements(
-            document.children,
-            warnings,
-            counts
-        )
-        
-        return document.copy(children = processedChildren)
-    }
-    
-    private fun processBlockElements(
-        elements: List<BlockElement>,
-        warnings: MutableList<ProcessingWarning>,
-        counts: MutableMap<AdmonitionType, Int>
-    ): List<BlockElement> {
-        val result = mutableListOf<BlockElement>()
-        
-        for (element in elements) {
-            when (element) {
-                is Paragraph -> {
-                    // Check if this paragraph is an admonition
-                    val admonition = tryParseAdmonition(element, warnings, counts)
-                    if (admonition != null) {
-                        result.add(admonition)
+        counts: MutableMap<String, Int>
+    ): List<Block> {
+        val result = mutableListOf<Block>()
+
+        for (block in blocks) {
+            when (block) {
+                is LeafBlock -> {
+                    if (block.name == LeafBlockName.PARAGRAPH) {
+                        val admonition = tryParseAdmonition(block, warnings, counts)
+                        result.add(admonition ?: block)
                     } else {
-                        result.add(element)
+                        result.add(block)
                     }
                 }
-                is Section -> {
-                    val processedChildren = processBlockElements(
-                        element.children,
-                        warnings,
-                        counts
-                    )
-                    result.add(element.copy(children = processedChildren))
-                }
-                is AsciiDocList -> {
-                    val processedItems = element.items.map { item ->
-                        processListItem(item, warnings, counts)
+                is SectionBlock -> result.add(
+                    block.copy(blocks = processBlocks(block.blocks, warnings, counts))
+                )
+                is ListBlock -> result.add(
+                    block.copy(items = block.items.map { item ->
+                        item.copy(blocks = processBlocks(item.blocks, warnings, counts))
+                    })
+                )
+                is DListBlock -> result.add(
+                    block.copy(items = block.items.map { item ->
+                        item.copy(blocks = processBlocks(item.blocks, warnings, counts))
+                    })
+                )
+                is ParentBlock -> {
+                    if (block.name == ParentBlockName.ADMONITION) {
+                        // Already an admonition, just count it
+                        val variant = block.variant ?: "note"
+                        counts[variant] = (counts[variant] ?: 0) + 1
                     }
-                    result.add(element.copy(items = processedItems))
-                }
-                is AdmonitionBlock -> {
-                    // Already an admonition, just count it
-                    counts[element.type] = (counts[element.type] ?: 0) + 1
-                    
                     // Process nested content
-                    val processedContent = processBlockElements(
-                        element.content,
-                        warnings,
-                        counts
+                    result.add(block.copy(blocks = processBlocks(block.blocks, warnings, counts)))
+                }
+                is ConditionalBlock -> result.add(
+                    block.copy(
+                        blocks = processBlocks(block.blocks, warnings, counts),
+                        elseBlocks = processBlocks(block.elseBlocks, warnings, counts)
                     )
-                    result.add(element.copy(content = processedContent))
-                }
-                is ConditionalDirective -> {
-                    val processedContent = processBlockElements(
-                        element.content,
-                        warnings,
-                        counts
-                    )
-                    val processedElseContent = processBlockElements(
-                        element.elseContent,
-                        warnings,
-                        counts
-                    )
-                    result.add(element.copy(
-                        content = processedContent,
-                        elseContent = processedElseContent
-                    ))
-                }
-                is Document -> {
-                    result.add(processDocument(element, warnings, counts))
-                }
-                else -> {
-                    result.add(element)
-                }
+                )
+                else -> result.add(block)
             }
         }
-        
+
         return result
     }
-    
-    private fun processListItem(
-        item: ListItem,
-        warnings: MutableList<ProcessingWarning>,
-        counts: MutableMap<AdmonitionType, Int>
-    ): ListItem {
-        val processedNestedList = item.nestedList?.let { nestedList ->
-            val processedItems = nestedList.items.map { nestedItem ->
-                processListItem(nestedItem, warnings, counts)
-            }
-            nestedList.copy(items = processedItems)
-        }
-        return item.copy(nestedList = processedNestedList)
-    }
-    
+
     /**
      * Try to parse a paragraph as an admonition block.
      * Admonitions in AsciiDoc can be in the form:
@@ -130,102 +100,96 @@ class DefaultAdmonitionProcessor : AdmonitionProcessor {
      * - WARNING: content
      * - CAUTION: content
      * - IMPORTANT: content
-     * 
-     * Or with a custom title:
+     *
+     * Or with the block style form:
      * - [NOTE]
      * - .Custom Title
      * - content
      */
     private fun tryParseAdmonition(
-        paragraph: Paragraph,
+        paragraph: LeafBlock,
         warnings: MutableList<ProcessingWarning>,
-        counts: MutableMap<AdmonitionType, Int>
-    ): AdmonitionBlock? {
-        // Check if paragraph has admonition-related attributes
-        val style = paragraph.attributes["style"]
-        if (style != null) {
-            val admonitionType = recognizeAdmonitionType(style)
-            if (admonitionType != null) {
+        counts: MutableMap<String, Int>
+    ): ParentBlock? {
+        // Check if the paragraph carries an admonition block style
+        val metadata = paragraph.metadata
+        val style = metadata?.positional?.firstOrNull()
+        if (metadata != null && style != null) {
+            val variant = recognizeAdmonitionVariant(style)
+            if (variant != null) {
                 // This is an admonition with block syntax
-                counts[admonitionType] = (counts[admonitionType] ?: 0) + 1
-                
-                val title = paragraph.attributes["title"]
-                
-                return AdmonitionBlock(
-                    type = admonitionType,
-                    title = title,
-                    content = listOf(paragraph.copy(attributes = paragraph.attributes - "style" - "title")),
-                    attributes = paragraph.attributes.filterKeys { it != "style" && it != "title" },
-                    sourceLocation = paragraph.sourceLocation
+                counts[variant] = (counts[variant] ?: 0) + 1
+
+                return ParentBlock(
+                    name = ParentBlockName.ADMONITION,
+                    variant = variant,
+                    blocks = listOf(paragraph.copy(metadata = null)),
+                    metadata = BlockMetadata(
+                        positional = metadata.positional.drop(1),
+                        named = metadata.named,
+                        id = metadata.id,
+                        roles = metadata.roles,
+                        options = metadata.options,
+                        title = metadata.title
+                    ),
+                    location = paragraph.location
                 )
             } else {
                 // Invalid admonition type
                 warnings.add(
                     ProcessingWarning(
                         message = "Invalid admonition type: $style",
-                        location = paragraph.sourceLocation,
+                        location = paragraph.location,
                         warningType = ProcessingWarningType.ADMONITION_INVALID_TYPE
                     )
                 )
                 return null
             }
         }
-        
+
         // Check for inline admonition syntax (TYPE: content)
-        if (paragraph.content.isNotEmpty()) {
-            val firstElement = paragraph.content.first()
-            if (firstElement is Text) {
-                val text = firstElement.content
+        if (paragraph.inlines.isNotEmpty()) {
+            val firstElement = paragraph.inlines.first()
+            if (firstElement is InlineText) {
+                val text = firstElement.value
                 val colonIndex = text.indexOf(':')
                 if (colonIndex > 0) {
                     val potentialType = text.substring(0, colonIndex).trim()
-                    val admonitionType = recognizeAdmonitionType(potentialType)
-                    
-                    if (admonitionType != null) {
-                        counts[admonitionType] = (counts[admonitionType] ?: 0) + 1
-                        
+                    val variant = recognizeAdmonitionVariant(potentialType)
+
+                    if (variant != null) {
+                        counts[variant] = (counts[variant] ?: 0) + 1
+
                         // Extract content after the colon
                         val contentAfterColon = text.substring(colonIndex + 1).trim()
                         val newContent = if (contentAfterColon.isNotEmpty()) {
-                            listOf(Text(contentAfterColon, firstElement.attributes, firstElement.sourceLocation)) +
-                                    paragraph.content.drop(1)
+                            listOf(InlineText(contentAfterColon, firstElement.location)) +
+                                paragraph.inlines.drop(1)
                         } else {
-                            paragraph.content.drop(1)
+                            paragraph.inlines.drop(1)
                         }
-                        
-                        val contentParagraph = Paragraph(
-                            content = newContent,
-                            attributes = emptyMap(),
-                            sourceLocation = paragraph.sourceLocation
-                        )
-                        
-                        return AdmonitionBlock(
-                            type = admonitionType,
-                            title = null,
-                            content = listOf(contentParagraph),
-                            attributes = paragraph.attributes,
-                            sourceLocation = paragraph.sourceLocation
+
+                        return ParentBlock(
+                            name = ParentBlockName.ADMONITION,
+                            variant = variant,
+                            blocks = listOf(paragraph.copy(inlines = newContent, metadata = null)),
+                            metadata = paragraph.metadata,
+                            location = paragraph.location
                         )
                     }
                 }
             }
         }
-        
+
         return null
     }
-    
+
     /**
-     * Recognize an admonition type from a string.
+     * Recognize an admonition variant from a style string (case-insensitive).
      * Returns null if the string doesn't match any known admonition type.
      */
-    private fun recognizeAdmonitionType(typeString: String): AdmonitionType? {
-        return when (typeString.uppercase()) {
-            "NOTE" -> AdmonitionType.NOTE
-            "TIP" -> AdmonitionType.TIP
-            "WARNING" -> AdmonitionType.WARNING
-            "CAUTION" -> AdmonitionType.CAUTION
-            "IMPORTANT" -> AdmonitionType.IMPORTANT
-            else -> null
-        }
+    private fun recognizeAdmonitionVariant(typeString: String): String? {
+        val variant = typeString.lowercase()
+        return if (variant in admonitionVariants) variant else null
     }
 }
