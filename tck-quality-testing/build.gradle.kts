@@ -39,7 +39,7 @@ kotlin {
             implementation(project(":asciidoc-parser"))
             implementation(project(":html-renderer"))
             implementation(project(":document-processing"))
-            implementation(project(":ast-graphviz-export"))
+            implementation(project(":asg-graphviz-export"))
             
             // JSON serialization for fixture loading
             implementation(libs.kotlinx.serialization.json)

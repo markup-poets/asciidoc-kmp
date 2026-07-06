@@ -250,7 +250,7 @@ This module depends on:
 - `asciidoc-parser` - For AST node types
 - `html-renderer` - For rendering functionality
 - `document-processing` - For document processing
-- `ast-graphviz-export` - For AST visualization
+- `asg-graphviz-export` - For AST visualization
 - `kotlin-test` - For testing framework
 - `kotest` - For property-based testing
 

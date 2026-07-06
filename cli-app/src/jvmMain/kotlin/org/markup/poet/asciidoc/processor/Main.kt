@@ -9,7 +9,7 @@ import kotlin.system.exitProcess
  * Main entry point for the AsciiDoc CLI tool.
  * 
  * This application provides command-line tools for working with AsciiDoc documents:
- * - convert: Convert AsciiDoc to Graphviz DOT format for AST visualization
+ * - convert: Convert AsciiDoc to Graphviz DOT format for ASG visualization
  * - process: Process AsciiDoc documents with include resolution
  * 
  * The application uses a command router pattern to dispatch to appropriate

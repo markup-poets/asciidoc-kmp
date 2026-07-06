@@ -1,7 +1,7 @@
 package org.markup.poet.asciidoc.export
 
 /**
- * Builds DOT format output from collected AST graph data.
+ * Builds DOT format output from collected ASG graph data.
  * Generates valid Graphviz DOT syntax with proper formatting and structure.
  */
 class DotBuilder(private val config: ExportConfig) {
@@ -40,7 +40,7 @@ class DotBuilder(private val config: ExportConfig) {
         val builder = StringBuilder()
         
         // Start digraph declaration
-        builder.append("digraph AST {\n")
+        builder.append("digraph ASG {\n")
         
         // Set graph attributes
         builder.append("  // Graph configuration\n")

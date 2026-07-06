@@ -45,7 +45,7 @@ import org.markup.poet.asciidoc.asg.plainText
 /**
  * Visitor interface for traversing ASG nodes and collecting visualization data.
  */
-interface AstVisitor {
+interface AsgVisitor {
     /**
      * Visits an ASG node and processes it for visualization.
      * @param node The ASG node to visit
@@ -132,12 +132,12 @@ internal fun calloutNumberOf(item: ListItem): Int? =
     Regex("""<(\d+)>""").matchEntire(item.marker)?.groupValues?.get(1)?.toIntOrNull()
 
 /**
- * Concrete implementation of AstVisitor that collects data for Graphviz export.
+ * Concrete implementation of AsgVisitor that collects data for Graphviz export.
  * Traverses the ASG recursively and builds a graph representation.
  */
-class GraphvizAstVisitor(
+class GraphvizAsgVisitor(
     private val config: ExportConfig = ExportConfig.default()
-) : AstVisitor {
+) : AsgVisitor {
 
     private val nodeIdGenerator = NodeIdGenerator()
     private val nodeData = mutableListOf<NodeData>()

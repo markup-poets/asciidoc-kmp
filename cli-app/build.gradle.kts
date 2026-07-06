@@ -24,7 +24,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(project(":asciidoc-parser"))
-                implementation(project(":ast-graphviz-export"))
+                implementation(project(":asg-graphviz-export"))
                 implementation(project(":document-processing"))
                 implementation(project(":html-renderer"))
             }

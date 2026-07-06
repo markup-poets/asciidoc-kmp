@@ -103,7 +103,7 @@ class IntegrationTest {
         // Assert - Verify DOT format structure
         assertNotNull(result)
         assertTrue(result.isNotEmpty())
-        assertContains(result, "digraph AST")
+        assertContains(result, "digraph ASG")
         assertContains(result, "}")
 
         // Verify all node types are present
@@ -459,7 +459,7 @@ class IntegrationTest {
         // Assert
         assertNotNull(result)
         assertTrue(result.isNotEmpty())
-        assertContains(result, "digraph AST")
+        assertContains(result, "digraph ASG")
         assertContains(result, "doc_1")
         assertContains(result, "}")
     }
@@ -490,7 +490,7 @@ class IntegrationTest {
         assertTrue(result.contains("\\\\"))
 
         // Verify the output is still valid DOT format
-        assertContains(result, "digraph AST")
+        assertContains(result, "digraph ASG")
         assertContains(result, "}")
     }
 

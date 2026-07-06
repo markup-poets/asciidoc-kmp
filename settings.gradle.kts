@@ -21,7 +21,7 @@ rootProject.name = "asciidoc-Konverter"
 include(":asciidoc-parser")
 include(":asciidoc-asg")
 include(":tck-adapter")
-include(":ast-graphviz-export")
+include(":asg-graphviz-export")
 include(":document-processing")
 include(":html-renderer")
 include(":cli-app")

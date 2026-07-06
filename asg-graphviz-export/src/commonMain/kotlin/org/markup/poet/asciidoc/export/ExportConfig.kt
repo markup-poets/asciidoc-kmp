@@ -1,7 +1,7 @@
 package org.markup.poet.asciidoc.export
 
 /**
- * Configuration options for AST to Graphviz export.
+ * Configuration options for ASG to Graphviz export.
  */
 data class ExportConfig(
     val includeAttributes: Boolean = true,

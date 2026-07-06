@@ -10,7 +10,7 @@ class GraphvizExporter(
     private val config: ExportConfig = ExportConfig.default()
 ) {
 
-    private val visitor = GraphvizAstVisitor(config)
+    private val visitor = GraphvizAsgVisitor(config)
     private val dotBuilder = DotBuilder(config)
     private val fileWriter = FileWriter()
 
