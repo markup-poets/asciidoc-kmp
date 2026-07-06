@@ -5,7 +5,7 @@ plugins {
 
 kotlin {
     jvmToolchain(17)
-    androidLibrary {
+    android {
         namespace = "org.markup.poet.examples"
         compileSdk = 36
         minSdk = 24
