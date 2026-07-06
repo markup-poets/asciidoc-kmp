@@ -9,7 +9,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TCK_DIR="$ROOT_DIR/tck-quality-testing/official-tck/repository"
-ADAPTER_JAR="$ROOT_DIR/tck-adapter/build/libs/tck-adapter-1.0.0-all.jar"
+ADAPTER_JAR="$ROOT_DIR/tck-adapter/build/libs/tck-adapter-all.jar"
 
 # Prefer a user-local node install if node is not already on the PATH.
 if ! command -v node >/dev/null 2>&1; then

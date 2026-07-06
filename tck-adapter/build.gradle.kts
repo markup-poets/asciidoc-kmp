@@ -25,6 +25,8 @@ kotlin {
 }
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
+    // Version-independent name: run-official-tck.sh and CI invoke this jar by path.
+    archiveFileName.set("tck-adapter-all.jar")
     manifest {
         attributes["Main-Class"] = "org.markup.poet.tck.adapter.MainKt"
     }
