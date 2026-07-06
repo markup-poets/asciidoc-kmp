@@ -1,6 +1,7 @@
 package org.markup.poet.asciidoc.parser.asg
 
 import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineMacro
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.asg.Location
@@ -62,6 +63,9 @@ class AsgInlineParser {
         '#' to SpanVariant.MARK,
     )
 
+    /** Bare URL schemes are autolink territory, not inline macros. */
+    private val excludedMacroNames = setOf("http", "https", "ftp", "irc", "mailto")
+
     fun parse(text: String, map: SegmentMap): List<Inline> = parseRange(text, 0, text.length, map)
 
     private fun parseRange(text: String, from: Int, to: Int, map: SegmentMap): List<Inline> {
@@ -99,12 +103,73 @@ class AsgInlineParser {
                     continue
                 }
             }
+            if (c.isLetter() && (i == from || !text[i - 1].isLetterOrDigit())) {
+                val macro = tryParseInlineMacro(text, i, to, map)
+                if (macro != null) {
+                    flushPlain()
+                    inlines += macro.first
+                    i = macro.second
+                    continue
+                }
+            }
             if (plain.isEmpty()) plainStart = i
             plain.append(c)
             i++
         }
         flushPlain()
         return inlines
+    }
+
+    /**
+     * Attempts an inline macro `name:target[attrlist]` starting at [start]
+     * (which must be a letter at a word boundary). Returns the macro and the
+     * offset just after the closing `]`, or null.
+     */
+    private fun tryParseInlineMacro(
+        text: String,
+        start: Int,
+        to: Int,
+        map: SegmentMap,
+    ): Pair<InlineMacro, Int>? {
+        var i = start
+        while (i < to && (text[i].isLetterOrDigit() || text[i] == '_' || text[i] == '-')) i++
+        if (i >= to || text[i] != ':' || i == start) return null
+        val name = text.substring(start, i)
+        if (name in excludedMacroNames) return null
+
+        val targetStart = i + 1
+        var j = targetStart
+        while (j < to && text[j] != '[' && text[j] != ' ' && text[j] != '\n' && text[j] != ':') j++
+        if (j >= to || text[j] != '[') return null
+        val target = text.substring(targetStart, j)
+
+        val attrEnd = text.indexOf(']', j + 1)
+        if (attrEnd < 0 || attrEnd >= to) return null
+        val attrlist = text.substring(j + 1, attrEnd)
+
+        val positional = mutableListOf<String>()
+        val named = LinkedHashMap<String, String>()
+        if (attrlist.isNotBlank()) {
+            attrlist.split(',').forEach { part ->
+                val trimmed = part.trim()
+                if (trimmed.isEmpty()) return@forEach
+                val eq = trimmed.indexOf('=')
+                if (eq > 0) {
+                    named[trimmed.substring(0, eq).trim()] = trimmed.substring(eq + 1).trim().removeSurrounding("\"")
+                } else {
+                    positional += trimmed.removeSurrounding("\"")
+                }
+            }
+        }
+
+        val macro = InlineMacro(
+            name = name,
+            target = target,
+            positional = positional,
+            named = named,
+            location = Location(map.position(start), map.position(attrEnd)),
+        )
+        return macro to (attrEnd + 1)
     }
 
     /**

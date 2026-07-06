@@ -49,7 +49,7 @@ class BlockProcessorEndToEndTest {
     fun pluginReplacesCustomBlockWithHtmlPassthrough() {
         val engine = loadEngine()
         val document = DefaultAsciidocParser().parse(source).document
-        val result = WasmBlockExtensions(engine).apply(document)
+        val result = WasmExtensions(engine).apply(document)
 
         val passthrough = result.document.children.filterIsInstance<PassthroughBlock>().single()
         assertEquals("<div class=\"shout\">HELLO PLUGINS!</div>", passthrough.content)
@@ -61,7 +61,7 @@ class BlockProcessorEndToEndTest {
     fun renderedHtmlContainsPluginOutputVerbatim() {
         val engine = loadEngine()
         val parsed = DefaultAsciidocParser().parse(source).document
-        val processed = WasmBlockExtensions(engine).apply(parsed).document
+        val processed = WasmExtensions(engine).apply(parsed).document
 
         val escaper = DefaultHtmlEscaper()
         val builder = DefaultHtmlBuilder(escaper)
@@ -75,10 +75,34 @@ class BlockProcessorEndToEndTest {
     }
 
     @Test
+    fun inlineMacroIsReplacedByPluginHtml() {
+        val engine = loadEngine()
+        val parsed = DefaultAsciidocParser().parse("see issue:123[] for details").document
+        val processed = WasmExtensions(engine).apply(parsed).document
+
+        val paragraph = processed.children.filterIsInstance<org.markup.poet.asciidoc.ast.Paragraph>().single()
+        val raw = paragraph.content.filterIsInstance<org.markup.poet.asciidoc.ast.RawInline>().single()
+        assertTrue("issues/123" in raw.content && ">#123</a>" in raw.content)
+        engine.unloadAll()
+    }
+
+    @Test
+    fun failedMacroInvocationKeepsOriginalWithWarning() {
+        val engine = loadEngine()
+        val parsed = DefaultAsciidocParser().parse("bad issue:abc[] target").document
+        val result = WasmExtensions(engine).apply(parsed)
+
+        val paragraph = result.document.children.filterIsInstance<org.markup.poet.asciidoc.ast.Paragraph>().single()
+        assertTrue(paragraph.content.any { it is org.markup.poet.asciidoc.ast.MacroInvocation })
+        assertTrue(result.warnings.isNotEmpty())
+        engine.unloadAll()
+    }
+
+    @Test
     fun unclaimedCustomBlockIsLeftForFallbackRendering() {
         val engine = loadEngine()
         val document = DefaultAsciidocParser().parse("[gallery]\n----\nx\n----").document
-        val result = WasmBlockExtensions(engine).apply(document)
+        val result = WasmExtensions(engine).apply(document)
         assertIs<CustomBlock>(result.document.children.single())
         engine.unloadAll()
     }

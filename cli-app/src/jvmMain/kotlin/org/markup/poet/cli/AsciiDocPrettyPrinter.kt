@@ -194,6 +194,7 @@ class AsciiDocPrettyPrinter {
     private fun printInlineElement(element: InlineElement): String {
         return when (element) {
             is Text -> element.content
+            is RawInline -> element.content
             is Strong -> {
                 val content = element.content.joinToString("") { printInlineElement(it) }
                 "*$content*"

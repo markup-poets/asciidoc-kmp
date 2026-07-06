@@ -11,6 +11,7 @@ import kotlinx.serialization.json.putJsonArray
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineMacro
 import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
@@ -137,6 +138,11 @@ class AsgDocumentJsonSerializer(
             putJsonArray("inlines") { inline.inlines.forEach { add(inlineToJson(it)) } }
             addLocation(inline.location)
         }
+        // Extension seam only — the official ASG schema has no generic macro node.
+        is InlineMacro -> error(
+            "Inline macro '${inline.name}:${inline.target}[…]' has no official ASG serialization; " +
+                "macros must be expanded by an extension before serializing",
+        )
     }
 
     private fun JsonObjectBuilder.addLocation(location: Location?) {

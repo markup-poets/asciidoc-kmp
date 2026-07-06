@@ -54,6 +54,19 @@ data class InlineRef(
     override val location: Location? = null,
 ) : Inline
 
+/**
+ * A generic inline macro `name:target[attrlist]`. Not part of the official ASG
+ * schema — it exists as an extension seam (WASM plugins claim macros by name);
+ * built-in names (link, xref, image) are mapped to their proper nodes downstream.
+ */
+data class InlineMacro(
+    val name: String,
+    val target: String,
+    val positional: List<String> = emptyList(),
+    val named: Map<String, String> = emptyMap(),
+    override val location: Location? = null,
+) : Inline
+
 // ---------------------------------------------------------------------------
 // Blocks
 // ---------------------------------------------------------------------------

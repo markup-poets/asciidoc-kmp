@@ -13,8 +13,8 @@ the JSON envelopes the host hands it. No filesystem, no network, no clock.
 | Type          | AsciiDoc syntax                     | Status |
 |---------------|-------------------------------------|--------|
 | `block`       | `[name]` + delimited/paragraph body | v1     |
+| `inlineMacro` | `name:target[attrs]`                | v1     |
 | `blockMacro`  | `name::target[attrs]`               | planned |
-| `inlineMacro` | `name:target[attrs]`                | planned |
 | `converter`   | ASG node → output string            | planned |
 
 ## ABI v1

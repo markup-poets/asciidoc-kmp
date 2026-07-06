@@ -76,7 +76,7 @@ fun main(args: Array<String>) {
                 val plugin = engine.loadPlugin(readFileBytes(pluginPath), pluginPath)
                 println("[HTML-RENDERER] Loaded plugin '${plugin.descriptor.name}' (${plugin.id})")
             }
-            val processed = org.markup.poet.plugin.integration.WasmBlockExtensions(engine).apply(document)
+            val processed = org.markup.poet.plugin.integration.WasmExtensions(engine).apply(document)
             processed.warnings.forEach { println("⚠ $it") }
             document = processed.document
             engine.unloadAll()

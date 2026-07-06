@@ -15,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Unit-level mirror of the official TCK fixture semantics. The official Node
@@ -151,6 +152,33 @@ class BlockTreeParserTest {
         assertEquals("****", sidebar.delimiter)
         assertIs<ListBlock>(sidebar.blocks.single())
         assertEquals(Position(4, 4), sidebar.location?.end)
+    }
+
+    @Test
+    fun inlineMacroIsParsedWithTargetAndAttributes() {
+        val inlines = parser.parseInline("see issue:123[title=Bug, urgent] now")
+        assertEquals(3, inlines.size)
+        val macro = assertIs<org.markup.poet.asciidoc.asg.InlineMacro>(inlines[1])
+        assertEquals("issue", macro.name)
+        assertEquals("123", macro.target)
+        assertEquals(listOf("urgent"), macro.positional)
+        assertEquals(mapOf("title" to "Bug"), macro.named)
+        assertEquals("see ", assertIs<InlineText>(inlines[0]).value)
+        assertEquals(" now", assertIs<InlineText>(inlines[2]).value)
+    }
+
+    @Test
+    fun urlSchemesAreNotParsedAsInlineMacros() {
+        val inlines = parser.parseInline("visit https://example.com[site] please")
+        // Autolinks are not implemented yet; the URL must stay plain text, not become a macro.
+        assertTrue(inlines.filterIsInstance<org.markup.poet.asciidoc.asg.InlineMacro>().isEmpty())
+    }
+
+    @Test
+    fun wordWithColonInsideIsNotAMacro() {
+        val inlines = parser.parseInline("ratio 1:2[approx]")
+        // "2[approx]" — the name candidate "2..." starts mid-word, so no macro.
+        assertTrue(inlines.filterIsInstance<org.markup.poet.asciidoc.asg.InlineMacro>().isEmpty())
     }
 
     @Test

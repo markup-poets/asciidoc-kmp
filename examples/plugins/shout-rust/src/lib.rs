@@ -110,11 +110,17 @@ pub extern "C" fn plugin_info() -> *const u8 {
         id: "shout-plugin".into(),
         name: "Shout".into(),
         version: "0.1.0".into(),
-        description: "Uppercases the content of [shout] blocks".into(),
-        capabilities: vec![Capability {
-            kind: "block".into(),
-            name: "shout".into(),
-        }],
+        description: "Uppercases [shout] blocks and links issue:N[] references".into(),
+        capabilities: vec![
+            Capability {
+                kind: "block".into(),
+                name: "shout".into(),
+            },
+            Capability {
+                kind: "inlineMacro".into(),
+                name: "issue".into(),
+            },
+        ],
         metadata: BTreeMap::new(),
     };
     to_length_prefixed(serde_json::to_vec(&descriptor).unwrap().as_slice())
@@ -140,6 +146,38 @@ pub unsafe extern "C" fn process(ptr: *const u8, len: u32) -> *const u8 {
                 }),
                 error: None,
                 warnings: vec![],
+            }
+        }
+        Ok(invocation)
+            if invocation.extension_point == "inlineMacro" && invocation.name == "issue" =>
+        {
+            let number: String = invocation
+                .content
+                .chars()
+                .filter(|c| c.is_ascii_digit())
+                .collect();
+            if number.is_empty() {
+                Response {
+                    ok: false,
+                    replacement: None,
+                    error: Some(format!(
+                        "issue macro needs a numeric target, got '{}'",
+                        invocation.content
+                    )),
+                    warnings: vec![],
+                }
+            } else {
+                Response {
+                    ok: true,
+                    replacement: Some(Replacement {
+                        content_type: "html".into(),
+                        value: format!(
+                            "<a class=\"issue\" href=\"https://github.com/markup-poets/asciidoc-kmp/issues/{number}\">#{number}</a>"
+                        ),
+                    }),
+                    error: None,
+                    warnings: vec![],
+                }
             }
         }
         Ok(invocation) => Response {

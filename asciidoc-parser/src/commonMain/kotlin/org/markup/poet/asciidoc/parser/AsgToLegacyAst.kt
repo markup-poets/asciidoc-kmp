@@ -4,6 +4,7 @@ import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineMacro
 import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
@@ -24,8 +25,10 @@ import org.markup.poet.asciidoc.ast.CrossReference
 import org.markup.poet.asciidoc.ast.CustomBlock
 import org.markup.poet.asciidoc.ast.Document
 import org.markup.poet.asciidoc.ast.Emphasis
+import org.markup.poet.asciidoc.ast.Image
 import org.markup.poet.asciidoc.ast.InlineElement
 import org.markup.poet.asciidoc.ast.Link
+import org.markup.poet.asciidoc.ast.MacroInvocation
 import org.markup.poet.asciidoc.ast.ListItem
 import org.markup.poet.asciidoc.ast.ListType
 import org.markup.poet.asciidoc.ast.Paragraph
@@ -177,6 +180,42 @@ object AsgToLegacyAst {
             SpanVariant.MARK -> mapInlines(inline.inlines)
         }
 
+        is InlineMacro -> when (inline.name) {
+            "link" -> listOf(
+                Link(
+                    url = inline.target,
+                    text = inline.positional.firstOrNull() ?: inline.target,
+                    sourceLocation = inline.location.toLegacy(),
+                )
+            )
+            "image" -> listOf(
+                Image(
+                    path = inline.target,
+                    altText = inline.positional.firstOrNull() ?: "",
+                    sourceLocation = inline.location.toLegacy(),
+                )
+            )
+            "xref" -> listOf(
+                CrossReference(
+                    targetId = inline.target,
+                    customText = inline.positional.firstOrNull(),
+                    sourceLocation = inline.location.toLegacy(),
+                )
+            )
+            else -> listOf(
+                MacroInvocation(
+                    macroName = inline.name,
+                    parameters = buildMap {
+                        put("target", inline.target)
+                        inline.positional.forEachIndexed { index, value -> put((index + 1).toString(), value) }
+                        putAll(inline.named)
+                    },
+                    isBlock = false,
+                    sourceLocation = inline.location.toLegacy(),
+                )
+            )
+        }
+
         is InlineRef -> when (inline.variant) {
             RefVariant.LINK -> listOf(
                 Link(
@@ -202,6 +241,7 @@ object AsgToLegacyAst {
                 is InlineText -> append(inline.value)
                 is InlineSpan -> inline.inlines.forEach(::visit)
                 is InlineRef -> inline.inlines.forEach(::visit)
+                is InlineMacro -> append("${inline.name}:${inline.target}[]")
             }
         }
         inlines.forEach(::visit)

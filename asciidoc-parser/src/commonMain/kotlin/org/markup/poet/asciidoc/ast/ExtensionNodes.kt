@@ -27,3 +27,14 @@ data class PassthroughBlock(
     override val attributes: Map<String, String> = emptyMap(),
     override val sourceLocation: SourceLocation,
 ) : BlockElement()
+
+/**
+ * Raw pre-rendered inline output spliced in by an extension processor (e.g. an
+ * inline-macro plugin). Emitted verbatim when the output [format] matches.
+ */
+data class RawInline(
+    val format: String = "html",
+    val content: String,
+    override val attributes: Map<String, String> = emptyMap(),
+    override val sourceLocation: SourceLocation,
+) : InlineElement()

@@ -117,3 +117,6 @@ amplifytools.xcconfig
 
 # Generated Graphviz output
 *.dot
+
+# Rust build output
+examples/plugins/*/target/

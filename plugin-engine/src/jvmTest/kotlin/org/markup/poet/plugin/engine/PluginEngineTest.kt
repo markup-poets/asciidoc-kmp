@@ -21,10 +21,10 @@ class PluginEngineTest {
         val plugin = engine.loadPlugin(fixtureBytes(), "shout.wasm")
         assertEquals("shout-plugin", plugin.id)
         assertEquals(1, plugin.descriptor.abiVersion)
-        val capability = plugin.descriptor.capabilities.single()
-        assertEquals("block", capability.type)
-        assertEquals("shout", capability.name)
+        val capabilities = plugin.descriptor.capabilities.map { it.type to it.name }
+        assertEquals(listOf("block" to "shout", "inlineMacro" to "issue"), capabilities)
         assertNotNull(engine.forCapability("block", "shout"))
+        assertNotNull(engine.forCapability("inlineMacro", "issue"))
         assertNull(engine.forCapability("block", "unknown"))
         engine.unloadAll()
     }
@@ -48,11 +48,25 @@ class PluginEngineTest {
     }
 
     @Test
-    fun unsupportedCapabilityYieldsOkFalse() {
+    fun issueInlineMacroReturnsHtmlLink() {
         val engine = PluginEngine()
         val plugin = engine.loadPlugin(fixtureBytes(), "shout.wasm")
         val response = plugin.process(
             PluginInvocation(extensionPoint = "inlineMacro", name = "issue", content = "123"),
+        )
+        assertTrue(response.ok)
+        val replacement = assertNotNull(response.replacement)
+        assertEquals("html", replacement.contentType)
+        assertTrue("issues/123" in replacement.value && ">#123</a>" in replacement.value)
+        engine.unloadAll()
+    }
+
+    @Test
+    fun unsupportedCapabilityYieldsOkFalse() {
+        val engine = PluginEngine()
+        val plugin = engine.loadPlugin(fixtureBytes(), "shout.wasm")
+        val response = plugin.process(
+            PluginInvocation(extensionPoint = "blockMacro", name = "gallery", content = "dir"),
         )
         assertEquals(false, response.ok)
         assertNotNull(response.error)
