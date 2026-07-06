@@ -7,10 +7,11 @@ plugins {
     alias(libs.plugins.vanniktech.mavenPublish)
 }
 
-group = "io.github.kotlin"
+group = "org.markup.poet"
 version = "1.0.0"
 
 kotlin {
+    jvmToolchain(17)
     jvm {
         @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
         mainRun {

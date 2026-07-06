@@ -114,3 +114,9 @@ amplifyconfiguration.json
 amplify-build-config.json
 amplify-gradle-config.json
 amplifytools.xcconfig
+
+# Generated Graphviz output
+*.dot
+
+# Rust build output
+examples/plugins/*/target/
