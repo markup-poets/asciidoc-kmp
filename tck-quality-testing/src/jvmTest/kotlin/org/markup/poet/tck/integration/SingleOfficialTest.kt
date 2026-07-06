@@ -44,7 +44,7 @@ class SingleOfficialTest {
         
         // Parse
         val startParse = System.currentTimeMillis()
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         val parseDuration = System.currentTimeMillis() - startParse
         
         println("\n⚙️  Parsing:")
@@ -117,7 +117,7 @@ class SingleOfficialTest {
         println("📥 Input: ${input.take(50)}")
         
         // Parse
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         println("⚙️  Parsed: ${parseResult.errors.size} errors")
         
         // Serialize

@@ -28,7 +28,7 @@ class ColumnTrackingVerificationTest {
         // - End: column 5 (position after last character 'd')
         
         val input = "word"
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         val json = serializer.serialize(parseResult.document, AstJsonSerializer.Mode.INLINE_ONLY)
         
         println("Input: '$input'")
@@ -71,7 +71,7 @@ class ColumnTrackingVerificationTest {
         // Expected location for Strong element: [{line: 1, col: 1}, {line: 1, col: 7}]
         
         val input = "*bold*"
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         val json = serializer.serialize(parseResult.document, AstJsonSerializer.Mode.INLINE_ONLY)
         
         println("\nInput: '$input'")
@@ -107,7 +107,7 @@ class ColumnTrackingVerificationTest {
         // Expected: Single text element spanning columns 1-12
         
         val input = "hello world"
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         val json = serializer.serialize(parseResult.document, AstJsonSerializer.Mode.INLINE_ONLY)
         
         println("\nInput: '$input'")

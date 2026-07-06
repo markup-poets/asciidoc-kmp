@@ -281,32 +281,26 @@ object TckIntegration {
     
     /**
      * Create a default test runner with your real parser and serializer.
-     * 
+     *
      * This uses:
      * - DefaultAsciidocParser: Your actual AsciiDoc parser
-     * - AstJsonSerializer: Converts AST to JSON for TCK comparison
-     * 
+     * - AstJsonSerializer: Converts the ASG to JSON for TCK comparison
+     *
      * The serializer automatically detects inline vs block tests based on
      * the test fixture metadata.
      */
     private fun createDefaultTestRunner(): TestRunner {
         val parser = org.markup.poet.asciidoc.parser.DefaultAsciidocParser()
         val serializer = org.markup.poet.tck.serialization.AstJsonSerializer()
-        
-        // Parser function: AsciiDoc string → AST Document
-        val parserFn: (String) -> Any = { input ->
-            val parseResult = parser.parse(input)
-            parseResult.document
-        }
-        
+
         // Create a wrapper that can access fixture metadata
         return object : TestRunner {
             override fun runTest(fixture: TestFixture): TestExecutionResult {
                 val startTime = currentTimeMillis()
-                
+
                 return try {
                     // Parse the input
-                    val parsed = parser.parse(fixture.input)
+                    val parsed = parser.parseToAsg(fixture.input)
                     
                     // Determine serialization mode based on test path
                     val mode = if (fixture.id.contains("/inline/") || 

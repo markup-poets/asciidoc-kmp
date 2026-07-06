@@ -4,7 +4,6 @@ import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.error.ParseWarning
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.Position
-import org.markup.poet.asciidoc.ast.SourceLocation
 import org.markup.poet.asciidoc.processing.ProcessingError
 import org.markup.poet.asciidoc.processing.ProcessingWarning
 import org.markup.poet.asciidoc.processing.ProcessingErrorType
@@ -144,8 +143,8 @@ class ErrorFormatterTest {
     @Test
     fun `should format parse errors with file path`() {
         val parseErrors = listOf(
-            ParseError("Unexpected token", SourceLocation(10, 5)),
-            ParseError("Missing closing bracket", SourceLocation(15, 10))
+            ParseError("Unexpected token", line = 10, column = 5),
+            ParseError("Missing closing bracket", line = 15, column = 10)
         )
         
         val result = ErrorFormatter.formatParseErrors(parseErrors, "document.adoc")
@@ -220,8 +219,8 @@ class ErrorFormatterTest {
     @Test
     fun `should format parse warnings`() {
         val parseWarnings = listOf(
-            ParseWarning("Deprecated attribute", SourceLocation(5, 0)),
-            ParseWarning("Unused macro", SourceLocation(10, 0))
+            ParseWarning("Deprecated attribute", line = 5, column = 0),
+            ParseWarning("Unused macro", line = 10, column = 0)
         )
         
         val result = ErrorFormatter.formatParseWarnings(parseWarnings, "document.adoc")

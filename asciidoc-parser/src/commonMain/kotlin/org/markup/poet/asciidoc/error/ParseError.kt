@@ -9,7 +9,11 @@ data class ParseError(
     val message: String,
     val location: SourceLocation,
     val severity: ErrorSeverity = ErrorSeverity.ERROR
-)
+) {
+    /** Convenience constructor so ASG-only consumers need no legacy AST import. */
+    constructor(message: String, line: Int, column: Int, severity: ErrorSeverity = ErrorSeverity.ERROR) :
+        this(message, SourceLocation(line, column), severity)
+}
 
 /**
  * Represents a parsing warning with location information.
@@ -17,7 +21,10 @@ data class ParseError(
 data class ParseWarning(
     val message: String,
     val location: SourceLocation
-)
+) {
+    /** Convenience constructor so ASG-only consumers need no legacy AST import. */
+    constructor(message: String, line: Int, column: Int) : this(message, SourceLocation(line, column))
+}
 
 /**
  * Enumeration of error severity levels.

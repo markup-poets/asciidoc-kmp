@@ -3,7 +3,6 @@ package org.markup.poet.cli
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.Position
-import org.markup.poet.asciidoc.ast.SourceLocation
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.parser.AsciidocParser
 import org.markup.poet.asciidoc.parser.AsgParseResult
@@ -158,7 +157,8 @@ class ExitCodeTest {
                 errors = listOf(
                     ParseError(
                         message = "Unexpected token",
-                        location = SourceLocation(10, 5)
+                        line = 10,
+                        column = 5
                     )
                 )
             )

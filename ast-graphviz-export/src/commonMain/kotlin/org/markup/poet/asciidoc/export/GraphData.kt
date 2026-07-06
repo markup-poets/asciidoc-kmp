@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.export
 
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.Location
 
 /**
  * Represents a node in the DOT graph with all necessary visualization data.
@@ -10,7 +10,7 @@ data class NodeData(
     val label: String,
     val nodeType: String,
     val attributes: Map<String, String>,
-    val sourceLocation: SourceLocation?
+    val location: Location?
 )
 
 /**

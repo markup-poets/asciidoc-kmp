@@ -19,7 +19,7 @@ class AstJsonSerializerTest {
     @Test
     fun `should serialize simple paragraph to JSON`() {
         val input = "This is a simple paragraph."
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         
         val json = serializer.serialize(parseResult.document)
         
@@ -36,7 +36,7 @@ class AstJsonSerializerTest {
     @Test
     fun `should serialize heading to JSON`() {
         val input = "= Document Title"
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         
         val json = serializer.serialize(parseResult.document)
         
@@ -50,7 +50,7 @@ class AstJsonSerializerTest {
     @Test
     fun `should serialize bold text to JSON`() {
         val input = "This is *bold* text."
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         
         val json = serializer.serialize(parseResult.document)
         
@@ -68,7 +68,7 @@ class AstJsonSerializerTest {
             * Item 2
             * Item 3
         """.trimIndent()
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         
         val json = serializer.serialize(parseResult.document)
         
@@ -87,7 +87,7 @@ class AstJsonSerializerTest {
             fun hello() = println("Hi")
             ----
         """.trimIndent()
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         
         val json = serializer.serialize(parseResult.document)
         
@@ -110,7 +110,7 @@ class AstJsonSerializerTest {
             * List item 1
             * List item 2
         """.trimIndent()
-        val parseResult = parser.parse(input)
+        val parseResult = parser.parseToAsg(input)
         
         val json = serializer.serialize(parseResult.document)
         
