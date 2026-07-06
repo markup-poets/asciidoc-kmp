@@ -16,6 +16,12 @@ on:
       - 'docs/**'
       - '.github/workflows/documentation.yml'
 
+# Pages permits only one deployment at a time repo-wide; share the group with
+# tck-report.yml so concurrent merges queue instead of failing the deploy step.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build-documentation:
     runs-on: ubuntu-latest
