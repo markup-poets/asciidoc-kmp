@@ -5,8 +5,6 @@ import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.Position
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.parser.AsciidocParser
-import org.markup.poet.asciidoc.parser.AsgParseResult
-import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.parser.ParseResult
 import org.markup.poet.asciidoc.processing.DocumentProcessor
 import org.markup.poet.asciidoc.processing.FileReadResult
@@ -38,21 +36,12 @@ class ExitCodeTest {
 
     /** Mock parser producing an empty ASG document plus the given parse errors. */
     private fun mockParser(errors: List<ParseError> = emptyList()) = object : AsciidocParser {
-        override fun parseToAsg(source: String): AsgParseResult {
-            return AsgParseResult(
+        override fun parse(source: String): ParseResult {
+            return ParseResult(
                 document = AsgDocument(),
                 errors = errors,
                 warnings = emptyList()
             )
-        }
-
-        override fun parse(source: String): ParseResult {
-            val asg = parseToAsg(source)
-            return ParseResult(AsgToLegacyAst.convert(asg.document), asg.errors, asg.warnings)
-        }
-
-        override fun parse(lines: List<String>): ParseResult {
-            return parse(lines.joinToString("\n"))
         }
     }
 

@@ -105,7 +105,7 @@ class ProcessCommand(
             System.err.println("Parsing AsciiDoc content...")
         }
         
-        val parseResult = parser.parseToAsg(fileContent)
+        val parseResult = parser.parse(fileContent)
         
         // Report parse errors if any
         if (parseResult.errors.isNotEmpty()) {

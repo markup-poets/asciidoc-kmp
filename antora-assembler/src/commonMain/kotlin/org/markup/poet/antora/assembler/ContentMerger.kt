@@ -296,7 +296,7 @@ class ContentMerger(
                 }
 
                 // Parse the included file
-                val parseResult = parser.parseToAsg(indentedContent)
+                val parseResult = parser.parse(indentedContent)
 
                 // Report any parse errors
                 parseResult.errors.forEach { parseError ->
@@ -304,7 +304,7 @@ class ContentMerger(
                         AssemblerError(
                             message = "Parse error in included file '$resolvedPath': ${parseError.message}",
                             filePath = resolvedPath,
-                            lineNumber = parseError.location.line,
+                            lineNumber = parseError.line,
                             errorType = AssemblerErrorType.PARSE_ERROR
                         )
                     )
@@ -316,7 +316,7 @@ class ContentMerger(
                         AssemblerWarning(
                             message = "Parse warning in included file '$resolvedPath': ${parseWarning.message}",
                             filePath = resolvedPath,
-                            lineNumber = parseWarning.location.line
+                            lineNumber = parseWarning.line
                         )
                     )
                 }

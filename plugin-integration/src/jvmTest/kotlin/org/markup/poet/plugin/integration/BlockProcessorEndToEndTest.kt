@@ -42,7 +42,7 @@ class BlockProcessorEndToEndTest {
 
     @Test
     fun parserPreservesUnknownBlockStyleAsCustomStyledLeafBlock() {
-        val document = DefaultAsciidocParser().parseToAsg(source).document
+        val document = DefaultAsciidocParser().parse(source).document
         val custom = document.blocks.filterIsInstance<LeafBlock>()
             .single { it.metadata?.positional?.firstOrNull() == "shout" }
         assertEquals(LeafBlockName.LISTING, custom.name)
@@ -53,7 +53,7 @@ class BlockProcessorEndToEndTest {
     @Test
     fun pluginReplacesCustomStyledBlockWithRawHtmlBlock() {
         val engine = loadEngine()
-        val document = DefaultAsciidocParser().parseToAsg(source).document
+        val document = DefaultAsciidocParser().parse(source).document
         val result = WasmExtensions(engine).apply(document)
 
         val raw = result.document.blocks.filterIsInstance<RawBlock>().single()
@@ -66,7 +66,7 @@ class BlockProcessorEndToEndTest {
     @Test
     fun renderedHtmlContainsPluginOutputVerbatim() {
         val engine = loadEngine()
-        val parsed = DefaultAsciidocParser().parseToAsg(source).document
+        val parsed = DefaultAsciidocParser().parse(source).document
         val processed = WasmExtensions(engine).apply(parsed).document
 
         val escaper = DefaultHtmlEscaper()
@@ -83,7 +83,7 @@ class BlockProcessorEndToEndTest {
     @Test
     fun inlineMacroIsReplacedByPluginHtml() {
         val engine = loadEngine()
-        val parsed = DefaultAsciidocParser().parseToAsg("see issue:123[] for details").document
+        val parsed = DefaultAsciidocParser().parse("see issue:123[] for details").document
         val processed = WasmExtensions(engine).apply(parsed).document
 
         val paragraph = processed.blocks.filterIsInstance<LeafBlock>()
@@ -96,7 +96,7 @@ class BlockProcessorEndToEndTest {
     @Test
     fun failedMacroInvocationKeepsOriginalWithWarning() {
         val engine = loadEngine()
-        val parsed = DefaultAsciidocParser().parseToAsg("bad issue:abc[] target").document
+        val parsed = DefaultAsciidocParser().parse("bad issue:abc[] target").document
         val result = WasmExtensions(engine).apply(parsed)
 
         val paragraph = result.document.blocks.filterIsInstance<LeafBlock>()
@@ -109,7 +109,7 @@ class BlockProcessorEndToEndTest {
     @Test
     fun unclaimedCustomStyleBlockIsLeftForFallbackRendering() {
         val engine = loadEngine()
-        val document = DefaultAsciidocParser().parseToAsg("[gallery]\n----\nx\n----").document
+        val document = DefaultAsciidocParser().parse("[gallery]\n----\nx\n----").document
         val result = WasmExtensions(engine).apply(document)
         val block = result.document.blocks.single()
         assertIs<LeafBlock>(block)

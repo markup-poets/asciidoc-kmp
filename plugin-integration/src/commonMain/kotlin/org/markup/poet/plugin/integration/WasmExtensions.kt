@@ -161,7 +161,7 @@ class WasmExtensions(
                 ),
             )
             // Re-parse and splice: the replacement flows through the normal pipeline.
-            "asciidoc" -> DefaultAsciidocParser().parseToAsg(replacement.value).document.blocks
+            "asciidoc" -> DefaultAsciidocParser().parse(replacement.value).document.blocks
             else -> {
                 warnings += "plugin '${plugin.id}' returned unsupported contentType '${replacement.contentType}'"
                 listOf(block)
@@ -230,7 +230,7 @@ class WasmExtensions(
                 InlineRaw(format = "html", content = replacement.value, location = macro.location),
             )
             // Re-parse as a snippet and splice the first paragraph's inlines.
-            "asciidoc" -> DefaultAsciidocParser().parseToAsg(replacement.value).document.blocks
+            "asciidoc" -> DefaultAsciidocParser().parse(replacement.value).document.blocks
                 .filterIsInstance<LeafBlock>()
                 .firstOrNull { it.name == LeafBlockName.PARAGRAPH }
                 ?.inlines

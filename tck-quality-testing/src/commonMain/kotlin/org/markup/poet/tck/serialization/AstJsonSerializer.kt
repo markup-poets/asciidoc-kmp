@@ -43,12 +43,12 @@ import org.markup.poet.asciidoc.asg.plainText
  * 1. **Inline tests** - Just an array of inline elements
  * 2. **Block tests** - Full document structure
  *
- * The output is kept byte-identical to the historical legacy-AST serializer:
- * each ASG node is emitted exactly as its legacy counterpart (per the
- * `AsgToLegacyAst` correspondence) used to be. In particular, ASG constructs
- * with no legacy equivalent (breaks, includes, conditionals, raw blocks, ...)
- * still serialize as `{"name": "unknown"}` / empty-text placeholders, and
- * parent containers other than admonitions are spliced into their parent.
+ * The output is kept byte-identical to the historical legacy-AST serializer
+ * (removed in the ASG migration): each ASG node is emitted exactly as its
+ * legacy counterpart used to be. In particular, ASG constructs with no legacy
+ * equivalent (breaks, includes, conditionals, raw blocks, ...) still serialize
+ * as `{"name": "unknown"}` / empty-text placeholders, and parent containers
+ * other than admonitions are spliced into their parent.
  *
  * See: tck-quality-testing/docs/official-tck-format.md
  */

@@ -147,7 +147,7 @@ class DefaultIncludeResolver(
                 }
 
                 // Parse included content
-                val parseResult = parser.parseToAsg(content)
+                val parseResult = parser.parse(content)
 
                 // Track this file as visited
                 visitedFiles.add(resolvedPath)

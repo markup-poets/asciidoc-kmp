@@ -76,7 +76,7 @@ object ErrorFormatter {
             ErrorInfo(
                 message = error.message,
                 filePath = inputFile,
-                lineNumber = error.location.line,
+                lineNumber = error.line,
                 errorType = "Parse Error"
             )
         }
@@ -132,7 +132,7 @@ object ErrorFormatter {
      */
     fun formatParseWarnings(warnings: List<ParseWarning>, inputFile: String): List<String> {
         return warnings.map { warning ->
-            formatWarning(warning.message, inputFile, warning.location.line)
+            formatWarning(warning.message, inputFile, warning.line)
         }
     }
     

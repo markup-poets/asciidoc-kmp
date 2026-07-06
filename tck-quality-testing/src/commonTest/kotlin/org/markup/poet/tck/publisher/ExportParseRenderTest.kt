@@ -177,7 +177,7 @@ class ExportParseRenderTest {
         assertTrue(asciidoc.isNotEmpty(), "Exported AsciiDoc should not be empty")
         
         // Act - Stage 2: Parse AsciiDoc
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         assertTrue(
             parseResult.errors.isEmpty(),
             "Parser should not produce errors. Errors: ${parseResult.errors}"
@@ -212,7 +212,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -232,7 +232,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -252,7 +252,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -305,7 +305,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -332,7 +332,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -389,7 +389,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -431,7 +431,7 @@ class ExportParseRenderTest {
         assertTrue(asciidoc.contains("JVM"), "Should contain platform")
         
         // Act - Parse AsciiDoc
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         assertTrue(parseResult.errors.isEmpty(), "Parsing should succeed")
         
         val document = parseResult.document
@@ -514,7 +514,7 @@ class ExportParseRenderTest {
         
         // Act - Export, parse, render
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         val document = parseResult.document
         val renderResult = renderer.render(document)
         
@@ -552,7 +552,7 @@ class ExportParseRenderTest {
         
         // Act - Export and parse
         val asciidoc = exporter.export(results, metadata).getOrThrow()
-        val parseResult = parser.parseToAsg(asciidoc)
+        val parseResult = parser.parse(asciidoc)
         
         // Assert - Verify document structure
         val document = parseResult.document

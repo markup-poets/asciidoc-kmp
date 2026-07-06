@@ -44,12 +44,12 @@ fun main(args: Array<String>) {
         // Parse AsciiDoc into the ASG model
         println("[HTML-RENDERER] Parsing AsciiDoc...")
         val parser = DefaultAsciidocParser()
-        val parseResult = parser.parseToAsg(content)
+        val parseResult = parser.parse(content)
         
         if (parseResult.errors.isNotEmpty()) {
             printlnErr("✗ Parse errors:")
             parseResult.errors.forEach { error ->
-                printlnErr("  Line ${error.location.line}: ${error.message}")
+                printlnErr("  Line ${error.line}: ${error.message}")
             }
             exitProcess(1)
         }
@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
         if (parseResult.warnings.isNotEmpty()) {
             println("⚠ Parse warnings:")
             parseResult.warnings.forEach { warning ->
-                println("  Line ${warning.location.line}: ${warning.message}")
+                println("  Line ${warning.line}: ${warning.message}")
             }
         }
         

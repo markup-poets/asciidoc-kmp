@@ -2,8 +2,6 @@ package org.markup.poet.cli
 
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.parser.AsciidocParser
-import org.markup.poet.asciidoc.parser.AsgParseResult
-import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.parser.ParseResult
 import org.markup.poet.asciidoc.processing.*
 import kotlin.test.Test
@@ -26,21 +24,12 @@ class ProcessCommandTest {
 
     // Mock Parser for testing
     private val mockParser = object : AsciidocParser {
-        override fun parseToAsg(source: String): AsgParseResult {
-            return AsgParseResult(
+        override fun parse(source: String): ParseResult {
+            return ParseResult(
                 document = AsgDocument(),
                 errors = emptyList(),
                 warnings = emptyList()
             )
-        }
-
-        override fun parse(source: String): ParseResult {
-            val asg = parseToAsg(source)
-            return ParseResult(AsgToLegacyAst.convert(asg.document), asg.errors, asg.warnings)
-        }
-
-        override fun parse(lines: List<String>): ParseResult {
-            return parse(lines.joinToString("\n"))
         }
     }
 

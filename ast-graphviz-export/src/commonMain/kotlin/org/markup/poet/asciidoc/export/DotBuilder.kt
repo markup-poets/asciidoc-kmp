@@ -96,7 +96,7 @@ class DotBuilder(private val config: ExportConfig) {
             }
             
             // Add source location if configured
-            if (config.includeSourceLocations && node.location != null) {
+            if (config.includeLocations && node.location != null) {
                 val location = node.location
                 builder.append(", xlabel=\"${location.start.line}:${location.start.col}\"")
             }

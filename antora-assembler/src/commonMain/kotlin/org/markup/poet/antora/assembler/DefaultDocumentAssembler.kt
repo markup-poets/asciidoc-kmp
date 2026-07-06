@@ -77,7 +77,7 @@ class DefaultDocumentAssembler(
 
         // Parse the index file
         println("[ASSEMBLER] Step 2: Parsing index file...")
-        val parseResult = parser.parseToAsg(indexFileContent)
+        val parseResult = parser.parse(indexFileContent)
         println("[ASSEMBLER] Parse complete. Errors: ${parseResult.errors.size}, Warnings: ${parseResult.warnings.size}")
 
         // Report parse errors
@@ -86,7 +86,7 @@ class DefaultDocumentAssembler(
                 AssemblerError(
                     message = "Parse error in index file: ${parseError.message}",
                     filePath = config.indexFile,
-                    lineNumber = parseError.location.line,
+                    lineNumber = parseError.line,
                     errorType = AssemblerErrorType.PARSE_ERROR
                 )
             )
@@ -98,7 +98,7 @@ class DefaultDocumentAssembler(
                 AssemblerWarning(
                     message = "Parse warning in index file: ${parseWarning.message}",
                     filePath = config.indexFile,
-                    lineNumber = parseWarning.location.line
+                    lineNumber = parseWarning.line
                 )
             )
         }
@@ -343,7 +343,7 @@ class DefaultDocumentAssembler(
                             is FileReadResult.Success -> {
                                 println("[GRAPH] Successfully read file (${readResult.content.length} bytes)")
                                 println("[GRAPH] Parsing file: $resolvedPath")
-                                val parseResult = parser.parseToAsg(readResult.content)
+                                val parseResult = parser.parse(readResult.content)
                                 println("[GRAPH] Parse complete for: $resolvedPath")
 
                                 // Recursively build graph for included file

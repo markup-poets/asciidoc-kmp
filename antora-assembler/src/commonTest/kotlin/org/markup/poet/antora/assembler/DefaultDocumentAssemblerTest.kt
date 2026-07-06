@@ -4,8 +4,6 @@ import org.markup.poet.antora.*
 import org.markup.poet.asciidoc.asg.*
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.parser.AsciidocParser
-import org.markup.poet.asciidoc.parser.AsgParseResult
-import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.parser.ParseResult
 import kotlin.test.*
 
@@ -52,7 +50,7 @@ class DefaultDocumentAssemblerTest {
 
     // Mock AsciidocParser for testing
     private class MockAsciidocParser : AsciidocParser {
-        override fun parseToAsg(source: String): AsgParseResult {
+        override fun parse(source: String): ParseResult {
             // Simple parser that creates a document with paragraphs
             val lines = source.lines()
             val blocks = mutableListOf<Block>()
@@ -114,24 +112,12 @@ class DefaultDocumentAssemblerTest {
                 }
             }
 
-            return AsgParseResult(
+            return ParseResult(
                 document = AsgDocument(blocks = blocks),
                 errors = emptyList(),
                 warnings = emptyList()
             )
         }
-
-        override fun parse(source: String): ParseResult {
-            // Legacy path: derive the legacy AST from the ASG result (removed in M5)
-            val asgResult = parseToAsg(source)
-            return ParseResult(
-                document = AsgToLegacyAst.convert(asgResult.document),
-                errors = asgResult.errors,
-                warnings = asgResult.warnings
-            )
-        }
-
-        override fun parse(lines: List<String>): ParseResult = parse(lines.joinToString("\n"))
     }
 
     @Test
@@ -381,8 +367,8 @@ class DefaultDocumentAssemblerTest {
     fun `should handle parse errors in index file`() {
         // Create a parser that returns errors
         val parserWithErrors = object : AsciidocParser {
-            override fun parseToAsg(source: String): AsgParseResult {
-                return AsgParseResult(
+            override fun parse(source: String): ParseResult {
+                return ParseResult(
                     document = AsgDocument(),
                     errors = listOf(
                         ParseError(message = "Invalid syntax", line = 1, column = 0)
@@ -390,17 +376,6 @@ class DefaultDocumentAssemblerTest {
                     warnings = emptyList()
                 )
             }
-
-            override fun parse(source: String): ParseResult {
-                val asgResult = parseToAsg(source)
-                return ParseResult(
-                    document = AsgToLegacyAst.convert(asgResult.document),
-                    errors = asgResult.errors,
-                    warnings = asgResult.warnings
-                )
-            }
-
-            override fun parse(lines: List<String>): ParseResult = parse(lines.joinToString("\n"))
         }
 
         val fileSystem = MockFileSystemAccess(

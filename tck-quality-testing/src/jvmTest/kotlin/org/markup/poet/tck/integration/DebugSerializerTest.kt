@@ -21,7 +21,7 @@ class DebugSerializerTest {
         println("Input: '$input'")
         println("\n1. Parsing...")
         
-        val result = parser.parseToAsg(input)
+        val result = parser.parse(input)
         println("✅ Parsed successfully")
         
         println("\n2. Serializing with INLINE_ONLY mode...")

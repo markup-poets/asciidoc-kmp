@@ -157,7 +157,7 @@ class GraphvizAstVisitor(
                 label = label,
                 nodeType = nodeType,
                 attributes = if (config.includeAttributes) attributesOf(node) else emptyMap(),
-                location = if (config.includeSourceLocations) node.location else null
+                location = if (config.includeLocations) node.location else null
             )
 
             nodeData.add(data)

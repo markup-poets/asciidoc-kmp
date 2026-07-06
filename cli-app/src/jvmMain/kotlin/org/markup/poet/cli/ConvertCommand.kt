@@ -92,7 +92,7 @@ class ConvertCommand(
     private fun convertAsciidocToDot(inputFile: File, outputFile: File) {
         // Read and parse the input file into the ASG model
         val source = inputFile.readText()
-        val parseResult = parser.parseToAsg(source)
+        val parseResult = parser.parse(source)
         
         // Report parse errors and warnings using consistent formatting
         if (parseResult.errors.isNotEmpty()) {

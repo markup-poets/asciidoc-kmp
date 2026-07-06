@@ -300,7 +300,7 @@ object TckIntegration {
 
                 return try {
                     // Parse the input
-                    val parsed = parser.parseToAsg(fixture.input)
+                    val parsed = parser.parse(fixture.input)
                     
                     // Determine serialization mode based on test path
                     val mode = if (fixture.id.contains("/inline/") || 

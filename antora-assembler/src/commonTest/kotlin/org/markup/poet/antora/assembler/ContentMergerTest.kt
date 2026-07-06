@@ -3,8 +3,6 @@ package org.markup.poet.antora.assembler
 import org.markup.poet.antora.*
 import org.markup.poet.asciidoc.asg.*
 import org.markup.poet.asciidoc.parser.AsciidocParser
-import org.markup.poet.asciidoc.parser.AsgParseResult
-import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.parser.ParseResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1321,7 +1319,7 @@ class MockAntoraResolver(private val fileSystem: FileSystemAccess) : AntoraResol
 }
 
 class MockAsciidocParser : AsciidocParser {
-    override fun parseToAsg(source: String): AsgParseResult {
+    override fun parse(source: String): ParseResult {
         // Simple mock parser that creates a paragraph for non-include content
         val lines = source.lines()
         val blocks = mutableListOf<Block>()
@@ -1393,7 +1391,7 @@ class MockAsciidocParser : AsciidocParser {
             }
         }
 
-        return AsgParseResult(
+        return ParseResult(
             document = AsgDocument(
                 attributes = attributes,
                 blocks = blocks
@@ -1401,19 +1399,5 @@ class MockAsciidocParser : AsciidocParser {
             errors = emptyList(),
             warnings = emptyList()
         )
-    }
-
-    override fun parse(source: String): ParseResult {
-        // Legacy path: derive the legacy AST from the ASG result (removed in M5)
-        val asgResult = parseToAsg(source)
-        return ParseResult(
-            document = AsgToLegacyAst.convert(asgResult.document),
-            errors = asgResult.errors,
-            warnings = asgResult.warnings
-        )
-    }
-
-    override fun parse(lines: List<String>): ParseResult {
-        return parse(lines.joinToString("\n"))
     }
 }

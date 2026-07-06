@@ -308,8 +308,8 @@ class DefaultTckResultsPublishWorkflow(
     private fun parseAsciidoc(
         asciidoc: String,
         errors: MutableList<String>
-    ): Result<org.markup.poet.asciidoc.parser.AsgParseResult> {
-        val parseResult = parser.parseToAsg(asciidoc)
+    ): Result<org.markup.poet.asciidoc.parser.ParseResult> {
+        val parseResult = parser.parse(asciidoc)
         
         // Check for parse errors (CRITICAL!)
         if (parseResult.errors.isNotEmpty()) {
@@ -324,25 +324,20 @@ class DefaultTckResultsPublishWorkflow(
                     appendLine()
                     appendLine("Error ${index + 1}:")
                     appendLine("  Message: ${error.message}")
-                    appendLine("  Location: Line ${error.location.line}, Column ${error.location.column}")
-                    
-                    if (error.location.endLine != error.location.line || 
-                        error.location.endColumn != error.location.column) {
-                        appendLine("  End Location: Line ${error.location.endLine}, Column ${error.location.endColumn}")
-                    }
-                    
+                    appendLine("  Location: Line ${error.line}, Column ${error.column}")
+
                     appendLine("  Severity: ${error.severity}")
-                    
+
                     // Extract the problematic line from the source for context
                     val lines = asciidoc.lines()
-                    if (error.location.line > 0 && error.location.line <= lines.size) {
-                        val lineIndex = error.location.line - 1 // Convert to 0-based
+                    if (error.line > 0 && error.line <= lines.size) {
+                        val lineIndex = error.line - 1 // Convert to 0-based
                         val sourceLine = lines[lineIndex]
                         appendLine("  Source Line: $sourceLine")
-                        
+
                         // Add a pointer to the column position
-                        if (error.location.column > 0) {
-                            val pointer = " ".repeat(error.location.column - 1) + "^"
+                        if (error.column > 0) {
+                            val pointer = " ".repeat(error.column - 1) + "^"
                             appendLine("               $pointer")
                         }
                     }
@@ -369,7 +364,7 @@ class DefaultTckResultsPublishWorkflow(
                 ParseFailureException(
                     message = "Parser failed on our own output (CRITICAL BUG)",
                     parseErrors = parseResult.errors.map { error ->
-                        "Line ${error.location.line}, Column ${error.location.column}: ${error.message}"
+                        "Line ${error.line}, Column ${error.column}: ${error.message}"
                     },
                     asciidocContent = asciidoc
                 )
@@ -382,7 +377,7 @@ class DefaultTckResultsPublishWorkflow(
                 appendLine("Parse warnings detected (${parseResult.warnings.size}):")
                 for ((index, warning) in parseResult.warnings.withIndex()) {
                     appendLine("  Warning ${index + 1}: ${warning.message} " +
-                            "(Line ${warning.location.line}, Column ${warning.location.column})")
+                            "(Line ${warning.line}, Column ${warning.column})")
                 }
             }
             println("WARNING: $warningMessage")

@@ -10,8 +10,6 @@ import org.markup.poet.asciidoc.asg.LeafBlockName
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.Position
 import org.markup.poet.asciidoc.parser.AsciidocParser
-import org.markup.poet.asciidoc.parser.AsgParseResult
-import org.markup.poet.asciidoc.parser.AsgToLegacyAst
 import org.markup.poet.asciidoc.parser.ParseResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,21 +45,12 @@ class IncludeResolverTest {
     private open inner class MockParser : AsciidocParser {
         open fun blocksFor(source: String): List<Block> = source.lines().map { paragraph(it) }
 
-        override fun parseToAsg(source: String): AsgParseResult {
-            return AsgParseResult(
+        override fun parse(source: String): ParseResult {
+            return ParseResult(
                 document = AsgDocument(blocks = blocksFor(source)),
                 errors = emptyList(),
                 warnings = emptyList()
             )
-        }
-
-        override fun parse(source: String): ParseResult {
-            val asg = parseToAsg(source)
-            return ParseResult(AsgToLegacyAst.convert(asg.document), asg.errors, asg.warnings)
-        }
-
-        override fun parse(lines: List<String>): ParseResult {
-            return parse(lines.joinToString("\n"))
         }
     }
 

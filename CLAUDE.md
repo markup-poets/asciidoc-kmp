@@ -8,15 +8,15 @@ Markup Poet is a Kotlin Multiplatform AsciiDoc converter targeting JVM, Android 
 
 ## Modules
 
-- `asciidoc-parser` — core parser + AST (`org.markup.poet.asciidoc.{parser,ast,error}`); zero deps
+- `asciidoc-parser` — core parser + ASG document model (`org.markup.poet.asciidoc.{parser,asg,error}`); zero deps
 - `asciidoc-asg` — serializes the parsed document to the official ASG JSON format (`org.markup.poet.asciidoc.asg`)
 - `tck-adapter` — CLI adapter for the official TCK harness (stdin JSON request → ASG JSON on stdout)
 - `tck-quality-testing` — fixture-replay harness, TCK sync, conformance reporting (`org.markup.poet.tck`)
 - `document-processing` — post-parse phase: includes, attribute substitution, conditionals, TOC, cross-refs
-- `html-renderer` — AST → HTML with theming (`org.markup.poet.asciidoc.render`)
+- `html-renderer` — ASG → HTML with theming (`org.markup.poet.asciidoc.render`)
 - `html-cli` — AsciiDoc → HTML command line tool (JVM + native)
 - `cli-app` — AsciiDoc → Graphviz DOT export CLI
-- `ast-graphviz-export` — AST → DOT conversion library
+- `ast-graphviz-export` — ASG → DOT conversion library
 - `antora-resolution`, `antora-assembler` — multi-file document assembly
 - `plugin-api`, `plugin-engine`, `plugin-integration` — WASM extension plugins (Chasm runtime; see docs/PLUGINS.md); example plugin in `examples/plugins/shout-rust/`
 - `theming`, `examples` — legacy theming experiments (superseded by html-renderer's built-in theming)
@@ -46,9 +46,9 @@ The official Eclipse AsciiDoc TCK (`tck-quality-testing/official-tck/repository/
 
 ## Architecture
 
-Pipeline: Parse → Process → Convert → Render.
+Pipeline: Parse (`asciidoc-parser`) → Process (`document-processing`) → Render (`html-renderer`). Every phase operates on the ASG model (`org.markup.poet.asciidoc.asg`), which mirrors the official schema: node axes `name`/`variant`/`form` are fields, so new syntax mostly means parser work, not new node classes.
 
-Parser (`asciidoc-parser`): `DefaultAsciidocParser` facade → `LineProcessor` → `BlockParser`/`InlineParser` → sealed AST (`AstNode` → `BlockElement`/`InlineElement`). An ASG-native parser core (`asg/`, `parser/asg/` packages) is being introduced to replace this legacy core; new work should target the ASG model.
+Parser: `DefaultAsciidocParser` facade (`parse(source): ParseResult`) → `BlockTreeParser`/`AsgInlineParser` (`parser/asg/`) → `AsgDocument` (sealed `Block`/`Inline` hierarchies). `AsgProcessingNodes.kt` adds non-schema extension nodes (includes, conditionals, comments, callouts, footnotes, citations, raw pre-rendered output) that the parser core never emits; they are injected/consumed by document-processing and extension plugins, and the TCK serialization path never sees them.
 
 ## Testing
 
