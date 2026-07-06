@@ -100,7 +100,7 @@ class ProcessCommand(
             ))
         }
         
-        // Parse AsciiDoc content to AST
+        // Parse AsciiDoc content to ASG
         if (verbose) {
             System.err.println("Parsing AsciiDoc content...")
         }
@@ -163,7 +163,7 @@ class ProcessCommand(
             System.err.println("  Warnings: ${processingResult.warnings.size}")
         }
         
-        // Generate AsciiDoc output from processed AST
+        // Generate AsciiDoc output from processed ASG
         if (verbose) {
             System.err.println("Generating AsciiDoc output...")
         }

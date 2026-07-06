@@ -28,7 +28,7 @@ class GraphvizExporterTest {
         // Assert
         assertNotNull(result)
         assertTrue(result.isNotEmpty())
-        assertContains(result, "digraph AST")
+        assertContains(result, "digraph ASG")
         assertContains(result, "doc_1")
         assertContains(result, "}")
     }
@@ -47,7 +47,7 @@ class GraphvizExporterTest {
         // Assert
         assertNotNull(result)
         assertTrue(result.isNotEmpty())
-        assertContains(result, "digraph AST")
+        assertContains(result, "digraph ASG")
         assertContains(result, "Test Document")
         assertContains(result, "doc_1")
     }
@@ -72,7 +72,7 @@ class GraphvizExporterTest {
         // Assert
         assertNotNull(result)
         assertTrue(result.isNotEmpty())
-        assertContains(result, "digraph AST")
+        assertContains(result, "digraph ASG")
         assertContains(result, "doc_1")
         assertContains(result, "para_1")
         assertContains(result, "text_1")

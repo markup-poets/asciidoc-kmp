@@ -108,7 +108,7 @@ All library modules now support macOS targets:
 - ✅ asciidoc-parser (macosArm64, macosX64)
 - ✅ html-renderer (macosArm64, macosX64)
 - ✅ document-processing (macosArm64, macosX64)
-- ✅ ast-graphviz-export (macosArm64, macosX64)
+- ✅ asg-graphviz-export (macosArm64, macosX64)
 - ✅ antora-resolution (macosArm64, macosX64)
 - ✅ antora-assembler (macosArm64, macosX64)
 

@@ -14,7 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class AstVisitorTest {
+class AsgVisitorTest {
 
     private fun paragraph(text: String) = LeafBlock(
         name = LeafBlockName.PARAGRAPH,
@@ -31,7 +31,7 @@ class AstVisitorTest {
             attributes = mapOf("author" to "Test Author")
         )
 
-        val visitor = GraphvizAstVisitor()
+        val visitor = GraphvizAsgVisitor()
 
         // Act
         val result = visitor.visit(document)
@@ -59,7 +59,7 @@ class AstVisitorTest {
             )
         )
 
-        val visitor = GraphvizAstVisitor()
+        val visitor = GraphvizAsgVisitor()
 
         // Act
         val result = visitor.visit(document)
@@ -87,7 +87,7 @@ class AstVisitorTest {
             )
         )
 
-        val visitor = GraphvizAstVisitor()
+        val visitor = GraphvizAsgVisitor()
 
         // Act
         val result = visitor.visit(document)
@@ -109,7 +109,7 @@ class AstVisitorTest {
             blocks = listOf(paragraph("Test"))
         )
 
-        val visitor = GraphvizAstVisitor()
+        val visitor = GraphvizAsgVisitor()
 
         // Act - First visit
         visitor.visit(document)

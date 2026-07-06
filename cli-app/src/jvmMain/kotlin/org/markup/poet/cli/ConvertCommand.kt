@@ -2,7 +2,7 @@ package org.markup.poet.cli
 
 import org.markup.poet.asciidoc.parser.AsciidocParser
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
-import org.markup.poet.asciidoc.export.GraphvizAstVisitor
+import org.markup.poet.asciidoc.export.GraphvizAsgVisitor
 import org.markup.poet.asciidoc.export.DotBuilder
 import org.markup.poet.asciidoc.export.ExportConfig
 import java.io.File
@@ -11,7 +11,7 @@ import java.io.File
  * Command for converting AsciiDoc documents to Graphviz DOT format.
  * 
  * This command parses an AsciiDoc file and generates a DOT file representing
- * the document's AST structure, which can be visualized using Graphviz tools.
+ * the document's ASG structure, which can be visualized using Graphviz tools.
  * 
  * Usage:
  *   convert <input.adoc> [output.dot]
@@ -73,7 +73,7 @@ class ConvertCommand(
             
             Description:
               Parses an AsciiDoc document and generates a Graphviz DOT file
-              representing the document's Abstract Syntax Tree (AST) structure.
+              representing the document's Abstract Syntax Tree (ASG) structure.
               The DOT file can be visualized using Graphviz tools like 'dot'.
             
             Examples:
@@ -109,7 +109,7 @@ class ConvertCommand(
         
         // Generate DOT representation
         val config = ExportConfig.default()
-        val visitor = GraphvizAstVisitor(config)
+        val visitor = GraphvizAsgVisitor(config)
         
         visitor.visit(parseResult.document)
         val graphData = visitor.getCollectedData(parseResult.document)
