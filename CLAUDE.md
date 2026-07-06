@@ -55,4 +55,4 @@ Tests use kotlin-test and Kotest (property-based, `checkAll` with 100+ iteration
 
 ## Specifications
 
-Design documents live in `.kiro/specs/` (per-feature `requirements.md`, `design.md`, `tasks.md`) and `docs/`. The official ASG schema is in the asciidoc-lang repo (`asg/schema.json`); the synced TCK fixtures under `tck-quality-testing/official-tck/repository/tests/` are the ground truth when prose is ambiguous.
+Current design documentation lives in `docs/`. `.kiro/specs/` holds HISTORICAL per-feature specs from the project's spec-driven origins (see `.kiro/README.md`) — unmaintained, partly pre-ASG; only consult them to trace the requirement numbers cited in tck-quality-testing tests. The official ASG schema is in the asciidoc-lang repo (`asg/schema.json`); the synced TCK fixtures under `tck-quality-testing/official-tck/repository/tests/` are the ground truth when prose is ambiguous.
