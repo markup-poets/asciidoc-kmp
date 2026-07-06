@@ -26,26 +26,58 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          submodules: recursive
 
       - name: Copy CI gradle.properties
         run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
 
-      - name: Set up JDK 22
+      - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: 22
+          java-version: 21
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Sync official TCK
+        run: ./scripts/sync-official-tck.sh
+
+      - name: Run official TCK harness
+        id: tck
+        run: |
+          mkdir -p build/docs/tck
+          set -o pipefail
+          ./run-official-tck.sh 2>&1 | tee build/docs/tck/official-tck-output.txt
+
+      - name: Generate report page
+        if: always()
+        run: |
+          TCK_COMMIT=$(git -C tck-quality-testing/official-tck/repository rev-parse --short HEAD)
+          PASS=$(grep -oP 'ℹ pass \K[0-9]+' build/docs/tck/official-tck-output.txt | head -1 || echo '?')
+          TOTAL=$(grep -oP 'ℹ tests \K[0-9]+' build/docs/tck/official-tck-output.txt | head -1 || echo '?')
+          cat > build/docs/tck/index.html <<EOF
+          <!doctype html>
+          <html lang="en"><head><meta charset="utf-8">
+          <title>Markup Poet — Official AsciiDoc TCK Conformance</title>
+          <style>body{font-family:sans-serif;max-width:48rem;margin:3rem auto;padding:0 1rem}
+          .score{font-size:3rem;font-weight:bold}</style></head><body>
+          <h1>Official AsciiDoc TCK Conformance</h1>
+          <p class="score">${PASS} / ${TOTAL}</p>
+          <p>TCK commit: <code>${TCK_COMMIT}</code> · Generated: $(date -u +"%Y-%m-%d %H:%M UTC")</p>
+          <p>Run with the official Eclipse AsciiDoc TCK Node.js harness
+          (source locations included in the comparison).</p>
+          <h2>Raw harness output</h2>
+          <pre>$(sed 's/&/\&amp;/g; s/</\&lt;/g' build/docs/tck/official-tck-output.txt)</pre>
+          </body></html>
+          EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Generate TCK Report
-        run: ./generate-tck-report.sh
-
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           # Upload the directory containing the generated HTML report
           path: 'build/docs/tck'

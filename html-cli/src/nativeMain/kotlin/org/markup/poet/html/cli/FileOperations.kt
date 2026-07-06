@@ -25,6 +25,26 @@ actual fun readFileContent(path: String): String {
 }
 
 @OptIn(ExperimentalForeignApi::class)
+actual fun readFileBytes(path: String): ByteArray {
+    val file = fopen(path, "rb") ?: throw Exception("Cannot open file: $path")
+    try {
+        fseek(file, 0, SEEK_END)
+        val size = ftell(file).toInt()
+        fseek(file, 0, SEEK_SET)
+
+        val bytes = ByteArray(size)
+        if (size > 0) {
+            bytes.usePinned { pinned ->
+                fread(pinned.addressOf(0), 1.toULong(), size.toULong(), file)
+            }
+        }
+        return bytes
+    } finally {
+        fclose(file)
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class)
 actual fun writeFileContent(path: String, content: String) {
     val file = fopen(path, "w") ?: throw Exception("Cannot create file: $path")
     try {
