@@ -132,6 +132,7 @@ class DefaultAsciidocRenderer : AsciidocRenderer {
                 val params = inline.parameters.entries.joinToString(",") { "${it.key}=${it.value}" }
                 "${inline.macroName}::${params}[]"
             }
+            is RawInline -> if (inline.format == "asciidoc") inline.content else ""
             is FootnoteReference -> {
                 val content = inline.content.joinToString("") { renderInline(it) }
                 "footnote:${inline.id}[$content]"

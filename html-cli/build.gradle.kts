@@ -3,6 +3,7 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(17)
     jvm {
         @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
         mainRun {
@@ -25,6 +26,7 @@ kotlin {
             dependencies {
                 implementation(project(":asciidoc-parser"))
                 implementation(project(":html-renderer"))
+                implementation(project(":plugin-integration"))
             }
         }
         

@@ -67,8 +67,30 @@ class DefaultBlockRenderer(
             is AdmonitionBlock -> renderAdmonitionBlock(block, context)
             is ConditionalDirective -> renderConditionalDirective(block, context)
             is BibliographyEntry -> renderBibliographyEntry(block, context)
+            is CustomBlock -> renderCustomBlock(block, context)
+            is PassthroughBlock -> renderPassthroughBlock(block)
         }
     }
+
+    /**
+     * Fallback rendering for a custom block no extension processor claimed:
+     * a listing-style `<pre>` carrying the block name as a CSS class, so the
+     * content stays visible instead of silently disappearing.
+     */
+    private fun renderCustomBlock(block: CustomBlock, context: RenderContext): String {
+        val preClasses = "${context.theme.codeBlockClasses()} custom-block custom-block-${block.name}"
+        return builder.build {
+            openTag("pre", mapOf("class" to preClasses))
+            openTag("code")
+            text(builder.escape(block.rawContent))
+            closeTag("code")
+            closeTag("pre")
+        }
+    }
+
+    /** Pre-rendered extension output: emitted verbatim for HTML, skipped otherwise. */
+    private fun renderPassthroughBlock(block: PassthroughBlock): String =
+        if (block.format == "html") block.content else ""
     
     /**
      * Renders a section with heading and nested content.
