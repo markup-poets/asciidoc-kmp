@@ -9,11 +9,11 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 ## Features
 
 - **Platform Independent**: Runs on JVM, Android, iOS, and Linux
-- **Spec Compliant**: Follows AsciiDoc Language Specification
+- **Spec Compliant**: Passes the official Eclipse AsciiDoc TCK (run `./run-official-tck.sh`)
 - **Clean Architecture**: Clear separation between parsing, processing, conversion, and rendering phases
-- **Extensible**: Modular design allows custom processors and converters
+- **WASM Plugins**: Custom blocks via sandboxed, language-agnostic WebAssembly plugins — no Ruby required (see [docs/PLUGINS.md](docs/PLUGINS.md))
 - **Pluggable Theming**: Flexible styling system with built-in themes and CSS customization
-- **Zero Dependencies**: No external libraries required
+- **Zero Dependencies**: No external libraries required in the core parser
 
 ## Architecture
 

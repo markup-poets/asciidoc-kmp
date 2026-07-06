@@ -26,6 +26,7 @@ kotlin {
             dependencies {
                 implementation(project(":asciidoc-parser"))
                 implementation(project(":html-renderer"))
+                implementation(project(":plugin-integration"))
             }
         }
         

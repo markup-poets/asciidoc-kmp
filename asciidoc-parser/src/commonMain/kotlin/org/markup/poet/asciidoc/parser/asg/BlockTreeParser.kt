@@ -2,6 +2,7 @@ package org.markup.poet.asciidoc.parser.asg
 
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.Header
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineText
@@ -43,6 +44,7 @@ class BlockTreeParser(
     private val headingRegex = Regex("""^(=+) (.+)$""")
     private val attributeEntryRegex = Regex("""^:([A-Za-z0-9_][A-Za-z0-9_-]*):(?: (.*))?$""")
     private val listItemRegex = Regex("""^(\*+|\.+|-) (.+)$""")
+    private val blockAttributeRegex = Regex("""^\[([^\[\]]*)\]$""")
 
     private val verbatimDelimiters = mapOf(
         '-' to LeafBlockName.LISTING,
@@ -121,34 +123,64 @@ class BlockTreeParser(
      */
     private fun parseBlocks(reader: Reader, stopHeadingLevel: Int?, closingDelimiter: String?): List<Block> {
         val blocks = mutableListOf<Block>()
+        var pendingMetadata: BlockMetadata? = null
         while (!reader.eof) {
             val line = reader.peek()
             if (line.isBlank()) {
+                pendingMetadata = null // metadata only attaches to an adjacent block
                 reader.next()
                 continue
             }
             if (closingDelimiter != null && line == closingDelimiter) {
                 return blocks // caller consumes the delimiter
             }
+            val blockAttribute = blockAttributeRegex.matchEntire(line)
+            if (blockAttribute != null) {
+                pendingMetadata = parseBlockAttributes(blockAttribute.groupValues[1])
+                reader.next()
+                continue
+            }
             val heading = headingRegex.matchEntire(line)
             if (heading != null) {
                 val level = heading.groupValues[1].length - 1
                 if (stopHeadingLevel != null && level <= stopHeadingLevel) return blocks
+                pendingMetadata = null
                 blocks += parseSection(reader, heading)
                 continue
             }
-            val delimited = tryParseDelimitedBlock(reader)
+            val delimited = tryParseDelimitedBlock(reader, pendingMetadata)
             if (delimited != null) {
+                pendingMetadata = null
                 blocks += delimited
                 continue
             }
             if (listItemRegex.matchEntire(line) != null) {
+                pendingMetadata = null
                 blocks += parseList(reader)
                 continue
             }
-            blocks += parseParagraph(reader, closingDelimiter)
+            blocks += parseParagraph(reader, closingDelimiter, pendingMetadata)
+            pendingMetadata = null
         }
         return blocks
+    }
+
+    /** Parses the inside of a `[...]` attribute line into positional/named attributes. */
+    private fun parseBlockAttributes(raw: String): BlockMetadata {
+        if (raw.isBlank()) return BlockMetadata()
+        val positional = mutableListOf<String>()
+        val named = LinkedHashMap<String, String>()
+        raw.split(',').forEach { part ->
+            val trimmed = part.trim()
+            if (trimmed.isEmpty()) return@forEach
+            val eq = trimmed.indexOf('=')
+            if (eq > 0) {
+                named[trimmed.substring(0, eq).trim()] = trimmed.substring(eq + 1).trim().removeSurrounding("\"")
+            } else {
+                positional += trimmed.removeSurrounding("\"")
+            }
+        }
+        return BlockMetadata(positional = positional, named = named)
     }
 
     private fun parseSection(reader: Reader, heading: MatchResult): SectionBlock {
@@ -184,7 +216,7 @@ class BlockTreeParser(
         return line.all { it == c }
     }
 
-    private fun tryParseDelimitedBlock(reader: Reader): Block? {
+    private fun tryParseDelimitedBlock(reader: Reader, metadata: BlockMetadata? = null): Block? {
         val line = reader.peek()
         if (!isDelimiterLine(line)) return null
         val openLineIndex = reader.index
@@ -217,6 +249,7 @@ class BlockTreeParser(
                 form = LeafBlockForm.DELIMITED,
                 delimiter = line,
                 inlines = inlines,
+                metadata = metadata,
                 location = Location(
                     Position(openLineIndex + 1, 1),
                     Position(endLineIndex + 1, reader.endCol(endLineIndex)),
@@ -235,6 +268,7 @@ class BlockTreeParser(
             name = parentName,
             delimiter = line,
             blocks = children,
+            metadata = metadata,
             location = Location(
                 Position(openLineIndex + 1, 1),
                 Position(closeLineIndex + 1, reader.endCol(closeLineIndex)),
@@ -279,7 +313,7 @@ class BlockTreeParser(
         )
     }
 
-    private fun parseParagraph(reader: Reader, closingDelimiter: String?): LeafBlock {
+    private fun parseParagraph(reader: Reader, closingDelimiter: String?, metadata: BlockMetadata? = null): LeafBlock {
         val startLineIndex = reader.index
         val lines = mutableListOf<String>()
         while (!reader.eof) {
@@ -289,6 +323,7 @@ class BlockTreeParser(
             if (isDelimiterLine(line)) break
             if (headingRegex.matchEntire(line) != null) break
             if (listItemRegex.matchEntire(line) != null) break
+            if (blockAttributeRegex.matchEntire(line) != null) break
             lines.add(reader.next())
         }
         val logical = lines.joinToString("\n")
@@ -298,6 +333,7 @@ class BlockTreeParser(
             name = LeafBlockName.PARAGRAPH,
             form = LeafBlockForm.PARAGRAPH,
             inlines = inlines,
+            metadata = metadata,
             location = Location(
                 Position(startLineIndex + 1, 1),
                 Position(lastLineIndex + 1, reader.endCol(lastLineIndex)),

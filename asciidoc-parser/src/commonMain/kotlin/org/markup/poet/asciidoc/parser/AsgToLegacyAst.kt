@@ -2,6 +2,7 @@ package org.markup.poet.asciidoc.parser
 
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
@@ -20,6 +21,7 @@ import org.markup.poet.asciidoc.ast.BlockElement
 import org.markup.poet.asciidoc.ast.Code
 import org.markup.poet.asciidoc.ast.CodeBlock
 import org.markup.poet.asciidoc.ast.CrossReference
+import org.markup.poet.asciidoc.ast.CustomBlock
 import org.markup.poet.asciidoc.ast.Document
 import org.markup.poet.asciidoc.ast.Emphasis
 import org.markup.poet.asciidoc.ast.InlineElement
@@ -46,9 +48,9 @@ import org.markup.poet.asciidoc.ast.Text
  *   has no equivalent container, so their child blocks are spliced into the
  *   parent's position. Content is preserved; the container itself is LOSSY.
  * - **Verbatim blocks** (listing/literal/pass/stem/verse): mapped to
- *   [CodeBlock] with `language = null`; the ASG's name/form/delimiter axes are
- *   LOSSY. A `[source,lang]` attribute-line paragraph immediately preceding a
- *   listing block is folded into the CodeBlock's language.
+ *   [CodeBlock]; the ASG's name/form/delimiter axes are LOSSY. `[source,lang]`
+ *   block metadata supplies the CodeBlock's language. Blocks whose style is not
+ *   a built-in one become [CustomBlock] for extension processors to claim.
  * - **Mark spans** (`#...#`): the legacy AST has no mark element, so the inner
  *   inlines are spliced in place of the span (delimiters LOSSY).
  * - **Code spans**: legacy [Code] holds a plain string, so nested formatting
@@ -58,7 +60,9 @@ import org.markup.poet.asciidoc.ast.Text
  */
 object AsgToLegacyAst {
 
-    private val sourceAttributeLine = Regex("""^\[source(?:\s*,\s*([^\]]+))?\]$""")
+    /** Built-in block styles that keep their standard mapping. */
+    private val builtInStyles =
+        setOf("source", "listing", "literal", "verse", "quote", "pass", "stem", "example", "sidebar")
 
     fun convert(asg: AsgDocument): Document {
         return Document(
@@ -73,42 +77,13 @@ object AsgToLegacyAst {
     // Blocks
     // -----------------------------------------------------------------------
 
-    private fun mapBlocks(blocks: List<Block>): List<BlockElement> {
-        val result = mutableListOf<BlockElement>()
-        var i = 0
-        while (i < blocks.size) {
-            val block = blocks[i]
-            // Fold a `[source,lang]` attribute-line paragraph into the listing
-            // block that follows it (legacy code blocks carry the language).
-            val language = sourceLanguageOf(block)
-            if (language != null && i + 1 < blocks.size) {
-                val next = blocks[i + 1]
-                if (next is LeafBlock && next.name != LeafBlockName.PARAGRAPH) {
-                    result += CodeBlock(
-                        language = language.ifEmpty { null },
-                        content = plainText(next.inlines),
-                        sourceLocation = next.location.toLegacy(),
-                    )
-                    i += 2
-                    continue
-                }
-            }
-            result += mapBlock(block)
-            i++
-        }
-        return result
-    }
+    private fun mapBlocks(blocks: List<Block>): List<BlockElement> =
+        blocks.flatMap { mapBlock(it) }
 
-    /**
-     * If [block] is a single-line paragraph of the form `[source]` or
-     * `[source,lang]`, returns the language (possibly empty), else null.
-     */
-    private fun sourceLanguageOf(block: Block): String? {
-        if (block !is LeafBlock || block.name != LeafBlockName.PARAGRAPH) return null
-        val only = block.inlines.singleOrNull() as? InlineText ?: return null
-        if (only.value.contains('\n')) return null
-        val match = sourceAttributeLine.matchEntire(only.value) ?: return null
-        return match.groupValues[1].trim()
+    /** Attributes map for [CustomBlock]: positional by 1-based index plus named. */
+    private fun BlockMetadata.toAttributeMap(): Map<String, String> = buildMap {
+        positional.forEachIndexed { index, value -> put((index + 1).toString(), value) }
+        putAll(named)
     }
 
     private fun mapBlock(block: Block): List<BlockElement> = when (block) {
@@ -121,27 +96,39 @@ object AsgToLegacyAst {
             )
         )
 
-        is LeafBlock -> when (block.name) {
-            LeafBlockName.PARAGRAPH -> listOf(
-                Paragraph(
-                    content = mapInlines(block.inlines),
-                    sourceLocation = block.location.toLegacy(),
+        is LeafBlock -> {
+            val style = block.metadata?.positional?.firstOrNull()
+            when {
+                // A non-built-in style claims the block for extension processors.
+                style != null && style !in builtInStyles -> listOf(
+                    CustomBlock(
+                        name = style,
+                        rawContent = plainText(block.inlines),
+                        attributes = block.metadata.toAttributeMap(),
+                        sourceLocation = block.location.toLegacy(),
+                    )
                 )
-            )
-            // Listing/literal/pass/stem/verse all map to the legacy CodeBlock;
-            // the distinction between them is lost.
-            LeafBlockName.LISTING,
-            LeafBlockName.LITERAL,
-            LeafBlockName.PASS,
-            LeafBlockName.STEM,
-            LeafBlockName.VERSE,
-            -> listOf(
-                CodeBlock(
-                    language = null,
-                    content = plainText(block.inlines),
-                    sourceLocation = block.location.toLegacy(),
+                block.name == LeafBlockName.PARAGRAPH -> listOf(
+                    Paragraph(
+                        content = mapInlines(block.inlines),
+                        sourceLocation = block.location.toLegacy(),
+                    )
                 )
-            )
+                // Listing/literal/pass/stem/verse all map to the legacy CodeBlock;
+                // the distinction between them is lost. `[source,lang]` metadata
+                // supplies the language.
+                else -> listOf(
+                    CodeBlock(
+                        language = if (style == "source") {
+                            block.metadata.positional.getOrNull(1) ?: block.metadata.named["language"]
+                        } else {
+                            null
+                        },
+                        content = plainText(block.inlines),
+                        sourceLocation = block.location.toLegacy(),
+                    )
+                )
+            }
         }
 
         // The legacy AST has no sidebar/example/quote/open container: splice

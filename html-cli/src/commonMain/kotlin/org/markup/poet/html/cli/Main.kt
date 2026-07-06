@@ -5,6 +5,7 @@ import org.markup.poet.asciidoc.render.*
 
 // Platform-specific file operations
 expect fun readFileContent(path: String): String
+expect fun readFileBytes(path: String): ByteArray
 expect fun writeFileContent(path: String, content: String)
 expect fun fileExists(path: String): Boolean
 expect fun exitProcess(code: Int): Nothing
@@ -61,7 +62,26 @@ fun main(args: Array<String>) {
         }
         
         println("[HTML-RENDERER] Parse complete")
-        
+
+        // Apply WASM extension plugins to custom blocks
+        var document = parseResult.document
+        if (cliOptions.plugins.isNotEmpty()) {
+            println("[HTML-RENDERER] Loading ${cliOptions.plugins.size} plugin(s)...")
+            val engine = org.markup.poet.plugin.engine.PluginEngine()
+            cliOptions.plugins.forEach { pluginPath ->
+                if (!fileExists(pluginPath)) {
+                    printlnErr("✗ Error: Plugin not found: $pluginPath")
+                    exitProcess(1)
+                }
+                val plugin = engine.loadPlugin(readFileBytes(pluginPath), pluginPath)
+                println("[HTML-RENDERER] Loaded plugin '${plugin.descriptor.name}' (${plugin.id})")
+            }
+            val processed = org.markup.poet.plugin.integration.WasmBlockExtensions(engine).apply(document)
+            processed.warnings.forEach { println("⚠ $it") }
+            document = processed.document
+            engine.unloadAll()
+        }
+
         // Create CSS options from CLI arguments
         val cssOptions = createCssOptions(cliOptions)
         
@@ -78,7 +98,7 @@ fun main(args: Array<String>) {
         val blockRenderer = DefaultBlockRenderer(builder, inlineRenderer)
         val renderer = DefaultHtmlRenderer(blockRenderer, inlineRenderer)
         
-        val renderResult = renderer.render(parseResult.document, renderConfig)
+        val renderResult = renderer.render(document, renderConfig)
         
         when {
             renderResult.isSuccess -> {
@@ -177,6 +197,9 @@ fun printHelp() {
         |                          Default: default
         |  --css-var <var>=<val>   Override CSS variable (can be used multiple times)
         |                          Example: --css-var --mp-color-primary=#007acc
+        |  --plugin <path.wasm>    Load a WASM extension plugin (can be used multiple
+        |                          times); custom blocks whose style a plugin claims
+        |                          are replaced by the plugin's output (docs/PLUGINS.md)
         |
         |Examples:
         |  # Convert document.adoc to document.html with default styling

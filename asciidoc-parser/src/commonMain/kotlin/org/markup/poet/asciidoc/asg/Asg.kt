@@ -60,6 +60,15 @@ data class InlineRef(
 
 sealed interface Block : AsgNode
 
+/**
+ * Block attribute-line metadata (`[style,pos2,key=value]` above a block).
+ * The block style is `positional.firstOrNull()`.
+ */
+data class BlockMetadata(
+    val positional: List<String> = emptyList(),
+    val named: Map<String, String> = emptyMap(),
+)
+
 enum class LeafBlockName(val asgName: String) {
     PARAGRAPH("paragraph"),
     LISTING("listing"),
@@ -81,6 +90,7 @@ data class LeafBlock(
     val form: LeafBlockForm,
     val delimiter: String? = null,
     val inlines: List<Inline>,
+    val metadata: BlockMetadata? = null,
     override val location: Location? = null,
 ) : Block
 
@@ -98,6 +108,7 @@ data class ParentBlock(
     val variant: String? = null,
     val delimiter: String,
     val blocks: List<Block>,
+    val metadata: BlockMetadata? = null,
     override val location: Location? = null,
 ) : Block
 
