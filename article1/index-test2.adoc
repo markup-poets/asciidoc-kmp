@@ -1,0 +1,11 @@
+= Test Article
+
+== Introduction
+
+Testing code blocks without source attribute.
+
+include::chapter1-test2.adoc[]
+
+== End
+
+Done.

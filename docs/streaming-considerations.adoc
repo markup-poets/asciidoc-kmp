@@ -1,0 +1,319 @@
+= Streaming Considerations for AsciiDoc Parser
+:toc:
+:toclevels: 3
+
+== Current Memory Model
+
+The current parser implementation uses eager evaluation with multiple O(n) memory allocations:
+
+[cols="2,3"]
+|===
+|Location |Issue
+
+|`AsciidocParser.parse(source: String)`
+|Entire document loaded as single String
+
+|`AsciidocParser.parse(lines: List<String>)`
+|Full document split into List before processing
+
+|`BlockParser.parseParagraph()`
+|`lines.joinToString(" ")` creates new concatenated string
+
+|`BlockParser.parseCodeBlock()`
+|`lines.joinToString("\n")` creates new concatenated string
+
+|AST structure
+|Complete tree with all nodes materialized in memory
+|===
+
+=== Memory Estimation
+
+For a document of size N:
+
+* Input string: N bytes
+* Line list: ~N bytes (plus object overhead per line)
+* Intermediate concatenations: variable, up to N per block
+* Final AST: proportional to N (node objects + content strings)
+
+*Practical estimate*: 2-3x document size in heap memory.
+
+A 100MB AsciiDoc file would require 200-300MB heap minimum, with GC pressure from intermediate allocations.
+
+== Why AsciiDoc Parsing Resists Streaming
+
+AsciiDoc's syntax has several characteristics that make pure streaming difficult:
+
+=== Block Delimiters Require Matching
+
+Delimited blocks like code blocks use matching delimiters:
+
+[source,asciidoc]
+----
+----
+code content here
+may span many lines
+----
+----
+
+The parser must buffer content until the closing delimiter is found. If the delimiter is missing, the entire remainder of the document becomes block content.
+
+=== Sections Contain Children
+
+Section nodes in the AST contain their child elements:
+
+[source,kotlin]
+----
+data class Section(
+    val level: Int,
+    val title: String,
+    val children: List<BlockElement>,  // Must collect all children
+    ...
+)
+----
+
+A section at level 2 contains all subsequent content until another level-2 (or higher) section appears. This requires buffering potentially large portions of the document.
+
+=== Attribute Substitution Ordering
+
+Document attributes can be defined anywhere and referenced elsewhere:
+
+[source,asciidoc]
+----
+The version is {version}.
+
+:version: 1.0.0
+----
+
+Forward references require either:
+
+* Two-pass processing (collect attributes, then substitute)
+* Deferred substitution markers in the AST
+
+=== Multi-line Element Aggregation
+
+Paragraphs and list items span multiple lines until a block separator:
+
+[source,asciidoc]
+----
+This is a paragraph that
+continues across multiple lines
+until an empty line appears.
+
+Next paragraph starts here.
+----
+
+The parser must buffer lines and join them before creating the Paragraph node.
+
+== Possible Streaming Approaches
+
+=== Option 1: Sequence-Based Input (Minimal Change)
+
+Add a `Sequence<String>` input variant:
+
+[source,kotlin]
+----
+interface AsciidocParser {
+    fun parse(source: String): ParseResult
+    fun parse(lines: List<String>): ParseResult
+    fun parse(lines: Sequence<String>): ParseResult  // Lazy input
+}
+----
+
+*Benefits*:
+
+* No new dependencies
+* File can be read line-by-line without loading entirely into memory
+* Compatible with `File.useLines()` on JVM
+* Minimal API change
+
+*Limitations*:
+
+* AST is still fully materialized
+* Only helps with input memory, not output memory
+* Internal buffering still required for multi-line elements
+
+*Memory improvement*: Reduces peak memory from 3x to ~2x document size.
+
+=== Option 2: SAX-Style Event Streaming with Flow
+
+Emit parsing events instead of building AST:
+
+[source,kotlin]
+----
+sealed class ParseEvent {
+    data class DocumentStart(val attributes: Map<String, String>) : ParseEvent()
+    data class DocumentEnd : ParseEvent()
+    data class SectionStart(val level: Int, val title: String) : ParseEvent()
+    data class SectionEnd(val level: Int) : ParseEvent()
+    data class Paragraph(val content: List<InlineElement>) : ParseEvent()
+    data class ListItemStart(val marker: String) : ParseEvent()
+    data class ListItemEnd : ParseEvent()
+    data class CodeBlock(val language: String?, val content: String) : ParseEvent()
+    data class Text(val content: String) : ParseEvent()
+    // ... etc
+}
+
+interface StreamingAsciidocParser {
+    fun parse(lines: Flow<String>): Flow<ParseEvent>
+}
+----
+
+*Benefits*:
+
+* Consumer controls memory usage
+* Can process arbitrarily large documents
+* Natural fit for reactive pipelines
+* Enables incremental rendering
+
+*Limitations*:
+
+* Requires `kotlinx.coroutines` dependency (breaks zero-dependency goal)
+* Major API change
+* Consumer must track state to reconstruct structure
+* More complex error handling
+* Section boundaries still require some buffering to determine
+
+*Memory improvement*: O(1) for streaming consumer, O(section size) for parser.
+
+=== Option 3: Chunked Section Emission
+
+Emit completed top-level sections as they're parsed:
+
+[source,kotlin]
+----
+interface ChunkedAsciidocParser {
+    fun parseChunked(lines: Sequence<String>): Sequence<ChunkResult>
+}
+
+sealed class ChunkResult {
+    data class DocumentHeader(val title: String?, val attributes: Map<String, String>) : ChunkResult()
+    data class TopLevelSection(val section: Section) : ChunkResult()
+    data class TrailingContent(val blocks: List<BlockElement>) : ChunkResult()
+}
+----
+
+*Benefits*:
+
+* No coroutines dependency
+* Preserves AST structure within chunks
+* Natural boundary for large documents (books, manuals)
+* Simpler than full SAX-style events
+
+*Limitations*:
+
+* Only helps if document has multiple top-level sections
+* Deep nesting still accumulates in memory
+* Preamble content before first section buffered entirely
+
+*Memory improvement*: O(largest section) instead of O(document).
+
+=== Option 4: Platform-Specific Buffered I/O
+
+Use `expect/actual` for optimized platform file reading:
+
+[source,kotlin]
+----
+// commonMain
+expect fun readLinesLazily(path: String): Sequence<String>
+
+// jvmMain
+actual fun readLinesLazily(path: String): Sequence<String> =
+    File(path).bufferedReader().lineSequence()
+
+// nativeMain
+actual fun readLinesLazily(path: String): Sequence<String> =
+    // Platform-specific implementation
+----
+
+*Benefits*:
+
+* Optimized for each platform
+* Integrates with platform I/O conventions
+* Can use memory-mapped files on supported platforms
+
+*Limitations*:
+
+* Introduces file I/O into the library (currently pure transformation)
+* Platform-specific code to maintain
+* Doesn't address AST memory, only input memory
+
+== Recommendation
+
+A phased approach balancing effort and benefit:
+
+=== Phase 1: Sequence Input (Low Effort, Moderate Benefit)
+
+Add `Sequence<String>` input support to existing parser:
+
+* Minimal code change
+* No new dependencies
+* Enables lazy file reading on JVM
+* Reduces peak memory by ~30%
+
+=== Phase 2: Internal Optimization (Medium Effort, Moderate Benefit)
+
+Optimize internal string handling:
+
+* Avoid unnecessary `joinToString()` allocations
+* Use `StringBuilder` for paragraph accumulation
+* Consider `CharSequence` views instead of substring copies
+
+=== Phase 3: Chunked API (Medium Effort, High Benefit for Large Docs)
+
+Add optional chunked parsing for large documents:
+
+* Emit sections as completed
+* Keep current API as default
+* Document memory characteristics
+
+=== Phase 4: Event Streaming (High Effort, High Benefit)
+
+Consider SAX-style streaming only if:
+
+* Real use cases require processing very large files (100MB+)
+* Users are willing to accept coroutines dependency
+* Incremental rendering/processing is needed
+
+== Decision Factors
+
+[cols="2,1,1,1,1"]
+|===
+|Factor |Sequence |SAX/Flow |Chunked |Platform I/O
+
+|Implementation effort
+|Low
+|High
+|Medium
+|Medium
+
+|API compatibility
+|Full
+|Breaking
+|Additive
+|Additive
+
+|New dependencies
+|None
+|coroutines
+|None
+|None
+
+|Memory improvement
+|~30%
+|~90%
+|~60%
+|~30%
+
+|Multiplatform support
+|Full
+|Full
+|Full
+|Partial
+|===
+
+== Open Questions
+
+1. What are the actual document sizes users will process?
+2. Is the zero-dependency goal strict, or can kotlinx.coroutines be considered?
+3. Are there use cases for incremental/progressive rendering?
+4. Should the library handle file I/O, or remain a pure transformation library?

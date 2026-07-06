@@ -55,7 +55,7 @@ val config = RenderConfig(
 val result = renderer.render(document, config)
 ```
 
-See [THEMING_USAGE.md](THEMING_USAGE.md) for complete theming documentation.
+See [docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md) for theming documentation.
 
 ## Installation
 
@@ -87,14 +87,7 @@ The library includes a powerful, pluggable theming system that strictly separate
 
 ### Documentation
 
-📖 **[THEMING_INDEX.md](THEMING_INDEX.md)** - Complete documentation index (start here!)
-
-- **[THEMING_ARCHITECTURE.md](THEMING_ARCHITECTURE.md)** - Architecture overview and design principles
-- **[THEMING_USAGE.md](THEMING_USAGE.md)** - Usage guide with examples and best practices
-- **[THEMING_QUICK_REFERENCE.md](THEMING_QUICK_REFERENCE.md)** - Quick reference card
-- **[THEMING_VISUAL_GUIDE.md](THEMING_VISUAL_GUIDE.md)** - Visual diagrams and flow charts
-- **[KOTLIN_THEME.md](KOTLIN_THEME.md)** - Kotlin theme details and customization
-- **[examples/THEMING_EXAMPLES.md](examples/THEMING_EXAMPLES.md)** - Complete runnable examples
+- **[docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md)** - Architecture overview and design principles
 
 ### Quick Examples
 

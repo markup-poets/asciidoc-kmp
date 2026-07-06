@@ -3,6 +3,7 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(17)
     jvm {
         @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
         mainRun {
