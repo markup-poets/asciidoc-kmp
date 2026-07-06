@@ -8,7 +8,7 @@ if [ $# -lt 2 ]; then
     echo "Usage: $0 <index-file> <output-file>"
     echo ""
     echo "Example:"
-    echo "  $0 article1/index.adoc article1/assembled.adoc"
+    echo "  $0 my-article/index.adoc my-article/assembled.adoc"
     exit 1
 fi
 

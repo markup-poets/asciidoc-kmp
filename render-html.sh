@@ -12,7 +12,7 @@ if [ -z "$1" ]; then
     echo "Examples:"
     echo "  $0 document.adoc"
     echo "  $0 document.adoc output.html"
-    echo "  $0 article1/assembled.adoc article1/index.html"
+    echo "  $0 my-article/assembled.adoc my-article/index.html"
     exit 1
 fi
 
