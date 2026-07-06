@@ -4,8 +4,8 @@ plugins {
     alias(libs.plugins.shadow.jar)
 }
 
-group = "org.markup.poet"
-version = "1.0.0"
+group = "org.markup-poet"
+version = "0.1.0"
 
 kotlin {
     jvmToolchain(17)
@@ -25,6 +25,8 @@ kotlin {
 }
 
 tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
+    // Version-independent name: run-official-tck.sh and CI invoke this jar by path.
+    archiveFileName.set("tck-adapter-all.jar")
     manifest {
         attributes["Main-Class"] = "org.markup.poet.tck.adapter.MainKt"
     }

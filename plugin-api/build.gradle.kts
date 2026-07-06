@@ -4,8 +4,8 @@ plugins {
     alias(libs.plugins.vanniktech.mavenPublish)
 }
 
-group = "org.markup.poet"
-version = "1.0.0"
+group = "org.markup-poet"
+version = "0.1.0"
 
 kotlin {
     jvmToolchain(17)
