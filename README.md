@@ -1,5 +1,9 @@
 # Markup Poet - AsciiDoc Converter
 
+[![Maven Central](https://img.shields.io/maven-central/v/org.markup.poet/asciidoc-parser)](https://central.sonatype.com/namespace/org.markup.poet)
+[![Build](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 A lightweight, spec-compliant AsciiDoc converter library built with Kotlin Multiplatform.
 
 ## Overview
@@ -62,13 +66,42 @@ See [docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md) for theming doc
 
 ## Installation
 
-Add to your `build.gradle.kts`:
+Artifacts are published to [Maven Central](https://central.sonatype.com/namespace/org.markup.poet)
+under the `org.markup.poet` group. Make sure `mavenCentral()` is among your
+repositories (it is by default in new Gradle projects):
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+```
+
+Then add the modules you need — each is a Kotlin Multiplatform library, so a
+single `commonMain` dependency resolves the right variant per target (JVM,
+Android, iOS, Linux):
 
 ```kotlin
 dependencies {
-    implementation("org.markup.poet:asciidoc-parser:$version")     // parser + ASG model
-    implementation("org.markup.poet:document-processing:$version") // includes, conditionals, xrefs (optional)
-    implementation("org.markup.poet:html-renderer:$version")       // HTML output (optional)
+    implementation("org.markup.poet:asciidoc-parser:<version>")     // parser + ASG model (zero deps)
+    implementation("org.markup.poet:document-processing:<version>") // includes, conditionals, TOC, xrefs (optional)
+    implementation("org.markup.poet:html-renderer:<version>")       // HTML output with theming (optional)
+}
+```
+
+Pick `<version>` from the Maven Central badge above. Further modules follow the
+same coordinates pattern: `asciidoc-asg` (official ASG JSON), `asg-graphviz-export`
+(DOT export), `antora-resolution`/`antora-assembler` (multi-file assembly), and
+the `plugin-api`/`plugin-engine`/`plugin-integration` trio (WASM plugins).
+
+In a Kotlin Multiplatform project, declare the dependency in your shared source set:
+
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("org.markup.poet:asciidoc-parser:<version>")
+        }
+    }
 }
 ```
 
