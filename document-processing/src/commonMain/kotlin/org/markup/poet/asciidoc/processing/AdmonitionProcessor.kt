@@ -1,7 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.AdmonitionType
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Interface for processing admonition blocks.
@@ -11,11 +10,11 @@ import org.markup.poet.asciidoc.ast.Document
 interface AdmonitionProcessor {
     /**
      * Process admonition blocks in the document.
-     * 
+     *
      * @param document The document to process
      * @return Result containing the processed document and any warnings
      */
-    fun process(document: Document): AdmonitionResult
+    fun process(document: AsgDocument): AdmonitionResult
 }
 
 /**
@@ -25,15 +24,15 @@ data class AdmonitionResult(
     /**
      * The processed document with admonitions identified and structured.
      */
-    val document: Document,
-    
+    val document: AsgDocument,
+
     /**
      * Warnings encountered during processing (e.g., invalid admonition types).
      */
     val warnings: List<ProcessingWarning>,
-    
+
     /**
-     * Count of admonitions by type.
+     * Count of admonitions by ASG variant ("note", "tip", "warning", "caution", "important").
      */
-    val admonitionCount: Map<AdmonitionType, Int>
+    val admonitionCount: Map<String, Int>
 )

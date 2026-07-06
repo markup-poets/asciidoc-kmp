@@ -115,10 +115,10 @@ data class DependencyGraph(
 data class DependencyNode(
     val filePath: String,
     val dependencies: List<String>,
-    val sourceLocation: SourceLocation?
+    val sourceLocation: FileLocation?
 )
 
-data class SourceLocation(
+data class FileLocation(
     val filePath: String,
     val lineNumber: Int
 )

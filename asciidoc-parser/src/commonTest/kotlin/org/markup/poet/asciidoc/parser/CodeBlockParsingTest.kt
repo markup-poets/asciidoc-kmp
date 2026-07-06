@@ -1,7 +1,9 @@
 package org.markup.poet.asciidoc.parser
 
-import org.markup.poet.asciidoc.ast.CodeBlock
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockForm
+import org.markup.poet.asciidoc.asg.LeafBlockName
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -22,19 +24,25 @@ interface Converter<Output> {
 
         val result = parser.parse(adoc)
         val document = result.document
-        
+
         assertTrue(result.errors.isEmpty(), "Should have no errors, but found: ${result.errors}")
-        assertEquals(1, document.children.size, "Document should have one child")
-        
-        val codeBlock = document.children[0] as? CodeBlock
-        assertTrue(codeBlock != null, "First child should be a CodeBlock, but was ${document.children[0]::class}")
-        
-        assertEquals("kotlin", codeBlock.language)
+        assertEquals(1, document.blocks.size, "Document should have one block")
+
+        val listing = document.blocks[0] as? LeafBlock
+        assertTrue(listing != null, "First block should be a LeafBlock, but was ${document.blocks[0]::class}")
+
+        assertEquals(LeafBlockName.LISTING, listing.name)
+        assertEquals(LeafBlockForm.DELIMITED, listing.form)
+        assertEquals("----", listing.delimiter)
+        assertEquals(listOf("source", "kotlin"), listing.metadata?.positional)
+
         val expectedContent = """
 interface Converter<Output> {
     fun convert(document: Document): Output
 }
         """.trimIndent()
-        assertEquals(expectedContent, codeBlock.content)
+        val text = listing.inlines.single() as? InlineText
+        assertTrue(text != null, "Listing content should be a single text node")
+        assertEquals(expectedContent, text.value)
     }
 }

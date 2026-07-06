@@ -9,7 +9,12 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockForm
+import org.markup.poet.asciidoc.asg.LeafBlockName
 import org.markup.poet.asciidoc.error.ErrorSeverity
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.error.ParseWarning
@@ -25,22 +30,22 @@ class ErrorHandlingAndRecoveryTest : StringSpec({
         checkAll(100, malformedAsciidocContent()) { malformedContent ->
             // Create a parser that can handle errors
             val parser = createTestParser()
-            
+
             // Parse the malformed content
-            val result = parser.parse(malformedContent.lines)
-            
+            val result = parser.parse(malformedContent.lines.joinToString("\n"))
+
             // Verify that errors are reported with proper information
             if (malformedContent.expectedErrors > 0) {
                 result.errors.shouldNotBeEmpty()
-                
+
                 // Each error should have a line number and description
                 result.errors.forEach { error ->
-                    error.location.line shouldBeGreaterThan 0
+                    error.line shouldBeGreaterThan 0
                     error.message.shouldNotBe("")
                     error.severity.shouldBeInstanceOf<ErrorSeverity>()
                 }
             }
-            
+
             // Parser should always return a document, even with errors
             result.document shouldNotBe null
         }
@@ -49,17 +54,17 @@ class ErrorHandlingAndRecoveryTest : StringSpec({
     "Property 12a: Parser should recover from errors and continue parsing" {
         checkAll(100, mixedValidAndInvalidContent()) { mixedContent ->
             val parser = createTestParser()
-            val result = parser.parse(mixedContent.lines)
-            
+            val result = parser.parse(mixedContent.lines.joinToString("\n"))
+
             // Parser should continue parsing after errors
             result.document shouldNotBe null
-            
+
             // Should have parsed some valid content despite errors
             if (mixedContent.validContentLines > 0) {
-                val hasContent = result.document.children.isNotEmpty() || result.document.title != null
+                val hasContent = result.document.blocks.isNotEmpty() || result.document.header != null
                 hasContent shouldBe true
             }
-            
+
             // Should report errors for invalid parts
             if (mixedContent.invalidContentLines > 0) {
                 val hasIssues = result.errors.isNotEmpty() || result.warnings.isNotEmpty()
@@ -71,27 +76,27 @@ class ErrorHandlingAndRecoveryTest : StringSpec({
     "Property 12b: Parser should collect all errors and warnings without stopping" {
         checkAll(100, multipleErrorContent()) { errorContent ->
             val parser = createTestParser()
-            val result = parser.parse(errorContent.lines)
-            
+            val result = parser.parse(errorContent.lines.joinToString("\n"))
+
             // Parser should not crash and should return a result
             result shouldNotBe null
             result.document shouldNotBe null
-            
+
             // Should collect multiple errors if present
             if (errorContent.expectedErrorCount > 1) {
                 (result.errors.size >= 1) shouldBe true
             }
-            
+
             // All errors should have proper structure
             result.errors.forEach { error ->
                 error.message.shouldNotBe("")
-                error.location.line shouldBeGreaterThan 0
+                error.line shouldBeGreaterThan 0
             }
-            
+
             // All warnings should have proper structure
             result.warnings.forEach { warning ->
                 warning.message.shouldNotBe("")
-                warning.location.line shouldBeGreaterThan 0
+                warning.line shouldBeGreaterThan 0
             }
         }
     }
@@ -99,16 +104,16 @@ class ErrorHandlingAndRecoveryTest : StringSpec({
     "Property 12c: Parser should provide mechanism to retrieve all errors and warnings" {
         checkAll(100, contentWithErrorsAndWarnings()) { content ->
             val parser = createTestParser()
-            val result = parser.parse(content.lines)
-            
+            val result = parser.parse(content.lines.joinToString("\n"))
+
             // Result should provide access to errors and warnings
             result.errors shouldNotBe null
             result.warnings shouldNotBe null
-            
+
             // Lists should be properly structured
             result.errors.shouldBeInstanceOf<List<ParseError>>()
             result.warnings.shouldBeInstanceOf<List<ParseWarning>>()
-            
+
             // If content has issues, they should be captured
             val totalIssues = result.errors.size + result.warnings.size
             if (content.hasIssues) {
@@ -124,63 +129,62 @@ private fun createTestParser(): AsciidocParser {
     // For now, return a mock parser that demonstrates error handling
     return object : AsciidocParser {
         override fun parse(source: String): ParseResult {
-            return parse(source.lines())
-        }
-        
-        override fun parse(lines: List<String>): ParseResult {
+            val lines = source.lines()
             val errors = mutableListOf<ParseError>()
             val warnings = mutableListOf<ParseWarning>()
-            
-            // Simulate error detection
+            val blocks = mutableListOf<Block>()
+
+            // Simulate error detection with recovery: every non-blank line still
+            // produces content, even when it also produces an error.
             lines.forEachIndexed { index, line ->
                 val lineNumber = index + 1
-                
+
                 // Detect various error conditions
                 when {
                     line.trim().startsWith("===== ") -> {
                         errors.add(ParseError(
                             message = "Section header level too deep (maximum 4 levels)",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
                     line.contains("*unclosed bold") -> {
                         errors.add(ParseError(
                             message = "Unclosed bold markup",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
                     line.contains("_unclosed italic") -> {
                         errors.add(ParseError(
                             message = "Unclosed italic markup",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
                     line.contains("----") && !line.trim().all { it == '-' } -> {
                         warnings.add(ParseWarning(
                             message = "Malformed code block delimiter",
-                            location = SourceLocation(lineNumber)
+                            line = lineNumber
                         ))
                     }
                 }
+
+                if (line.isNotBlank()) {
+                    blocks.add(
+                        LeafBlock(
+                            name = LeafBlockName.PARAGRAPH,
+                            form = LeafBlockForm.PARAGRAPH,
+                            inlines = listOf(InlineText(line))
+                        )
+                    )
+                }
             }
-            
-            // Create a minimal document
-            val document = createMinimalDocument()
-            
-            return ParseResult(document, errors, warnings)
+
+            return ParseResult(AsgDocument(blocks = blocks), errors, warnings)
         }
     }
 }
-
-private fun createMinimalDocument() = org.markup.poet.asciidoc.ast.Document(
-    title = null,
-    children = emptyList(),
-    documentAttributes = emptyMap(),
-    sourceLocation = SourceLocation(1)
-)
 
 // Test data generators
 data class MalformedContent(
@@ -229,13 +233,13 @@ private fun malformedAsciidocContent(): Arb<MalformedContent> = Arb.choice(
 )
 
 private fun mixedValidAndInvalidContent(): Arb<MixedContent> = arbitrary { rs ->
-    val validLines = Arb.list(Arb.string(), 1..5).bind()
+    val validLines = Arb.list(Arb.string(1..30).filter { it.isNotBlank() }, 1..5).bind()
     val invalidLines = Arb.list(Arb.choice(
         Arb.constant("*unclosed bold"),
         Arb.constant("_unclosed italic"),
         Arb.constant("===== too deep")
     ), 1..3).bind()
-    
+
     val allLines = validLines + invalidLines
     MixedContent(
         lines = allLines.shuffled(),

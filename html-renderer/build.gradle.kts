@@ -35,8 +35,8 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // Dependency on asciidoc-parser for AST node types
-            implementation(project(":asciidoc-parser"))
+            // Dependency on asciidoc-parser for the ASG node types exposed in the render API
+            api(project(":asciidoc-parser"))
         }
 
         commonTest.dependencies {

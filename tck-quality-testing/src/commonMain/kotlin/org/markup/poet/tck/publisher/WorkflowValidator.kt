@@ -1,6 +1,8 @@
 package org.markup.poet.tck.publisher
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.plainText
 
 /**
  * Validator for TCK results publishing workflow stages.
@@ -46,10 +48,10 @@ interface WorkflowValidator {
      * - Document has sections (summary, results, metadata)
      * - Document structure is reasonable (not empty, not malformed)
      *
-     * @param ast The Document AST to validate
+     * @param ast The ASG document to validate
      * @return ValidationResult indicating success or failure with error details
      */
-    fun validateAst(ast: Document): ValidationResult
+    fun validateAst(ast: AsgDocument): ValidationResult
     
     /**
      * Validate that the rendered HTML is valid HTML5 and contains expected content.
@@ -178,42 +180,32 @@ class DefaultWorkflowValidator : WorkflowValidator {
         }
     }
     
-    override fun validateAst(ast: Document): ValidationResult {
+    override fun validateAst(ast: AsgDocument): ValidationResult {
         val errors = mutableListOf<String>()
         
         // Check 1: Document has a title
-        if (ast.title.isNullOrBlank()) {
+        val title = ast.header?.title?.let { plainText(it) }
+        if (title.isNullOrBlank()) {
             errors.add("Document AST missing title")
         }
         
-        // Check 2: Document has content (children)
-        if (ast.children.isEmpty()) {
+        // Check 2: Document has content blocks
+        if (ast.blocks.isEmpty()) {
             errors.add("Document AST has no content blocks")
         }
         
         // Check 3: Document has sections (at least 2 for summary and results)
-        val sectionCount = ast.children.count { block ->
-            block::class.simpleName == "Section"
-        }
+        val sectionCount = ast.blocks.count { it is SectionBlock }
         if (sectionCount < 2) {
             errors.add("Document AST has insufficient sections (expected at least 2, found $sectionCount)")
         }
         
         // Check 4: Document structure is reasonable (has some content depth)
         // A valid TCK results document should have sections with actual content
-        val hasContentInSections = ast.children.any { block ->
-            // Check if it's a Section with children
-            if (block::class.simpleName == "Section") {
-                // Use reflection-like approach to check if section has children
-                // For now, we'll check if the block's string representation suggests it has content
-                val blockStr = block.toString()
-                blockStr.contains("Paragraph") || blockStr.contains("Table") || blockStr.contains("List")
-            } else {
-                // Non-section blocks count as content
-                true
-            }
+        val hasContentInSections = ast.blocks.any { block ->
+            if (block is SectionBlock) block.blocks.isNotEmpty() else true
         }
-        if (!hasContentInSections) {
+        if (ast.blocks.isNotEmpty() && !hasContentInSections) {
             errors.add("Document AST appears too shallow (sections have no content)")
         }
         

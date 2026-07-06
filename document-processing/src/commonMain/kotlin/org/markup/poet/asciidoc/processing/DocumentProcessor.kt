@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Main interface for document processing.
@@ -9,11 +9,10 @@ import org.markup.poet.asciidoc.ast.Document
 interface DocumentProcessor {
     /**
      * Process a document according to the provided configuration.
-     * 
+     *
      * @param document The parsed document to process
      * @param config Configuration controlling which processors are enabled and their behavior
      * @return ProcessingResult containing the processed document and any errors or warnings
      */
-    fun process(document: Document, config: ProcessingConfig): ProcessingResult
+    fun process(document: AsgDocument, config: ProcessingConfig): ProcessingResult
 }
-

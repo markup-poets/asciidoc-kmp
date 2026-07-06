@@ -1,8 +1,8 @@
 package org.markup.poet.cli
 
-import org.markup.poet.asciidoc.processing.FileReader
 import org.markup.poet.asciidoc.parser.AsciidocParser
 import org.markup.poet.asciidoc.processing.DocumentProcessor
+import org.markup.poet.asciidoc.processing.FileReader
 import org.markup.poet.asciidoc.processing.ProcessingConfig
 
 /**

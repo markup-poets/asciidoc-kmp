@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Validates document structure and reports issues.
@@ -9,12 +9,12 @@ import org.markup.poet.asciidoc.ast.Document
 interface DocumentValidator {
     /**
      * Validates the document structure and content.
-     * 
+     *
      * @param document The document to validate
      * @param config Configuration controlling validation behavior
      * @return Result containing validation errors and warnings
      */
-    fun validate(document: Document, config: ValidationConfig): ValidationResult
+    fun validate(document: AsgDocument, config: ValidationConfig): ValidationResult
 }
 
 /**
@@ -44,7 +44,7 @@ data class ValidationResult(
             warnings = emptyList(),
             isValid = true
         )
-        
+
         /**
          * Creates a validation result from errors and warnings.
          */

@@ -9,7 +9,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.error.ErrorSeverity
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.error.ParseWarning
@@ -24,19 +24,19 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
     "Property 13: Parser should report appropriate errors for malformed block delimiters" {
         checkAll(100, malformedBlockDelimiters()) { malformedBlock ->
             val parser = createTestParser()
-            val result = parser.parse(malformedBlock.lines)
-            
+            val result = parser.parse(malformedBlock.lines.joinToString("\n"))
+
             // Parser should report errors for malformed delimiters
             if (malformedBlock.shouldHaveErrors) {
                 result.errors.shouldNotBeEmpty()
-                
+
                 // Errors should have proper structure and reference the malformed syntax
                 result.errors.forEach { error ->
-                    error.location.line shouldBeGreaterThan 0
+                    error.line shouldBeGreaterThan 0
                     error.message.shouldNotBe("")
                     error.severity.shouldBeInstanceOf<ErrorSeverity>()
                 }
-                
+
                 // Should have at least one error related to the malformed syntax
                 val hasRelevantError = result.errors.any { error ->
                     error.message.contains("malformed", ignoreCase = true) ||
@@ -46,7 +46,7 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
                 }
                 hasRelevantError shouldBe true
             }
-            
+
             // Parser should still return a document (not crash)
             result.document shouldNotBe null
         }
@@ -55,8 +55,8 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
     "Property 13a: Parser should report errors for unmatched code block delimiters" {
         checkAll(100, unmatchedCodeBlockDelimiters()) { unmatchedBlock ->
             val parser = createTestParser()
-            val result = parser.parse(unmatchedBlock.lines)
-            
+            val result = parser.parse(unmatchedBlock.lines.joinToString("\n"))
+
             // Should report error for unmatched delimiters
             if (unmatchedBlock.hasUnmatchedDelimiters) {
                 val hasDelimiterError = result.errors.any { error ->
@@ -66,7 +66,7 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
                 }
                 hasDelimiterError shouldBe true
             }
-            
+
             // Parser should continue and return a document
             result.document shouldNotBe null
         }
@@ -75,8 +75,8 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
     "Property 13b: Parser should report errors for invalid section header syntax" {
         checkAll(100, invalidSectionHeaders()) { invalidHeader ->
             val parser = createTestParser()
-            val result = parser.parse(invalidHeader.lines)
-            
+            val result = parser.parse(invalidHeader.lines.joinToString("\n"))
+
             // Should report error for invalid section headers
             if (invalidHeader.isInvalid) {
                 val hasSectionError = result.errors.any { error ->
@@ -87,7 +87,7 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
                 }
                 hasSectionError shouldBe true
             }
-            
+
             // Parser should continue and return a document
             result.document shouldNotBe null
         }
@@ -96,8 +96,8 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
     "Property 13c: Parser should report errors for malformed list syntax" {
         checkAll(100, malformedListSyntax()) { malformedList ->
             val parser = createTestParser()
-            val result = parser.parse(malformedList.lines)
-            
+            val result = parser.parse(malformedList.lines.joinToString("\n"))
+
             // Should report error for malformed list syntax
             if (malformedList.isMalformed) {
                 val hasListError = result.errors.any { error ->
@@ -107,7 +107,7 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
                 }
                 hasListError shouldBe true
             }
-            
+
             // Parser should continue and return a document
             result.document shouldNotBe null
         }
@@ -119,93 +119,81 @@ class MalformedSyntaxErrorReportingTest : StringSpec({
 private fun createTestParser(): AsciidocParser {
     return object : AsciidocParser {
         override fun parse(source: String): ParseResult {
-            return parse(source.lines())
-        }
-        
-        override fun parse(lines: List<String>): ParseResult {
+            val lines = source.lines()
             val errors = mutableListOf<ParseError>()
             val warnings = mutableListOf<ParseWarning>()
-            
+
             // Simulate malformed syntax detection
             lines.forEachIndexed { index, line ->
                 val lineNumber = index + 1
                 val trimmed = line.trim()
-                
+
                 // Detect malformed block delimiters
                 when {
                     // Malformed code block delimiters
                     trimmed.startsWith("----") && !trimmed.all { it == '-' } -> {
                         errors.add(ParseError(
                             message = "Malformed code block delimiter: must contain only dashes",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
-                    
+
                     // Unmatched code block delimiters (simplified detection)
                     trimmed == "----" && lines.drop(index + 1).none { it.trim() == "----" } -> {
                         errors.add(ParseError(
                             message = "Unmatched code block delimiter: no closing delimiter found",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
-                    
+
                     // Invalid section headers (too many levels)
                     trimmed.startsWith("=") && trimmed.takeWhile { it == '=' }.length > 6 -> {
                         errors.add(ParseError(
                             message = "Invalid section header: too many levels (maximum 6)",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
-                    
+
                     // Section headers without space after equals
                     trimmed.startsWith("=") && !trimmed.contains(" ") -> {
                         errors.add(ParseError(
                             message = "Invalid section header: missing space after equals signs",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
-                    
+
                     // Malformed list markers
                     trimmed.matches(Regex("^\\*{2,}\\s.*")) -> {
                         errors.add(ParseError(
                             message = "Malformed list marker: multiple asterisks not supported",
-                            location = SourceLocation(lineNumber),
+                            line = lineNumber,
                             severity = ErrorSeverity.ERROR
                         ))
                     }
-                    
+
                     // List items without space after marker
                     (trimmed.startsWith("*") && !trimmed.startsWith("* ")) ||
                     (trimmed.startsWith("-") && !trimmed.startsWith("- ")) -> {
                         if (trimmed.length > 1) {
                             errors.add(ParseError(
                                 message = "Malformed list marker: missing space after marker",
-                                location = SourceLocation(lineNumber),
+                                line = lineNumber,
                                 severity = ErrorSeverity.ERROR
                             ))
                         }
                     }
                 }
             }
-            
-            // Create a minimal document
-            val document = createMinimalDocument()
-            
-            return ParseResult(document, errors, warnings)
+
+            // Errors never abort parsing: a document is always produced
+            return ParseResult(AsgDocument(), errors, warnings)
         }
     }
 }
-
-private fun createMinimalDocument() = org.markup.poet.asciidoc.ast.Document(
-    title = null,
-    children = emptyList(),
-    documentAttributes = emptyMap(),
-    sourceLocation = SourceLocation(1)
-)
 
 // Test data generators for malformed syntax
 data class MalformedBlockDelimiter(

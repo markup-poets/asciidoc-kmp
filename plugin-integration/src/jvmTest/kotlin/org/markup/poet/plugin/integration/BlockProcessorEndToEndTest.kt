@@ -1,7 +1,11 @@
 package org.markup.poet.plugin.integration
 
-import org.markup.poet.asciidoc.ast.CustomBlock
-import org.markup.poet.asciidoc.ast.PassthroughBlock
+import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRaw
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.RawBlock
+import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.asciidoc.render.DefaultBlockRenderer
 import org.markup.poet.asciidoc.render.DefaultHtmlBuilder
@@ -37,22 +41,24 @@ class BlockProcessorEndToEndTest {
     }
 
     @Test
-    fun parserPreservesUnknownBlockStyleAsCustomBlock() {
+    fun parserPreservesUnknownBlockStyleAsCustomStyledLeafBlock() {
         val document = DefaultAsciidocParser().parse(source).document
-        val custom = document.children.filterIsInstance<CustomBlock>().single()
-        assertEquals("shout", custom.name)
-        assertEquals("hello plugins", custom.rawContent)
-        assertEquals("shout", custom.attributes["1"])
+        val custom = document.blocks.filterIsInstance<LeafBlock>()
+            .single { it.metadata?.positional?.firstOrNull() == "shout" }
+        assertEquals(LeafBlockName.LISTING, custom.name)
+        assertEquals("hello plugins", plainText(custom.inlines))
+        assertEquals("shout", custom.metadata?.positional?.firstOrNull())
     }
 
     @Test
-    fun pluginReplacesCustomBlockWithHtmlPassthrough() {
+    fun pluginReplacesCustomStyledBlockWithRawHtmlBlock() {
         val engine = loadEngine()
         val document = DefaultAsciidocParser().parse(source).document
         val result = WasmExtensions(engine).apply(document)
 
-        val passthrough = result.document.children.filterIsInstance<PassthroughBlock>().single()
-        assertEquals("<div class=\"shout\">HELLO PLUGINS!</div>", passthrough.content)
+        val raw = result.document.blocks.filterIsInstance<RawBlock>().single()
+        assertEquals("html", raw.format)
+        assertEquals("<div class=\"shout\">HELLO PLUGINS!</div>", raw.content)
         assertTrue(result.warnings.isEmpty(), "unexpected warnings: ${result.warnings}")
         engine.unloadAll()
     }
@@ -80,8 +86,9 @@ class BlockProcessorEndToEndTest {
         val parsed = DefaultAsciidocParser().parse("see issue:123[] for details").document
         val processed = WasmExtensions(engine).apply(parsed).document
 
-        val paragraph = processed.children.filterIsInstance<org.markup.poet.asciidoc.ast.Paragraph>().single()
-        val raw = paragraph.content.filterIsInstance<org.markup.poet.asciidoc.ast.RawInline>().single()
+        val paragraph = processed.blocks.filterIsInstance<LeafBlock>()
+            .single { it.name == LeafBlockName.PARAGRAPH }
+        val raw = paragraph.inlines.filterIsInstance<InlineRaw>().single()
         assertTrue("issues/123" in raw.content && ">#123</a>" in raw.content)
         engine.unloadAll()
     }
@@ -92,18 +99,21 @@ class BlockProcessorEndToEndTest {
         val parsed = DefaultAsciidocParser().parse("bad issue:abc[] target").document
         val result = WasmExtensions(engine).apply(parsed)
 
-        val paragraph = result.document.children.filterIsInstance<org.markup.poet.asciidoc.ast.Paragraph>().single()
-        assertTrue(paragraph.content.any { it is org.markup.poet.asciidoc.ast.MacroInvocation })
+        val paragraph = result.document.blocks.filterIsInstance<LeafBlock>()
+            .single { it.name == LeafBlockName.PARAGRAPH }
+        assertTrue(paragraph.inlines.any { it is InlineMacro })
         assertTrue(result.warnings.isNotEmpty())
         engine.unloadAll()
     }
 
     @Test
-    fun unclaimedCustomBlockIsLeftForFallbackRendering() {
+    fun unclaimedCustomStyleBlockIsLeftForFallbackRendering() {
         val engine = loadEngine()
         val document = DefaultAsciidocParser().parse("[gallery]\n----\nx\n----").document
         val result = WasmExtensions(engine).apply(document)
-        assertIs<CustomBlock>(result.document.children.single())
+        val block = result.document.blocks.single()
+        assertIs<LeafBlock>(block)
+        assertEquals("gallery", block.metadata?.positional?.firstOrNull())
         engine.unloadAll()
     }
 }

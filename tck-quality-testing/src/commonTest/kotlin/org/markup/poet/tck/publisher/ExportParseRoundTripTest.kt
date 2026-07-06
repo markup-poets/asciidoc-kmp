@@ -183,8 +183,8 @@ class ExportParseRoundTripTest {
         // Assert - Document structure should be valid
         val document = parseResult.document
         assertNotNull(document, "Parsed document should not be null")
-        assertNotNull(document.title, "Document should have a title")
-        assertTrue(document.children.isNotEmpty(), "Document should have content blocks")
+        assertNotNull(document.header?.title, "Document should have a title")
+        assertTrue(document.blocks.isNotEmpty(), "Document should have content blocks")
     }
     
     @Test
@@ -386,11 +386,11 @@ class ExportParseRoundTripTest {
         val document = parseResult.document
         
         // Should have a title
-        assertNotNull(document.title, "Document should have a title")
+        assertNotNull(document.header?.title, "Document should have a title")
         
         // Should have multiple sections (Summary, Test Results, Failed Tests, Metadata)
         assertTrue(
-            document.children.isNotEmpty(),
+            document.blocks.isNotEmpty(),
             "Document should have content blocks"
         )
         

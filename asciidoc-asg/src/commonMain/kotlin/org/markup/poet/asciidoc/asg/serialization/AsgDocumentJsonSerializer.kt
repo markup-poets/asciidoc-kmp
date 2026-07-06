@@ -9,15 +9,24 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.BibliographyEntryBlock
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.BlockMacro
 import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.BreakBlock
+import org.markup.poet.asciidoc.asg.CommentBlock
+import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DListItem
 import org.markup.poet.asciidoc.asg.DiscreteHeading
+import org.markup.poet.asciidoc.asg.IncludeBlock
 import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineAttributeRef
+import org.markup.poet.asciidoc.asg.InlineCallout
+import org.markup.poet.asciidoc.asg.InlineCitation
+import org.markup.poet.asciidoc.asg.InlineFootnote
 import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRaw
 import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
@@ -27,6 +36,7 @@ import org.markup.poet.asciidoc.asg.ListBlock
 import org.markup.poet.asciidoc.asg.ListItem
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.SectionBlock
 
 /**
@@ -146,6 +156,12 @@ class AsgDocumentJsonSerializer(
             addMetadata(block.metadata)
             addLocation(block.location)
         }
+        // Processing-phase extension nodes are not part of the official schema;
+        // they must be resolved by document-processing before serializing.
+        is CommentBlock, is IncludeBlock, is ConditionalBlock, is BibliographyEntryBlock, is RawBlock -> error(
+            "${block::class.simpleName} has no official ASG serialization; " +
+                "it must be resolved by document-processing before serializing",
+        )
     }
 
     private fun dlistItemToJson(item: DListItem): JsonObject = buildJsonObject {
@@ -234,6 +250,11 @@ class AsgDocumentJsonSerializer(
         is InlineMacro -> error(
             "Inline macro '${inline.name}:${inline.target}[…]' has no official ASG serialization; " +
                 "macros must be expanded by an extension before serializing",
+        )
+        // Processing-phase extension nodes are not part of the official schema.
+        is InlineAttributeRef, is InlineCallout, is InlineCitation, is InlineFootnote, is InlineRaw -> error(
+            "${inline::class.simpleName} has no official ASG serialization; " +
+                "it must be resolved by document-processing before serializing",
         )
     }
 

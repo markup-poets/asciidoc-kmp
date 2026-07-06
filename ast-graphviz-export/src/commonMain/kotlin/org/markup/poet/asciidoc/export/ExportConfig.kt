@@ -5,7 +5,7 @@ package org.markup.poet.asciidoc.export
  */
 data class ExportConfig(
     val includeAttributes: Boolean = true,
-    val includeSourceLocations: Boolean = false,
+    val includeLocations: Boolean = false,
     val colorScheme: ColorScheme = ColorScheme.DEFAULT,
     val nodeShape: NodeShape = NodeShape.ELLIPSE,
     val orientation: GraphOrientation = GraphOrientation.LEFT_RIGHT

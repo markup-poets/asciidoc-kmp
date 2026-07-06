@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.parser
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.error.ParseWarning
 
@@ -9,21 +9,16 @@ import org.markup.poet.asciidoc.error.ParseWarning
  */
 interface AsciidocParser {
     /**
-     * Parse AsciiDoc source text into a document AST.
+     * Parse AsciiDoc source text into the ASG document model.
      */
     fun parse(source: String): ParseResult
-    
-    /**
-     * Parse AsciiDoc source lines into a document AST.
-     */
-    fun parse(lines: List<String>): ParseResult
 }
 
 /**
- * Result of parsing operation containing the document AST and any errors/warnings.
+ * Result of parsing operation containing the ASG document and any errors/warnings.
  */
 data class ParseResult(
-    val document: Document,
+    val document: AsgDocument,
     val errors: List<ParseError>,
     val warnings: List<ParseWarning>
 )

@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Interface for custom document processors that can be registered with the extension system.
@@ -11,21 +11,21 @@ interface CustomProcessor {
      * Unique name identifying this processor.
      */
     val name: String
-    
+
     /**
      * Priority determining execution order within a phase.
      * Higher priority processors execute first.
      */
     val priority: ProcessorPriority
-    
+
     /**
      * Process the document and return the result.
-     * 
+     *
      * @param document The document to process
      * @param context Processing context with configuration and shared state
      * @return Result containing the processed document and any errors/warnings
      */
-    fun process(document: Document, context: ProcessingContext): ProcessorResult
+    fun process(document: AsgDocument, context: ProcessingContext): ProcessorResult
 }
 
 /**
@@ -48,12 +48,12 @@ data class ProcessingContext(
      * Configuration for the processing pipeline.
      */
     val config: ProcessingConfig,
-    
+
     /**
      * Current phase of processing.
      */
     val currentPhase: ProcessingPhase,
-    
+
     /**
      * Shared data that can be used to pass information between processors.
      * Processors can read and write to this map.
@@ -69,37 +69,37 @@ enum class ProcessingPhase {
      * Before include resolution.
      */
     PRE_INCLUDE,
-    
+
     /**
      * After include resolution.
      */
     POST_INCLUDE,
-    
+
     /**
      * Before attribute substitution.
      */
     PRE_ATTRIBUTE,
-    
+
     /**
      * After attribute substitution.
      */
     POST_ATTRIBUTE,
-    
+
     /**
      * Before macro expansion.
      */
     PRE_MACRO,
-    
+
     /**
      * After macro expansion.
      */
     POST_MACRO,
-    
+
     /**
      * Before validation.
      */
     PRE_VALIDATION,
-    
+
     /**
      * After validation.
      */
@@ -113,18 +113,18 @@ data class ProcessorResult(
     /**
      * The processed document.
      */
-    val document: Document,
-    
+    val document: AsgDocument,
+
     /**
      * Errors encountered during processing.
      */
     val errors: List<ProcessingError> = emptyList(),
-    
+
     /**
      * Warnings generated during processing.
      */
     val warnings: List<ProcessingWarning> = emptyList(),
-    
+
     /**
      * Whether to continue processing with remaining processors.
      * If false, the pipeline will halt after this processor.

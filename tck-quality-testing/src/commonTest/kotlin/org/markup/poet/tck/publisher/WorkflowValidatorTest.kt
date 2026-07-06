@@ -1,10 +1,12 @@
 package org.markup.poet.tck.publisher
 
-import org.markup.poet.asciidoc.ast.Document
-import org.markup.poet.asciidoc.ast.Section
-import org.markup.poet.asciidoc.ast.Paragraph
-import org.markup.poet.asciidoc.ast.Text
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Header
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockForm
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.SectionBlock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -194,53 +196,32 @@ class WorkflowValidatorTest {
     
     // ========== AST Validation Tests ==========
     
+    private fun section(title: String, vararg blocks: org.markup.poet.asciidoc.asg.Block) = SectionBlock(
+        title = listOf(InlineText(title)),
+        level = 1,
+        blocks = blocks.toList()
+    )
+    
+    private fun paragraph(text: String) = LeafBlock(
+        name = LeafBlockName.PARAGRAPH,
+        form = LeafBlockForm.PARAGRAPH,
+        inlines = listOf(InlineText(text))
+    )
+    
     @Test
     fun `validateAst should accept valid document AST`() {
-        val document = Document(
-            title = "AsciiDoc Konvert - TCK Results",
-            children = listOf(
-                Section(
-                    level = 2,
-                    title = "Summary",
-                    children = listOf(
-                        Paragraph(
-                            content = listOf(
-                                Text(
-                                    content = "Some summary content here that makes it substantial",
-                                    attributes = emptyMap(),
-                                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                                )
-                            ),
-                            attributes = emptyMap(),
-                            sourceLocation = SourceLocation(1, 1, 1, 1)
-                        )
-                    ),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
+        val document = AsgDocument(
+            header = Header(title = listOf(InlineText("AsciiDoc Konvert - TCK Results"))),
+            blocks = listOf(
+                section(
+                    "Summary",
+                    paragraph("Some summary content here that makes it substantial")
                 ),
-                Section(
-                    level = 2,
-                    title = "Test Results",
-                    children = listOf(
-                        Paragraph(
-                            content = listOf(
-                                Text(
-                                    content = "Some test results content here that makes it substantial",
-                                    attributes = emptyMap(),
-                                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                                )
-                            ),
-                            attributes = emptyMap(),
-                            sourceLocation = SourceLocation(1, 1, 1, 1)
-                        )
-                    ),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
+                section(
+                    "Test Results",
+                    paragraph("Some test results content here that makes it substantial")
                 )
-            ),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = SourceLocation(1, 1, 1, 1)
+            )
         )
         
         val result = validator.validateAst(document)
@@ -251,20 +232,9 @@ class WorkflowValidatorTest {
     
     @Test
     fun `validateAst should reject document without title`() {
-        val document = Document(
-            title = null,
-            children = listOf(
-                Section(
-                    level = 2,
-                    title = "Summary",
-                    children = emptyList(),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                )
-            ),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = SourceLocation(1, 1, 1, 1)
+        val document = AsgDocument(
+            header = null,
+            blocks = listOf(section("Summary"))
         )
         
         val result = validator.validateAst(document)
@@ -275,20 +245,9 @@ class WorkflowValidatorTest {
     
     @Test
     fun `validateAst should reject document with empty title`() {
-        val document = Document(
-            title = "",
-            children = listOf(
-                Section(
-                    level = 2,
-                    title = "Summary",
-                    children = emptyList(),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                )
-            ),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = SourceLocation(1, 1, 1, 1)
+        val document = AsgDocument(
+            header = Header(title = listOf(InlineText(""))),
+            blocks = listOf(section("Summary"))
         )
         
         val result = validator.validateAst(document)
@@ -299,12 +258,9 @@ class WorkflowValidatorTest {
     
     @Test
     fun `validateAst should reject document with no blocks`() {
-        val document = Document(
-            title = "Title",
-            children = emptyList(),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = SourceLocation(1, 1, 1, 1)
+        val document = AsgDocument(
+            header = Header(title = listOf(InlineText("Title"))),
+            blocks = emptyList()
         )
         
         val result = validator.validateAst(document)
@@ -315,20 +271,9 @@ class WorkflowValidatorTest {
     
     @Test
     fun `validateAst should reject document with insufficient sections`() {
-        val document = Document(
-            title = "Title",
-            children = listOf(
-                Section(
-                    level = 2,
-                    title = "Only One Section",
-                    children = emptyList(),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                )
-            ),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = SourceLocation(1, 1, 1, 1)
+        val document = AsgDocument(
+            header = Header(title = listOf(InlineText("Title"))),
+            blocks = listOf(section("Only One Section"))
         )
         
         val result = validator.validateAst(document)
@@ -339,27 +284,9 @@ class WorkflowValidatorTest {
     
     @Test
     fun `validateAst should reject document that appears too shallow`() {
-        val document = Document(
-            title = "Title",
-            children = listOf(
-                Section(
-                    level = 2,
-                    title = "S1",
-                    children = emptyList(),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                ),
-                Section(
-                    level = 2,
-                    title = "S2",
-                    children = emptyList(),
-                    attributes = emptyMap(),
-                    sourceLocation = SourceLocation(1, 1, 1, 1)
-                )
-            ),
-            documentAttributes = emptyMap(),
-            attributes = emptyMap(),
-            sourceLocation = SourceLocation(1, 1, 1, 1)
+        val document = AsgDocument(
+            header = Header(title = listOf(InlineText("Title"))),
+            blocks = listOf(section("S1"), section("S2"))
         )
         
         val result = validator.validateAst(document)

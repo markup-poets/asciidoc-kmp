@@ -1,8 +1,8 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
-import org.markup.poet.asciidoc.ast.InlineElement
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.Location
 
 /**
  * Interface for managing footnotes and bibliography entries.
@@ -12,11 +12,11 @@ import org.markup.poet.asciidoc.ast.SourceLocation
 interface BibliographyManager {
     /**
      * Process footnotes and bibliography entries in the document.
-     * 
+     *
      * @param document The document to process
      * @return Result containing the processed document, footnotes, bibliography, and warnings
      */
-    fun process(document: Document): BibliographyResult
+    fun process(document: AsgDocument): BibliographyResult
 }
 
 /**
@@ -25,8 +25,8 @@ interface BibliographyManager {
 data class Footnote(
     val id: String,
     val number: Int,
-    val content: List<InlineElement>,
-    val sourceLocation: SourceLocation
+    val content: List<Inline>,
+    val location: Location?
 )
 
 /**
@@ -36,18 +36,18 @@ data class BibliographyResult(
     /**
      * The processed document with resolved footnote and bibliography references.
      */
-    val document: Document,
-    
+    val document: AsgDocument,
+
     /**
      * List of all footnotes in document order with assigned numbers.
      */
     val footnotes: List<Footnote>,
-    
+
     /**
      * List of all bibliography entries indexed by ID.
      */
     val bibliography: Map<String, BibliographyEntryData>,
-    
+
     /**
      * Warnings encountered during processing (e.g., unresolved references).
      */
@@ -61,5 +61,5 @@ data class BibliographyEntryData(
     val id: String,
     val citation: String,
     val metadata: Map<String, String>,
-    val sourceLocation: SourceLocation
+    val location: Location?
 )

@@ -1,6 +1,12 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.BibliographyEntryBlock
+import org.markup.poet.asciidoc.asg.InlineCitation
+import org.markup.poet.asciidoc.asg.InlineFootnote
+import org.markup.poet.asciidoc.asg.inlineListsOf
+import org.markup.poet.asciidoc.asg.visitBlocks
+import org.markup.poet.asciidoc.asg.visitInlines
 
 /**
  * Default implementation of BibliographyManager.
@@ -8,32 +14,22 @@ import org.markup.poet.asciidoc.ast.*
  * and resolves references.
  */
 class DefaultBibliographyManager : BibliographyManager {
-    
-    override fun process(document: Document): BibliographyResult {
+
+    override fun process(document: AsgDocument): BibliographyResult {
         val warnings = mutableListOf<ProcessingWarning>()
         val footnoteMap = mutableMapOf<String, Footnote>()
         val bibliographyMap = mutableMapOf<String, BibliographyEntryData>()
         val footnoteOrder = mutableListOf<String>()
-        
+
         // First pass: collect all footnotes and bibliography entries
-        collectFootnotesAndBibliography(
-            document,
-            footnoteMap,
-            bibliographyMap,
-            footnoteOrder
-        )
-        
+        collectFootnotesAndBibliography(document, footnoteMap, bibliographyMap, footnoteOrder)
+
         // Assign sequential numbers to footnotes based on first occurrence
         val numberedFootnotes = assignFootnoteNumbers(footnoteMap, footnoteOrder)
-        
+
         // Second pass: validate all references
-        validateReferences(
-            document,
-            numberedFootnotes,
-            bibliographyMap,
-            warnings
-        )
-        
+        validateReferences(document, numberedFootnotes, bibliographyMap, warnings)
+
         return BibliographyResult(
             document = document,
             footnotes = numberedFootnotes.values.sortedBy { it.number },
@@ -41,158 +37,42 @@ class DefaultBibliographyManager : BibliographyManager {
             warnings = warnings
         )
     }
-    
+
     /**
-     * Collect all footnotes and bibliography entries from the document.
+     * Collect all footnotes and bibliography entries from the document in document order.
      */
     private fun collectFootnotesAndBibliography(
-        document: Document,
+        document: AsgDocument,
         footnoteMap: MutableMap<String, Footnote>,
         bibliographyMap: MutableMap<String, BibliographyEntryData>,
         footnoteOrder: MutableList<String>
     ) {
-        collectFromBlockElements(
-            document.children,
-            footnoteMap,
-            bibliographyMap,
-            footnoteOrder
-        )
-    }
-    
-    /**
-     * Recursively collect footnotes and bibliography entries from block elements.
-     */
-    private fun collectFromBlockElements(
-        elements: List<BlockElement>,
-        footnoteMap: MutableMap<String, Footnote>,
-        bibliographyMap: MutableMap<String, BibliographyEntryData>,
-        footnoteOrder: MutableList<String>
-    ) {
-        for (element in elements) {
-            when (element) {
-                is Paragraph -> {
-                    collectFromInlineElements(
-                        element.content,
-                        footnoteMap,
-                        footnoteOrder
-                    )
-                }
-                is Section -> {
-                    collectFromBlockElements(
-                        element.children,
-                        footnoteMap,
-                        bibliographyMap,
-                        footnoteOrder
-                    )
-                }
-                is AsciiDocList -> {
-                    for (item in element.items) {
-                        collectFromListItem(
-                            item,
-                            footnoteMap,
-                            footnoteOrder
-                        )
-                    }
-                }
-                is AdmonitionBlock -> {
-                    collectFromBlockElements(
-                        element.content,
-                        footnoteMap,
-                        bibliographyMap,
-                        footnoteOrder
-                    )
-                }
-                is ConditionalDirective -> {
-                    collectFromBlockElements(
-                        element.content,
-                        footnoteMap,
-                        bibliographyMap,
-                        footnoteOrder
-                    )
-                    collectFromBlockElements(
-                        element.elseContent,
-                        footnoteMap,
-                        bibliographyMap,
-                        footnoteOrder
-                    )
-                }
-                is BibliographyEntry -> {
-                    // Collect bibliography entry
-                    bibliographyMap[element.id] = BibliographyEntryData(
-                        id = element.id,
-                        citation = element.citation,
-                        metadata = element.metadata,
-                        sourceLocation = element.sourceLocation
-                    )
-                }
-                is Document -> {
-                    collectFootnotesAndBibliography(
-                        element,
-                        footnoteMap,
-                        bibliographyMap,
-                        footnoteOrder
-                    )
-                }
-                else -> {
-                    // Other block types don't contain inline content
-                }
+        visitBlocks(document.blocks) { block ->
+            if (block is BibliographyEntryBlock) {
+                bibliographyMap[block.id] = BibliographyEntryData(
+                    id = block.id,
+                    citation = block.citation,
+                    metadata = block.entryMetadata,
+                    location = block.location
+                )
             }
-        }
-    }
-    
-    /**
-     * Collect footnotes from list items.
-     */
-    private fun collectFromListItem(
-        item: ListItem,
-        footnoteMap: MutableMap<String, Footnote>,
-        footnoteOrder: MutableList<String>
-    ) {
-        collectFromInlineElements(item.content, footnoteMap, footnoteOrder)
-        
-        item.nestedList?.let { nestedList ->
-            for (nestedItem in nestedList.items) {
-                collectFromListItem(nestedItem, footnoteMap, footnoteOrder)
-            }
-        }
-    }
-    
-    /**
-     * Collect footnotes from inline elements.
-     */
-    private fun collectFromInlineElements(
-        elements: List<InlineElement>,
-        footnoteMap: MutableMap<String, Footnote>,
-        footnoteOrder: MutableList<String>
-    ) {
-        for (element in elements) {
-            when (element) {
-                is FootnoteReference -> {
-                    // Track first occurrence order
-                    if (!footnoteMap.containsKey(element.id)) {
-                        footnoteOrder.add(element.id)
-                        // Create footnote with placeholder number (will be assigned later)
-                        footnoteMap[element.id] = Footnote(
-                            id = element.id,
+            inlineListsOf(block).forEach { inlines ->
+                visitInlines(inlines) { inline ->
+                    if (inline is InlineFootnote && !footnoteMap.containsKey(inline.id)) {
+                        // Track first occurrence order; number is assigned later
+                        footnoteOrder.add(inline.id)
+                        footnoteMap[inline.id] = Footnote(
+                            id = inline.id,
                             number = 0, // Placeholder
-                            content = element.content,
-                            sourceLocation = element.sourceLocation
+                            content = inline.inlines,
+                            location = inline.location
                         )
                     }
-                }
-                is Strong -> {
-                    collectFromInlineElements(element.content, footnoteMap, footnoteOrder)
-                }
-                is Emphasis -> {
-                    collectFromInlineElements(element.content, footnoteMap, footnoteOrder)
-                }
-                else -> {
-                    // Other inline types don't contain nested elements
                 }
             }
         }
     }
-    
+
     /**
      * Assign sequential numbers to footnotes based on first occurrence order.
      */
@@ -201,167 +81,50 @@ class DefaultBibliographyManager : BibliographyManager {
         footnoteOrder: List<String>
     ): Map<String, Footnote> {
         val numberedFootnotes = mutableMapOf<String, Footnote>()
-        
+
         footnoteOrder.forEachIndexed { index, id ->
             val footnote = footnoteMap[id]
             if (footnote != null) {
                 numberedFootnotes[id] = footnote.copy(number = index + 1)
             }
         }
-        
+
         return numberedFootnotes
     }
-    
+
     /**
      * Validate all footnote and bibliography references in the document.
      */
     private fun validateReferences(
-        document: Document,
+        document: AsgDocument,
         footnoteMap: Map<String, Footnote>,
         bibliographyMap: Map<String, BibliographyEntryData>,
         warnings: MutableList<ProcessingWarning>
     ) {
-        validateBlockElements(
-            document.children,
-            footnoteMap,
-            bibliographyMap,
-            warnings
-        )
-    }
-    
-    /**
-     * Recursively validate references in block elements.
-     */
-    private fun validateBlockElements(
-        elements: List<BlockElement>,
-        footnoteMap: Map<String, Footnote>,
-        bibliographyMap: Map<String, BibliographyEntryData>,
-        warnings: MutableList<ProcessingWarning>
-    ) {
-        for (element in elements) {
-            when (element) {
-                is Paragraph -> {
-                    validateInlineElements(
-                        element.content,
-                        footnoteMap,
-                        bibliographyMap,
-                        warnings
-                    )
-                }
-                is Section -> {
-                    validateBlockElements(
-                        element.children,
-                        footnoteMap,
-                        bibliographyMap,
-                        warnings
-                    )
-                }
-                is AsciiDocList -> {
-                    for (item in element.items) {
-                        validateListItem(
-                            item,
-                            footnoteMap,
-                            bibliographyMap,
-                            warnings
-                        )
-                    }
-                }
-                is AdmonitionBlock -> {
-                    validateBlockElements(
-                        element.content,
-                        footnoteMap,
-                        bibliographyMap,
-                        warnings
-                    )
-                }
-                is ConditionalDirective -> {
-                    validateBlockElements(
-                        element.content,
-                        footnoteMap,
-                        bibliographyMap,
-                        warnings
-                    )
-                    validateBlockElements(
-                        element.elseContent,
-                        footnoteMap,
-                        bibliographyMap,
-                        warnings
-                    )
-                }
-                is Document -> {
-                    validateReferences(
-                        element,
-                        footnoteMap,
-                        bibliographyMap,
-                        warnings
-                    )
-                }
-                else -> {
-                    // Other block types don't contain inline content
-                }
-            }
-        }
-    }
-    
-    /**
-     * Validate references in list items.
-     */
-    private fun validateListItem(
-        item: ListItem,
-        footnoteMap: Map<String, Footnote>,
-        bibliographyMap: Map<String, BibliographyEntryData>,
-        warnings: MutableList<ProcessingWarning>
-    ) {
-        validateInlineElements(item.content, footnoteMap, bibliographyMap, warnings)
-        
-        item.nestedList?.let { nestedList ->
-            for (nestedItem in nestedList.items) {
-                validateListItem(nestedItem, footnoteMap, bibliographyMap, warnings)
-            }
-        }
-    }
-    
-    /**
-     * Validate footnote and bibliography references in inline elements.
-     */
-    private fun validateInlineElements(
-        elements: List<InlineElement>,
-        footnoteMap: Map<String, Footnote>,
-        bibliographyMap: Map<String, BibliographyEntryData>,
-        warnings: MutableList<ProcessingWarning>
-    ) {
-        for (element in elements) {
-            when (element) {
-                is FootnoteReference -> {
-                    if (!footnoteMap.containsKey(element.id)) {
-                        warnings.add(
-                            ProcessingWarning(
-                                message = "Unresolved footnote reference: ${element.id}",
-                                location = element.sourceLocation,
-                                warningType = ProcessingWarningType.FOOTNOTE_UNRESOLVED
+        visitBlocks(document.blocks) { block ->
+            inlineListsOf(block).forEach { inlines ->
+                visitInlines(inlines) { inline ->
+                    when (inline) {
+                        is InlineFootnote -> if (!footnoteMap.containsKey(inline.id)) {
+                            warnings.add(
+                                ProcessingWarning(
+                                    message = "Unresolved footnote reference: ${inline.id}",
+                                    location = inline.location,
+                                    warningType = ProcessingWarningType.FOOTNOTE_UNRESOLVED
+                                )
                             )
-                        )
-                    }
-                }
-                is BibliographyReference -> {
-                    if (!bibliographyMap.containsKey(element.citationId)) {
-                        warnings.add(
-                            ProcessingWarning(
-                                message = "Unresolved bibliography reference: ${element.citationId}",
-                                location = element.sourceLocation,
-                                warningType = ProcessingWarningType.BIBLIOGRAPHY_UNRESOLVED
+                        }
+                        is InlineCitation -> if (!bibliographyMap.containsKey(inline.citationId)) {
+                            warnings.add(
+                                ProcessingWarning(
+                                    message = "Unresolved bibliography reference: ${inline.citationId}",
+                                    location = inline.location,
+                                    warningType = ProcessingWarningType.BIBLIOGRAPHY_UNRESOLVED
+                                )
                             )
-                        )
+                        }
+                        else -> Unit
                     }
-                }
-                is Strong -> {
-                    validateInlineElements(element.content, footnoteMap, bibliographyMap, warnings)
-                }
-                is Emphasis -> {
-                    validateInlineElements(element.content, footnoteMap, bibliographyMap, warnings)
-                }
-                else -> {
-                    // Other inline types don't contain nested elements
                 }
             }
         }

@@ -1,5 +1,6 @@
 package org.markup.poet.tck.publisher
 
+import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.tck.execution.AggregatedResults
 import org.markup.poet.tck.execution.CategoryResults
@@ -435,8 +436,8 @@ class ExportParseRenderTest {
         
         val document = parseResult.document
         assertNotNull(document, "Document should not be null")
-        assertNotNull(document.title, "Document should have a title")
-        assertTrue(document.children.isNotEmpty(), "Document should have content")
+        assertNotNull(document.header, "Document should have a title")
+        assertTrue(document.blocks.isNotEmpty(), "Document should have content")
         
         // Note: We cannot verify HTML content until the renderer is fully implemented
         // Once implemented, we would verify that the HTML contains the same information
@@ -557,8 +558,8 @@ class ExportParseRenderTest {
         val document = parseResult.document
         
         // Should have a title
-        assertNotNull(document.title, "Document should have a title")
-        val title = document.title!!
+        assertNotNull(document.header, "Document should have a title")
+        val title = plainText(document.header!!.title)
         assertTrue(
             title.contains("TCK") || title.contains("Results"),
             "Title should mention TCK or Results. Got: $title"
@@ -566,7 +567,7 @@ class ExportParseRenderTest {
         
         // Should have multiple sections (Summary, Test Results, Failed Tests, Metadata)
         assertTrue(
-            document.children.isNotEmpty(),
+            document.blocks.isNotEmpty(),
             "Document should have content blocks"
         )
         

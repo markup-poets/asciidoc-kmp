@@ -2,7 +2,8 @@ package org.markup.poet.cli
 
 import org.markup.poet.asciidoc.error.ParseError
 import org.markup.poet.asciidoc.error.ParseWarning
-import org.markup.poet.asciidoc.ast.SourceLocation
+import org.markup.poet.asciidoc.asg.Location
+import org.markup.poet.asciidoc.asg.Position
 import org.markup.poet.asciidoc.processing.ProcessingError
 import org.markup.poet.asciidoc.processing.ProcessingWarning
 import org.markup.poet.asciidoc.processing.ProcessingErrorType
@@ -17,7 +18,9 @@ import kotlin.test.assertTrue
  * Tests consistent error and warning formatting across CLI commands.
  */
 class ErrorFormatterTest {
-    
+
+    private fun loc(line: Int) = Location(Position(line, 1), Position(line, 1))
+
     @Test
     fun `should format error with message only`() {
         val result = ErrorFormatter.formatError("Something went wrong")
@@ -140,8 +143,8 @@ class ErrorFormatterTest {
     @Test
     fun `should format parse errors with file path`() {
         val parseErrors = listOf(
-            ParseError("Unexpected token", SourceLocation(10, 5)),
-            ParseError("Missing closing bracket", SourceLocation(15, 10))
+            ParseError("Unexpected token", line = 10, column = 5),
+            ParseError("Missing closing bracket", line = 15, column = 10)
         )
         
         val result = ErrorFormatter.formatParseErrors(parseErrors, "document.adoc")
@@ -157,8 +160,8 @@ class ErrorFormatterTest {
     @Test
     fun `should format processing errors`() {
         val processingErrors = listOf(
-            ProcessingError("Include not found", SourceLocation(5, 0), ProcessingErrorType.INCLUDE_NOT_FOUND),
-            ProcessingError("Max depth exceeded", SourceLocation(10, 0), ProcessingErrorType.INCLUDE_MAX_DEPTH_EXCEEDED)
+            ProcessingError("Include not found", loc(5), ProcessingErrorType.INCLUDE_NOT_FOUND),
+            ProcessingError("Max depth exceeded", loc(10), ProcessingErrorType.INCLUDE_MAX_DEPTH_EXCEEDED)
         )
         
         val result = ErrorFormatter.formatProcessingErrors(processingErrors)
@@ -216,8 +219,8 @@ class ErrorFormatterTest {
     @Test
     fun `should format parse warnings`() {
         val parseWarnings = listOf(
-            ParseWarning("Deprecated attribute", SourceLocation(5, 0)),
-            ParseWarning("Unused macro", SourceLocation(10, 0))
+            ParseWarning("Deprecated attribute", line = 5, column = 0),
+            ParseWarning("Unused macro", line = 10, column = 0)
         )
         
         val result = ErrorFormatter.formatParseWarnings(parseWarnings, "document.adoc")
@@ -233,8 +236,8 @@ class ErrorFormatterTest {
     @Test
     fun `should format processing warnings`() {
         val processingWarnings = listOf(
-            ProcessingWarning("Include depth approaching limit", SourceLocation(8, 0), ProcessingWarningType.WHITESPACE_NORMALIZATION),
-            ProcessingWarning("Circular reference detected", SourceLocation(12, 0), ProcessingWarningType.CROSS_REFERENCE_UNRESOLVED)
+            ProcessingWarning("Include depth approaching limit", loc(8), ProcessingWarningType.WHITESPACE_NORMALIZATION),
+            ProcessingWarning("Circular reference detected", loc(12), ProcessingWarningType.CROSS_REFERENCE_UNRESOLVED)
         )
         
         val result = ErrorFormatter.formatProcessingWarnings(processingWarnings)

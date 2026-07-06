@@ -140,6 +140,7 @@ data class SectionBlock(
     val title: List<Inline>,
     val level: Int,
     val blocks: List<Block>,
+    val metadata: BlockMetadata? = null,
     override val location: Location? = null,
 ) : Block
 

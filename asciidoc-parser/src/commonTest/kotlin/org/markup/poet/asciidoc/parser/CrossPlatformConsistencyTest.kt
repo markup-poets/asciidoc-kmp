@@ -3,12 +3,9 @@ package org.markup.poet.asciidoc.parser
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import io.kotest.matchers.collections.shouldHaveSize
-import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
-import org.markup.poet.asciidoc.ast.*
 
 /**
  * Property-based tests for cross-platform consistency.
@@ -24,13 +21,14 @@ class CrossPlatformConsistencyTest : StringSpec({
         result.document shouldNotBe null
     }
 
-    "Property 14: Cross-Platform Consistency - Parser should produce identical AST results across all platforms using platform-neutral operations" {
+    "Property 14: Cross-Platform Consistency - Parser should produce identical ASG results across all platforms using platform-neutral operations" {
         checkAll(10, asciidocDocumentGenerator()) { document ->
             // Parse the same document multiple times to ensure consistency
             val result1 = parser.parse(document)
             val result2 = parser.parse(document)
-            val result3 = parser.parse(document.lines())
-            
+            // Splitting into lines and rejoining must be neutral as well
+            val result3 = parser.parse(document.lines().joinToString("\n"))
+
             // All parsing results should be identical
             result1.document shouldBe result2.document
             result1.document shouldBe result3.document
@@ -47,7 +45,7 @@ class CrossPlatformConsistencyTest : StringSpec({
 private fun asciidocDocumentGenerator(): Arb<String> = arbitrary { rs ->
     val sections = Arb.list(sectionGenerator(), 0..2).bind()
     val paragraphs = Arb.list(paragraphLineGenerator(), 0..3).bind()
-    
+
     (sections + paragraphs).joinToString("\n")
 }
 
@@ -57,5 +55,5 @@ private fun sectionGenerator(): Arb<String> = arbitrary { rs ->
     "${"=".repeat(level)} $title"
 }
 
-private fun paragraphLineGenerator(): Arb<String> = 
+private fun paragraphLineGenerator(): Arb<String> =
     Arb.string(10..50).filter { it.isNotBlank() && !it.startsWith("=") && !it.startsWith("*") && !it.startsWith("-") }

@@ -96,9 +96,9 @@ class DotBuilder(private val config: ExportConfig) {
             }
             
             // Add source location if configured
-            if (config.includeSourceLocations && node.sourceLocation != null) {
-                val location = node.sourceLocation
-                builder.append(", xlabel=\"${location.line}:${location.column}\"")
+            if (config.includeLocations && node.location != null) {
+                val location = node.location
+                builder.append(", xlabel=\"${location.start.line}:${location.start.col}\"")
             }
             
             builder.append("];\n")
@@ -144,29 +144,44 @@ class DotBuilder(private val config: ExportConfig) {
     }
     
     /**
-     * Gets basic styling attributes for a node type.
-     * @param nodeType The AST node type
+     * Gets basic styling attributes for a node kind (see [asgNodeKind]).
+     * @param nodeType The ASG node kind
      * @return DOT styling attributes string
      */
     private fun getBasicNodeStyle(nodeType: String): String {
         return when (nodeType) {
             "Document" -> "shape=doubleoctagon, fillcolor=lightblue, style=filled"
             "Section" -> "shape=box, fillcolor=lightgreen, style=filled"
+            "DiscreteHeading" -> "shape=box, fillcolor=palegreen, style=filled"
             "Paragraph" -> "shape=box, fillcolor=lightyellow, style=filled"
-            "AsciiDocList" -> "shape=folder, fillcolor=lightcoral, style=filled"
-            "ListItem" -> "shape=box, fillcolor=mistyrose, style=filled"
-            "CodeBlock" -> "shape=box, fillcolor=lightgray, style=filled, fontname=\"Courier\""
+            "List", "DList" -> "shape=folder, fillcolor=lightcoral, style=filled"
+            "ListItem", "DListItem" -> "shape=box, fillcolor=mistyrose, style=filled"
+            "Verbatim" -> "shape=box, fillcolor=lightgray, style=filled, fontname=\"Courier\""
+            "Custom" -> "shape=box, fillcolor=lightsteelblue, style=\"filled,dashed\""
+            "Admonition" -> "shape=box, fillcolor=khaki, style=filled, peripheries=2"
+            "Example", "Sidebar", "Open", "Quote" -> "shape=tab, fillcolor=lightgoldenrod, style=filled"
             "Comment" -> "shape=box, fillcolor=lightpink, style=\"filled,dashed\""
             "CalloutList" -> "shape=folder, fillcolor=lightsalmon, style=filled"
-            "CalloutListItem" -> "shape=box, fillcolor=peachpuff, style=filled"
+            "CalloutItem" -> "shape=box, fillcolor=peachpuff, style=filled"
+            "Break" -> "shape=box, fillcolor=gray90, style=filled"
+            "BlockMacro" -> "shape=box, fillcolor=lightsteelblue, style=filled"
+            "Include" -> "shape=box, fillcolor=wheat, style=filled"
+            "Conditional" -> "shape=diamond, fillcolor=wheat, style=filled"
+            "BibliographyEntry" -> "shape=box, fillcolor=thistle, style=filled"
+            "RawBlock" -> "shape=box, fillcolor=gray80, style=filled"
             "Text" -> "shape=ellipse, fillcolor=white, style=filled"
             "Strong" -> "shape=ellipse, fillcolor=gold, style=\"filled,bold\""
             "Emphasis" -> "shape=ellipse, fillcolor=lavender, style=filled, fontname=\"Arial-Italic\""
-            "Code" -> "shape=ellipse, fillcolor=lightgray, style=filled, fontname=\"Courier\""
-            "Link" -> "shape=ellipse, fillcolor=lightcyan, style=filled"
+            "CodeSpan" -> "shape=ellipse, fillcolor=lightgray, style=filled, fontname=\"Courier\""
+            "Mark" -> "shape=ellipse, fillcolor=yellow, style=filled"
+            "Link", "XRef" -> "shape=ellipse, fillcolor=lightcyan, style=filled"
             "Image" -> "shape=ellipse, fillcolor=lightsteelblue, style=filled"
-            "AttributeReference" -> "shape=diamond, fillcolor=wheat, style=filled"
+            "InlineMacro" -> "shape=ellipse, fillcolor=white, style=filled"
+            "AttributeRef" -> "shape=diamond, fillcolor=wheat, style=filled"
             "Callout" -> "shape=circle, fillcolor=orange, style=filled"
+            "Footnote" -> "shape=ellipse, fillcolor=mistyrose, style=filled"
+            "Citation" -> "shape=ellipse, fillcolor=thistle, style=filled"
+            "RawInline" -> "shape=ellipse, fillcolor=gray80, style=filled"
             else -> "shape=ellipse, fillcolor=white, style=filled"
         }
     }

@@ -24,9 +24,9 @@ class DebugStrongTest {
         try {
             val result = parser.parse(input)
             println("✅ Parsed successfully!")
-            println("Document children: ${result.document.children.size}")
+            println("Document children: ${result.document.blocks.size}")
             
-            result.document.children.forEach { child ->
+            result.document.blocks.forEach { child ->
                 println("  - ${child::class.simpleName}")
             }
         } catch (e: Exception) {

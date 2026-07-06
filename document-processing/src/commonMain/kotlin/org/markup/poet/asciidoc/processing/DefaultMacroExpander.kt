@@ -1,228 +1,216 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.AsgNode
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineSpan
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.Location
+import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.SectionBlock
 
 /**
- * Default implementation of MacroExpander that processes macro invocations in the document.
+ * Default implementation of MacroExpander that processes [InlineMacro] invocations in the document.
+ *
+ * Built-in macro names (link, image, xref) are structural and left untouched;
+ * every other macro must be claimed by a registered [MacroProcessor].
  */
 class DefaultMacroExpander : MacroExpander {
-    
-    override fun expand(document: Document, config: MacroConfig): MacroResult {
+
+    /** Macro names with a structural meaning that must never be treated as custom macros. */
+    private val builtinMacroNames = setOf("link", "image", "xref")
+
+    override fun expand(document: AsgDocument, config: MacroConfig): MacroResult {
         val errors = mutableListOf<ProcessingError>()
-        
-        // Process the document and expand all macros
-        val processedChildren = document.children.flatMap { child ->
-            expandInBlock(child, document, config, errors)
+
+        val processedBlocks = document.blocks.map { block ->
+            expandInBlock(block, document, config, errors)
         }
-        
-        val processedDocument = document.copy(children = processedChildren)
-        
-        return MacroResult(processedDocument, errors)
+
+        return MacroResult(document.copy(blocks = processedBlocks), errors)
     }
-    
+
     /**
-     * Expands macros in a block element.
-     * Returns a list of block elements (may be more than one if macro generates multiple blocks).
+     * Expands macros in a block, recursing into nested blocks and inline lists.
      */
     private fun expandInBlock(
-        block: BlockElement,
-        document: Document,
+        block: Block,
+        document: AsgDocument,
         config: MacroConfig,
         errors: MutableList<ProcessingError>
-    ): List<BlockElement> {
+    ): Block {
+        fun recurse(blocks: List<Block>): List<Block> =
+            blocks.map { expandInBlock(it, document, config, errors) }
+
+        fun mapInlines(inlines: List<Inline>): List<Inline> =
+            expandInInlineList(inlines, document, config, errors)
+
         return when (block) {
-            is Section -> {
-                val processedChildren = block.children.flatMap { child ->
-                    expandInBlock(child, document, config, errors)
-                }
-                listOf(block.copy(children = processedChildren))
+            is SectionBlock -> block.copy(blocks = recurse(block.blocks))
+            // Verbatim blocks (listing/literal/...) never contain macros.
+            is LeafBlock -> if (block.name == LeafBlockName.PARAGRAPH) {
+                block.copy(inlines = mapInlines(block.inlines))
+            } else {
+                block
             }
-            is Paragraph -> {
-                val processedContent = expandInInlineList(block.content, document, config, errors)
-                listOf(block.copy(content = processedContent))
-            }
-            is AsciiDocList -> {
-                val processedItems = block.items.map { item ->
-                    expandInListItem(item, document, config, errors)
-                }
-                listOf(block.copy(items = processedItems))
-            }
-            is CalloutList -> {
-                val processedItems = block.items.map { item ->
-                    val processedContent = expandInInlineList(item.content, document, config, errors)
-                    item.copy(content = processedContent)
-                }
-                listOf(block.copy(items = processedItems))
-            }
-            is ListItem -> {
-                listOf(expandInListItem(block, document, config, errors))
-            }
-            // Other block types don't contain macros
-            else -> listOf(block)
+            is ParentBlock -> block.copy(blocks = recurse(block.blocks))
+            is ListBlock -> block.copy(items = block.items.map { item ->
+                item.copy(principal = mapInlines(item.principal), blocks = recurse(item.blocks))
+            })
+            is DListBlock -> block.copy(items = block.items.map { item ->
+                item.copy(
+                    terms = item.terms.map { mapInlines(it) },
+                    principal = mapInlines(item.principal),
+                    blocks = recurse(item.blocks)
+                )
+            })
+            else -> block
         }
     }
-    
-    /**
-     * Expands macros in a list item.
-     */
-    private fun expandInListItem(
-        item: ListItem,
-        document: Document,
-        config: MacroConfig,
-        errors: MutableList<ProcessingError>
-    ): ListItem {
-        val processedContent = expandInInlineList(item.content, document, config, errors)
-        val processedNestedList = item.nestedList?.let { nestedList ->
-            val processedItems = nestedList.items.map { nestedItem ->
-                expandInListItem(nestedItem, document, config, errors)
-            }
-            nestedList.copy(items = processedItems)
-        }
-        return item.copy(content = processedContent, nestedList = processedNestedList)
-    }
-    
+
     /**
      * Expands macros in a list of inline elements.
      */
     private fun expandInInlineList(
-        inlines: List<InlineElement>,
-        document: Document,
+        inlines: List<Inline>,
+        document: AsgDocument,
         config: MacroConfig,
         errors: MutableList<ProcessingError>
-    ): List<InlineElement> {
+    ): List<Inline> {
         return inlines.flatMap { inline ->
             expandInInline(inline, document, config, errors)
         }
     }
-    
+
     /**
      * Expands macros in an inline element.
      * Returns a list of inline elements (may be more than one if macro generates multiple inlines).
      */
     private fun expandInInline(
-        inline: InlineElement,
-        document: Document,
+        inline: Inline,
+        document: AsgDocument,
         config: MacroConfig,
         errors: MutableList<ProcessingError>
-    ): List<InlineElement> {
+    ): List<Inline> {
         return when (inline) {
-            is MacroInvocation -> {
-                // This is a macro invocation - expand it
+            is InlineMacro -> if (inline.name in builtinMacroNames) {
+                listOf(inline)
+            } else {
                 expandMacro(inline, document, config, errors)
             }
-            is Strong -> {
-                val processedContent = expandInInlineList(inline.content, document, config, errors)
-                listOf(inline.copy(content = processedContent))
-            }
-            is Emphasis -> {
-                val processedContent = expandInInlineList(inline.content, document, config, errors)
-                listOf(inline.copy(content = processedContent))
-            }
+            is InlineSpan -> listOf(
+                inline.copy(inlines = expandInInlineList(inline.inlines, document, config, errors))
+            )
             // Other inline types don't contain macros
             else -> listOf(inline)
         }
     }
-    
+
     /**
      * Expands a single macro invocation.
      */
     private fun expandMacro(
-        macro: MacroInvocation,
-        document: Document,
+        macro: InlineMacro,
+        document: AsgDocument,
         config: MacroConfig,
         errors: MutableList<ProcessingError>
-    ): List<InlineElement> {
+    ): List<Inline> {
+        val parameters = parametersOf(macro)
+
         // Find the appropriate macro processor
-        val processor = config.customMacros[macro.macroName]
-        
+        val processor = config.customMacros[macro.name]
+
         if (processor == null) {
             // No processor found for this macro
             errors.add(
                 ProcessingError(
-                    message = "No processor found for macro '${macro.macroName}'",
-                    location = macro.sourceLocation,
+                    message = "No processor found for macro '${macro.name}'",
+                    location = macro.location,
                     errorType = ProcessingErrorType.MACRO_EXPANSION_FAILED
                 )
             )
             // Return the original macro invocation as text
-            return listOf(
-                Text(
-                    content = "${macro.macroName}[${formatParameters(macro.parameters)}]",
-                    attributes = macro.attributes,
-                    sourceLocation = macro.sourceLocation
-                )
-            )
+            return listOf(fallbackText(macro, parameters))
         }
-        
+
         // Validate parameters
-        val validationError = validateParameters(macro.parameters, macro.sourceLocation)
+        val validationError = validateParameters(parameters, macro.location)
         if (validationError != null) {
             errors.add(validationError)
-            return listOf(
-                Text(
-                    content = "${macro.macroName}[${formatParameters(macro.parameters)}]",
-                    attributes = macro.attributes,
-                    sourceLocation = macro.sourceLocation
-                )
-            )
+            return listOf(fallbackText(macro, parameters))
         }
-        
+
         // Create macro context
         val context = MacroContext(
             document = document,
-            sourceLocation = macro.sourceLocation
+            location = macro.location
         )
-        
+
         // Invoke the processor
         val result = try {
-            processor.process(macro.macroName, macro.parameters, context)
+            processor.process(macro.name, parameters, context)
         } catch (e: Exception) {
             MacroExpansionResult.Error("Macro processor threw exception: ${e.message}")
         }
-        
+
         return when (result) {
             is MacroExpansionResult.Success -> {
                 // Validate the generated nodes
-                val validationError = validateMacroOutput(result.nodes, macro.sourceLocation)
-                if (validationError != null) {
-                    errors.add(validationError)
-                    listOf(
-                        Text(
-                            content = "${macro.macroName}[${formatParameters(macro.parameters)}]",
-                            attributes = macro.attributes,
-                            sourceLocation = macro.sourceLocation
-                        )
-                    )
+                val outputError = validateMacroOutput(result.nodes, macro.location)
+                if (outputError != null) {
+                    errors.add(outputError)
+                    listOf(fallbackText(macro, parameters))
                 } else {
-                    // Filter to only inline elements (macros in inline context can only generate inline elements)
-                    result.nodes.filterIsInstance<InlineElement>()
+                    // Filter to only inline elements (macros in inline context can only generate inlines)
+                    result.nodes.filterIsInstance<Inline>()
                 }
             }
             is MacroExpansionResult.Error -> {
                 errors.add(
                     ProcessingError(
-                        message = "Macro expansion failed for '${macro.macroName}': ${result.message}",
-                        location = macro.sourceLocation,
+                        message = "Macro expansion failed for '${macro.name}': ${result.message}",
+                        location = macro.location,
                         errorType = ProcessingErrorType.MACRO_EXPANSION_FAILED
                     )
                 )
-                listOf(
-                    Text(
-                        content = "${macro.macroName}[${formatParameters(macro.parameters)}]",
-                        attributes = macro.attributes,
-                        sourceLocation = macro.sourceLocation
-                    )
-                )
+                listOf(fallbackText(macro, parameters))
             }
         }
     }
-    
+
+    /**
+     * Parameters map exposed to [MacroProcessor]s: the target under "target",
+     * positional attributes keyed by 1-based index, plus named attributes.
+     */
+    private fun parametersOf(macro: InlineMacro): Map<String, String> = buildMap {
+        if (macro.target.isNotEmpty()) {
+            put("target", macro.target)
+        }
+        macro.positional.forEachIndexed { index, value -> put((index + 1).toString(), value) }
+        putAll(macro.named)
+    }
+
+    /**
+     * Plain-text stand-in for a macro that could not be expanded.
+     */
+    private fun fallbackText(macro: InlineMacro, parameters: Map<String, String>): InlineText =
+        InlineText(
+            value = "${macro.name}[${formatParameters(parameters)}]",
+            location = macro.location
+        )
+
     /**
      * Validates macro parameters.
      */
     private fun validateParameters(
         parameters: Map<String, String>,
-        location: SourceLocation
+        location: Location?
     ): ProcessingError? {
         // Check for invalid parameter names (empty keys)
         if (parameters.keys.any { it.isEmpty() }) {
@@ -234,25 +222,18 @@ class DefaultMacroExpander : MacroExpander {
         }
         return null
     }
-    
+
     /**
      * Validates macro output nodes.
      */
     private fun validateMacroOutput(
-        nodes: List<AstNode>,
-        location: SourceLocation
+        nodes: List<AsgNode>,
+        location: Location?
     ): ProcessingError? {
-        // Check that all nodes are valid
-        if (nodes.isEmpty()) {
-            // Empty output is valid
-            return null
-        }
-        
-        // For now, just check that nodes are not null
-        // More sophisticated validation could be added here
+        // Empty output is valid; more sophisticated validation could be added here
         return null
     }
-    
+
     /**
      * Formats parameters for display in error messages.
      */

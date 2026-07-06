@@ -1,5 +1,6 @@
 package org.markup.poet.tck.integration
 
+import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.tck.TckIntegration
 import kotlin.test.Test
@@ -27,9 +28,9 @@ class RealImplementationTest {
         assertTrue(parseResult.errors.isEmpty(), "Parser should not produce errors for valid input")
         
         // Check document has content
-        assertNotNull(parseResult.document.children, "Document should have children")
+        assertNotNull(parseResult.document.blocks, "Document should have children")
         println("✅ Parsed simple paragraph successfully")
-        println("   Document has ${parseResult.document.children.size} child elements")
+        println("   Document has ${parseResult.document.blocks.size} child elements")
     }
     
     @Test
@@ -41,7 +42,7 @@ class RealImplementationTest {
         
         // Document title should be set
         println("✅ Parsed heading level 1")
-        println("   Document title: ${parseResult.document.title}")
+        println("   Document title: ${plainText(parseResult.document.header?.title.orEmpty())}")
         println("   Errors: ${parseResult.errors.size}")
         println("   Warnings: ${parseResult.warnings.size}")
     }
@@ -54,7 +55,7 @@ class RealImplementationTest {
         assertNotNull(parseResult.document, "Parser should create a document")
         
         println("✅ Parsed heading level 2")
-        println("   Children: ${parseResult.document.children.size}")
+        println("   Children: ${parseResult.document.blocks.size}")
     }
     
     @Test
@@ -65,7 +66,7 @@ class RealImplementationTest {
         assertNotNull(parseResult.document, "Parser should create a document")
         
         println("✅ Parsed bold text")
-        println("   Document has ${parseResult.document.children.size} elements")
+        println("   Document has ${parseResult.document.blocks.size} elements")
     }
     
     @Test
@@ -80,7 +81,7 @@ class RealImplementationTest {
         assertNotNull(parseResult.document, "Parser should create a document")
         
         println("✅ Parsed unordered list")
-        println("   Document has ${parseResult.document.children.size} elements")
+        println("   Document has ${parseResult.document.blocks.size} elements")
     }
     
     @Test
@@ -98,7 +99,7 @@ class RealImplementationTest {
         assertNotNull(parseResult.document, "Parser should create a document")
         
         println("✅ Parsed code block")
-        println("   Document has ${parseResult.document.children.size} elements")
+        println("   Document has ${parseResult.document.blocks.size} elements")
     }
     
     @Test
@@ -148,13 +149,13 @@ class RealImplementationTest {
         assertNotNull(parseResult.document, "Parser should create a document")
         
         println("✅ Parsed complex document")
-        println("   Title: ${parseResult.document.title}")
-        println("   Children: ${parseResult.document.children.size}")
+        println("   Title: ${plainText(parseResult.document.header?.title.orEmpty())}")
+        println("   Children: ${parseResult.document.blocks.size}")
         println("   Errors: ${parseResult.errors.size}")
         println("   Warnings: ${parseResult.warnings.size}")
         
         // Should have multiple sections and elements
-        assertTrue(parseResult.document.children.isNotEmpty(), "Document should have content")
+        assertTrue(parseResult.document.blocks.isNotEmpty(), "Document should have content")
     }
     
     @Test

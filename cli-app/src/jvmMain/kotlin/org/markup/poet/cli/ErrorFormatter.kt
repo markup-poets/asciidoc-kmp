@@ -76,7 +76,7 @@ object ErrorFormatter {
             ErrorInfo(
                 message = error.message,
                 filePath = inputFile,
-                lineNumber = error.location.line,
+                lineNumber = error.line,
                 errorType = "Parse Error"
             )
         }
@@ -94,7 +94,7 @@ object ErrorFormatter {
             ErrorInfo(
                 message = error.message,
                 filePath = null, // Processing errors may not have file paths
-                lineNumber = error.location.line,
+                lineNumber = error.location?.start?.line ?: 0,
                 errorType = error.errorType.toString()
             )
         }
@@ -132,7 +132,7 @@ object ErrorFormatter {
      */
     fun formatParseWarnings(warnings: List<ParseWarning>, inputFile: String): List<String> {
         return warnings.map { warning ->
-            formatWarning(warning.message, inputFile, warning.location.line)
+            formatWarning(warning.message, inputFile, warning.line)
         }
     }
     
@@ -144,7 +144,7 @@ object ErrorFormatter {
      */
     fun formatProcessingWarnings(warnings: List<ProcessingWarning>): List<String> {
         return warnings.map { warning ->
-            formatWarning(warning.message, null, warning.location.line)
+            formatWarning(warning.message, null, warning.location?.start?.line ?: 0)
         }
     }
 }

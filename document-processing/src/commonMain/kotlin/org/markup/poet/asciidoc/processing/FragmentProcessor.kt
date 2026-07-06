@@ -1,6 +1,6 @@
 package org.markup.poet.asciidoc.processing
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 
 /**
  * Interface for processing document fragments with tagged includes.
@@ -9,12 +9,12 @@ import org.markup.poet.asciidoc.ast.Document
 interface FragmentProcessor {
     /**
      * Process fragments in the document, extracting tagged sections.
-     * 
+     *
      * @param document The document containing fragment directives
      * @param config Configuration for fragment processing
      * @return FragmentResult containing the processed document and any errors/warnings
      */
-    fun processFragments(document: Document, config: FragmentConfig): FragmentResult
+    fun processFragments(document: AsgDocument, config: FragmentConfig): FragmentResult
 }
 
 /**
@@ -30,7 +30,7 @@ data class FragmentConfig(
  * Result of fragment processing.
  */
 data class FragmentResult(
-    val document: Document,
+    val document: AsgDocument,
     val errors: List<ProcessingError>,
     val warnings: List<ProcessingWarning>,
     val extractedTags: Map<String, List<String>>
