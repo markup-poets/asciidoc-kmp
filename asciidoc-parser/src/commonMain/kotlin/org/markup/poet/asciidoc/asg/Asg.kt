@@ -74,12 +74,17 @@ data class InlineMacro(
 sealed interface Block : AsgNode
 
 /**
- * Block attribute-line metadata (`[style,pos2,key=value]` above a block).
+ * Block attribute-line metadata: `[style,pos2,key=value]`, the shorthand form
+ * `[#id.role1.role2%option]`, and a `.Title` line above a block.
  * The block style is `positional.firstOrNull()`.
  */
 data class BlockMetadata(
     val positional: List<String> = emptyList(),
     val named: Map<String, String> = emptyMap(),
+    val id: String? = null,
+    val roles: List<String> = emptyList(),
+    val options: List<String> = emptyList(),
+    val title: List<Inline>? = null,
 )
 
 enum class LeafBlockName(val asgName: String) {
@@ -115,11 +120,16 @@ enum class ParentBlockName(val asgName: String) {
     QUOTE("quote"),
 }
 
-/** A delimited block containing other blocks (sidebar, example, quote, ...). */
+/**
+ * A block containing other blocks (sidebar, example, quote, ...).
+ * [delimiter] is null for the paragraph form of admonitions (`NOTE: text`) —
+ * the official schema only defines the delimited form, so the paragraph form
+ * serializes without form/delimiter until the spec pins it down.
+ */
 data class ParentBlock(
     val name: ParentBlockName,
     val variant: String? = null,
-    val delimiter: String,
+    val delimiter: String? = null,
     val blocks: List<Block>,
     val metadata: BlockMetadata? = null,
     override val location: Location? = null,
@@ -150,6 +160,58 @@ data class ListBlock(
     val variant: ListVariant,
     val marker: String,
     val items: List<ListItem>,
+    val metadata: BlockMetadata? = null,
+    override val location: Location? = null,
+) : Block
+
+/** Description-list item: one or more terms plus the principal description. */
+data class DListItem(
+    val marker: String,
+    val terms: List<List<Inline>>,
+    val principal: List<Inline> = emptyList(),
+    val blocks: List<Block> = emptyList(),
+    override val location: Location? = null,
+) : AsgNode
+
+/** Description list (`term:: description`). */
+data class DListBlock(
+    val marker: String,
+    val items: List<DListItem>,
+    val metadata: BlockMetadata? = null,
+    override val location: Location? = null,
+) : Block
+
+enum class BreakVariant(val asgName: String) {
+    PAGE("page"),
+    THEMATIC("thematic"),
+}
+
+/** Thematic (`'''`) or page (`<<<`) break. */
+data class BreakBlock(
+    val variant: BreakVariant,
+    override val location: Location? = null,
+) : Block
+
+enum class BlockMacroName(val asgName: String) {
+    AUDIO("audio"),
+    VIDEO("video"),
+    IMAGE("image"),
+    TOC("toc"),
+}
+
+/** Block macro (`image::target[attrs]`). */
+data class BlockMacro(
+    val name: BlockMacroName,
+    val target: String?,
+    val metadata: BlockMetadata? = null,
+    override val location: Location? = null,
+) : Block
+
+/** A `[discrete]` heading: styled like a section title but opens no section. */
+data class DiscreteHeading(
+    val title: List<Inline>,
+    val level: Int,
+    val metadata: BlockMetadata? = null,
     override val location: Location? = null,
 ) : Block
 

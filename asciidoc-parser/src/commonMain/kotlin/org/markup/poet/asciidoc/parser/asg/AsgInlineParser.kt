@@ -2,10 +2,12 @@ package org.markup.poet.asciidoc.parser.asg
 
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.Position
+import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SpanForm
 import org.markup.poet.asciidoc.asg.SpanVariant
 
@@ -53,8 +55,14 @@ class SegmentMap(
  * Parses inline markup within one logical string (a paragraph's lines joined
  * with `\n`), producing spans with locations that include their delimiters.
  * Plain runs coalesce into single [InlineText] nodes, `\n` included.
+ *
+ * With [attributes], `{name}` references to defined document attributes are
+ * substituted (the resulting text node keeps the reference's source span);
+ * undefined references stay literal text.
  */
-class AsgInlineParser {
+class AsgInlineParser(
+    private val attributes: Map<String, String> = emptyMap(),
+) {
 
     private val spanDelimiters = mapOf(
         '*' to SpanVariant.STRONG,
@@ -65,6 +73,10 @@ class AsgInlineParser {
 
     /** Bare URL schemes are autolink territory, not inline macros. */
     private val excludedMacroNames = setOf("http", "https", "ftp", "irc", "mailto")
+
+    private val autolinkSchemes = listOf("https://", "http://", "ftp://", "irc://")
+
+    private val attributeNameRegex = Regex("""^[A-Za-z0-9_][A-Za-z0-9_-]*$""")
 
     fun parse(text: String, map: SegmentMap): List<Inline> = parseRange(text, 0, text.length, map)
 
@@ -85,9 +97,15 @@ class AsgInlineParser {
             }
         }
 
+        fun consume(parsed: Pair<Inline, Int>) {
+            flushPlain()
+            inlines += parsed.first
+            i = parsed.second
+        }
+
         while (i < to) {
             val c = text[i]
-            if (c == '\\' && i + 1 < to && spanDelimiters.containsKey(text[i + 1])) {
+            if (c == '\\' && i + 1 < to && (spanDelimiters.containsKey(text[i + 1]) || text[i + 1] == '{')) {
                 if (plain.isEmpty()) plainStart = i
                 plain.append(text[i + 1])
                 i += 2
@@ -97,18 +115,26 @@ class AsgInlineParser {
             if (variant != null) {
                 val span = tryParseSpan(text, i, to, c, variant, map)
                 if (span != null) {
-                    flushPlain()
-                    inlines += span.first
-                    i = span.second
+                    consume(span)
+                    continue
+                }
+            }
+            if (c == '{') {
+                val reference = tryParseAttributeReference(text, i, to, map)
+                if (reference != null) {
+                    consume(reference)
                     continue
                 }
             }
             if (c.isLetter() && (i == from || !text[i - 1].isLetterOrDigit())) {
+                val autolink = tryParseAutolink(text, i, to, map)
+                if (autolink != null) {
+                    consume(autolink)
+                    continue
+                }
                 val macro = tryParseInlineMacro(text, i, to, map)
                 if (macro != null) {
-                    flushPlain()
-                    inlines += macro.first
-                    i = macro.second
+                    consume(macro)
                     continue
                 }
             }
@@ -118,6 +144,78 @@ class AsgInlineParser {
         }
         flushPlain()
         return inlines
+    }
+
+    /**
+     * Substitutes `{name}` when the attribute is defined. The produced text
+     * node's value is the attribute value while its location spans the
+     * reference in the source.
+     */
+    private fun tryParseAttributeReference(
+        text: String,
+        start: Int,
+        to: Int,
+        map: SegmentMap,
+    ): Pair<Inline, Int>? {
+        val close = text.indexOf('}', start + 1)
+        if (close < 0 || close >= to) return null
+        val name = text.substring(start + 1, close)
+        if (!attributeNameRegex.matches(name)) return null
+        val value = attributes[name] ?: return null
+        val node = InlineText(
+            value = value,
+            location = Location(map.position(start), map.position(close)),
+        )
+        return node to (close + 1)
+    }
+
+    /**
+     * A bare URL (`https://...`) becomes a link ref. `url[text]` uses the
+     * bracketed text as the link content; a bare URL links its own text.
+     */
+    private fun tryParseAutolink(
+        text: String,
+        start: Int,
+        to: Int,
+        map: SegmentMap,
+    ): Pair<Inline, Int>? {
+        val scheme = autolinkSchemes.firstOrNull { text.startsWith(it, start) && start + it.length < to }
+            ?: return null
+        var j = start + scheme.length
+        while (j < to && text[j] != ' ' && text[j] != '\n' && text[j] != '[' && text[j] != ']') j++
+        if (j == start + scheme.length) return null
+        // Trailing punctuation stays outside the link.
+        var end = j
+        while (end > start + scheme.length && text[end - 1] in ".,;:!?") end--
+        val url = text.substring(start, end)
+
+        if (end < to && text[end] == '[') {
+            val close = text.indexOf(']', end + 1)
+            if (close in (end + 1) until to) {
+                val label = text.substring(end + 1, close)
+                val labelInlines = if (label.isEmpty()) {
+                    listOf(InlineText(url, Location(map.position(start), map.position(end - 1))))
+                } else {
+                    parseRange(text, end + 1, close, map)
+                }
+                val ref = InlineRef(
+                    variant = RefVariant.LINK,
+                    target = url,
+                    inlines = labelInlines,
+                    location = Location(map.position(start), map.position(close)),
+                )
+                return ref to (close + 1)
+            }
+        }
+
+        val location = Location(map.position(start), map.position(end - 1))
+        val ref = InlineRef(
+            variant = RefVariant.LINK,
+            target = url,
+            inlines = listOf(InlineText(url, location)),
+            location = location,
+        )
+        return ref to end
     }
 
     /**
