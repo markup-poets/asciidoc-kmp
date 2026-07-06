@@ -53,7 +53,7 @@ kotlin {
                 // JGit for git operations on JVM
                 implementation("org.eclipse.jgit:org.eclipse.jgit:7.6.0.202603022253-r")
                 // Coroutines for async operations
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
             }
         }
 
@@ -62,7 +62,7 @@ kotlin {
             implementation(libs.kotest.framework.engine)
             implementation(libs.kotest.assertions.core)
             implementation(libs.kotest.property)
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
         }
     }
 }
