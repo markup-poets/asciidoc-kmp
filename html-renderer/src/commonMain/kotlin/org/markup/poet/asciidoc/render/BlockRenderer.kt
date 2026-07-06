@@ -194,12 +194,16 @@ class DefaultBlockRenderer(
         }
         
         val classes = context.theme.listClasses()
-        
+
+        // Items must be rendered BEFORE entering build {}: the shared builder
+        // is not re-entrant, so nested build calls corrupt the outer buffer.
+        val renderedItems = list.items.map { renderListItem(it, context) }
+
         return builder.build {
             openTag(tagName, mapOf("class" to classes))
-            list.items.forEach { item ->
+            renderedItems.forEach { item ->
                 text("\n")
-                text(renderListItem(item, context))
+                text(item)
             }
             text("\n")
             closeTag(tagName)
@@ -216,18 +220,18 @@ class DefaultBlockRenderer(
      */
     private fun renderListItem(item: ListItem, context: RenderContext): String {
         val content = renderInlineContent(item.content, context)
-        val nestedList = item.nestedList
-        
+        // Rendered before build {} — the shared builder is not re-entrant.
+        val renderedNested = item.nestedList?.let { renderList(it, context) }
+
         return builder.build {
             openTag("li")
             text(content)
-            
-            // Render nested list if present
-            if (nestedList != null) {
+
+            if (renderedNested != null) {
                 text("\n")
-                text(renderList(nestedList, context))
+                text(renderedNested)
             }
-            
+
             closeTag("li")
         }
     }
@@ -296,11 +300,13 @@ class DefaultBlockRenderer(
      * Validates: Requirements 1.2
      */
     private fun renderCalloutList(calloutList: CalloutList, context: RenderContext): String {
+        // Rendered before build {} — the shared builder is not re-entrant.
+        val renderedItems = calloutList.items.map { renderCalloutListItem(it, context) }
         return builder.build {
             openTag("ol", mapOf("class" to "callout-list"))
-            calloutList.items.forEach { item ->
+            renderedItems.forEach { item ->
                 text("\n")
-                text(renderCalloutListItem(item, context))
+                text(item)
             }
             text("\n")
             closeTag("ol")

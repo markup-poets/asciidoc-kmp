@@ -10,6 +10,12 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMacro
+import org.markup.poet.asciidoc.asg.BlockMetadata
+import org.markup.poet.asciidoc.asg.BreakBlock
+import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.DListItem
+import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineMacro
 import org.markup.poet.asciidoc.asg.InlineRef
@@ -71,17 +77,24 @@ class AsgDocumentJsonSerializer(
             }
             block.delimiter?.let { put("delimiter", it) }
             putJsonArray("inlines") { block.inlines.forEach { add(inlineToJson(it)) } }
+            addMetadata(block.metadata)
             addLocation(block.location)
         }
         is ParentBlock -> buildJsonObject {
             put("name", block.name.asgName)
             put("type", "block")
             block.variant?.let { put("variant", it) }
-            put("form", "delimited")
-            put("delimiter", block.delimiter)
+            // Paragraph-form admonitions have no delimiter; the official schema
+            // only defines the delimited form, so form/delimiter are emitted
+            // only when a delimiter exists.
+            block.delimiter?.let {
+                put("form", "delimited")
+                put("delimiter", it)
+            }
             if (block.blocks.isNotEmpty()) {
                 putJsonArray("blocks") { block.blocks.forEach { add(blockToJson(it)) } }
             }
+            addMetadata(block.metadata)
             addLocation(block.location)
         }
         is SectionBlock -> buildJsonObject {
@@ -100,8 +113,87 @@ class AsgDocumentJsonSerializer(
             put("variant", block.variant.asgName)
             put("marker", block.marker)
             putJsonArray("items") { block.items.forEach { add(listItemToJson(it)) } }
+            addMetadata(block.metadata)
             addLocation(block.location)
         }
+        is DListBlock -> buildJsonObject {
+            put("name", "dlist")
+            put("type", "block")
+            put("marker", block.marker)
+            putJsonArray("items") { block.items.forEach { add(dlistItemToJson(it)) } }
+            addMetadata(block.metadata)
+            addLocation(block.location)
+        }
+        is BreakBlock -> buildJsonObject {
+            put("name", "break")
+            put("type", "block")
+            put("variant", block.variant.asgName)
+            addLocation(block.location)
+        }
+        is BlockMacro -> buildJsonObject {
+            put("name", block.name.asgName)
+            put("type", "block")
+            put("form", "macro")
+            block.target?.let { put("target", it) }
+            addMetadata(block.metadata)
+            addLocation(block.location)
+        }
+        is DiscreteHeading -> buildJsonObject {
+            put("name", "heading")
+            put("type", "block")
+            putJsonArray("title") { block.title.forEach { add(inlineToJson(it)) } }
+            put("level", block.level)
+            addMetadata(block.metadata)
+            addLocation(block.location)
+        }
+    }
+
+    private fun dlistItemToJson(item: DListItem): JsonObject = buildJsonObject {
+        put("name", "dlistItem")
+        put("type", "block")
+        put("marker", item.marker)
+        putJsonArray("terms") {
+            item.terms.forEach { term ->
+                add(buildJsonArray { term.forEach { add(inlineToJson(it)) } })
+            }
+        }
+        if (item.principal.isNotEmpty()) {
+            putJsonArray("principal") { item.principal.forEach { add(inlineToJson(it)) } }
+        }
+        if (item.blocks.isNotEmpty()) {
+            putJsonArray("blocks") { item.blocks.forEach { add(blockToJson(it)) } }
+        }
+        addLocation(item.location)
+    }
+
+    /**
+     * Emits block metadata and title. Field naming is best-effort against the
+     * official schema (metadata: attributes/options/roles; title as inlines) —
+     * no TCK fixture covers these yet; adjust when one lands.
+     */
+    private fun JsonObjectBuilder.addMetadata(metadata: BlockMetadata?) {
+        if (metadata == null) return
+        metadata.title?.let { title ->
+            putJsonArray("title") { title.forEach { add(inlineToJson(it)) } }
+        }
+        val style = metadata.positional.firstOrNull()
+        val hasAttributes = metadata.named.isNotEmpty() || metadata.id != null || style != null
+        if (!hasAttributes && metadata.roles.isEmpty() && metadata.options.isEmpty()) return
+        put("metadata", buildJsonObject {
+            if (hasAttributes) {
+                put("attributes", buildJsonObject {
+                    style?.let { put("style", it) }
+                    metadata.id?.let { put("id", it) }
+                    metadata.named.forEach { (key, value) -> put(key, value) }
+                })
+            }
+            if (metadata.roles.isNotEmpty()) {
+                putJsonArray("roles") { metadata.roles.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+            }
+            if (metadata.options.isNotEmpty()) {
+                putJsonArray("options") { metadata.options.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }
+            }
+        })
     }
 
     private fun listItemToJson(item: ListItem): JsonObject = buildJsonObject {

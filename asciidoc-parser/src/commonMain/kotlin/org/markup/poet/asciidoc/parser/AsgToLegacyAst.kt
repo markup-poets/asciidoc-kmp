@@ -2,7 +2,13 @@ package org.markup.poet.asciidoc.parser
 
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMacro
+import org.markup.poet.asciidoc.asg.BlockMacroName
 import org.markup.poet.asciidoc.asg.BlockMetadata
+import org.markup.poet.asciidoc.asg.BreakBlock
+import org.markup.poet.asciidoc.asg.BreakVariant
+import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineMacro
 import org.markup.poet.asciidoc.asg.InlineRef
@@ -14,9 +20,12 @@ import org.markup.poet.asciidoc.asg.ListBlock
 import org.markup.poet.asciidoc.asg.ListVariant
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.RefVariant
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.SpanVariant
+import org.markup.poet.asciidoc.ast.AdmonitionBlock
+import org.markup.poet.asciidoc.ast.AdmonitionType
 import org.markup.poet.asciidoc.ast.AsciiDocList
 import org.markup.poet.asciidoc.ast.BlockElement
 import org.markup.poet.asciidoc.ast.Code
@@ -32,6 +41,7 @@ import org.markup.poet.asciidoc.ast.MacroInvocation
 import org.markup.poet.asciidoc.ast.ListItem
 import org.markup.poet.asciidoc.ast.ListType
 import org.markup.poet.asciidoc.ast.Paragraph
+import org.markup.poet.asciidoc.ast.PassthroughBlock
 import org.markup.poet.asciidoc.ast.Section
 import org.markup.poet.asciidoc.ast.SourceLocation
 import org.markup.poet.asciidoc.ast.Strong
@@ -134,9 +144,21 @@ object AsgToLegacyAst {
             }
         }
 
-        // The legacy AST has no sidebar/example/quote/open container: splice
-        // the mapped children into the parent's position (container is lost).
-        is ParentBlock -> mapBlocks(block.blocks)
+        // Admonitions map to the legacy AdmonitionBlock; other parent containers
+        // (sidebar/example/quote/open) have no legacy equivalent, so their
+        // mapped children are spliced into the parent's position (container lost).
+        is ParentBlock -> if (block.name == ParentBlockName.ADMONITION) {
+            listOf(
+                AdmonitionBlock(
+                    type = AdmonitionType.valueOf((block.variant ?: "note").uppercase()),
+                    title = block.metadata?.title?.let { plainText(it) },
+                    content = mapBlocks(block.blocks),
+                    sourceLocation = block.location.toLegacy(),
+                )
+            )
+        } else {
+            mapBlocks(block.blocks)
+        }
 
         is ListBlock -> listOf(
             AsciiDocList(
@@ -145,10 +167,89 @@ object AsgToLegacyAst {
                     ListItem(
                         marker = item.marker,
                         content = mapInlines(item.principal),
+                        nestedList = item.blocks.filterIsInstance<ListBlock>().firstOrNull()?.let { nested ->
+                            mapBlock(nested).filterIsInstance<AsciiDocList>().firstOrNull()
+                        },
+                        sourceLocation = item.location.toLegacy(),
+                    )
+                },
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
+
+        // Legacy DEFINITION lists were never fully modeled: terms and principal
+        // are joined into the item content with a separator.
+        is DListBlock -> listOf(
+            AsciiDocList(
+                type = ListType.DEFINITION,
+                items = block.items.map { item ->
+                    val content = mutableListOf<InlineElement>()
+                    item.terms.forEach { content += mapInlines(it) }
+                    if (item.principal.isNotEmpty()) {
+                        content += Text(content = ": ", sourceLocation = item.location.toLegacy())
+                        content += mapInlines(item.principal)
+                    }
+                    ListItem(
+                        marker = item.marker,
+                        content = content,
                         nestedList = null,
                         sourceLocation = item.location.toLegacy(),
                     )
                 },
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
+
+        // The legacy AST has no break node: render-ready passthrough.
+        is BreakBlock -> listOf(
+            PassthroughBlock(
+                format = "html",
+                content = if (block.variant == BreakVariant.PAGE) {
+                    "<div style=\"page-break-after: always;\"></div>"
+                } else {
+                    "<hr/>"
+                },
+                sourceLocation = block.location.toLegacy(),
+            )
+        )
+
+        is BlockMacro -> when (block.name) {
+            BlockMacroName.IMAGE -> listOf(
+                Paragraph(
+                    content = listOf(
+                        Image(
+                            path = block.target ?: "",
+                            altText = block.metadata?.positional?.firstOrNull() ?: "",
+                            sourceLocation = block.location.toLegacy(),
+                        ),
+                    ),
+                    sourceLocation = block.location.toLegacy(),
+                )
+            )
+            else -> listOf(
+                Paragraph(
+                    content = listOf(
+                        MacroInvocation(
+                            macroName = block.name.asgName,
+                            parameters = buildMap {
+                                block.target?.let { put("target", it) }
+                                block.metadata?.let { putAll(it.toAttributeMap()) }
+                            },
+                            isBlock = true,
+                            sourceLocation = block.location.toLegacy(),
+                        ),
+                    ),
+                    sourceLocation = block.location.toLegacy(),
+                )
+            )
+        }
+
+        // Discrete headings render like section titles but open no section.
+        is DiscreteHeading -> listOf(
+            Section(
+                level = block.level + 1,
+                title = plainText(block.title),
+                children = emptyList(),
                 sourceLocation = block.location.toLegacy(),
             )
         )
