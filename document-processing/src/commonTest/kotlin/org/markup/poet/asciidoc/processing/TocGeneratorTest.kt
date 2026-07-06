@@ -184,4 +184,57 @@ class TocGeneratorTest {
         val crossRef = item.principal[0] as InlineRef
         assertEquals("hello-world", crossRef.target) // Generated from title
     }
+
+    @Test
+    fun `should normalize special characters like the HTML renderer`() {
+        // RenderContext.generateId replaces every non-alphanumeric run with a
+        // single hyphen; the generated targets must match those anchors.
+        val document = AsgDocument(
+            blocks = listOf(section("Foo_Bar & Baz!", level = 1, line = 1)),
+            location = loc(1)
+        )
+
+        val result = generator.generate(document, TocConfig(maxDepth = 3))
+
+        assertNotNull(result.tocNode)
+        val crossRef = result.tocNode.items[0].principal[0] as InlineRef
+        assertEquals("foo-bar-baz", crossRef.target)
+    }
+
+    @Test
+    fun `should suffix repeated titles like the HTML renderer`() {
+        val document = AsgDocument(
+            blocks = listOf(
+                section("Duplicate", level = 1, line = 1),
+                section("Duplicate", level = 1, line = 3),
+                section("Duplicate", level = 1, line = 5)
+            ),
+            location = loc(1)
+        )
+
+        val result = generator.generate(document, TocConfig(maxDepth = 3))
+
+        assertNotNull(result.tocNode)
+        val targets = result.tocNode.items.map { (it.principal[0] as InlineRef).target }
+        assertEquals(listOf("duplicate", "duplicate-1", "duplicate-2"), targets)
+    }
+
+    @Test
+    fun `explicit section ids do not consume generated id slots`() {
+        val document = AsgDocument(
+            blocks = listOf(
+                section("Duplicate", level = 1, line = 1, id = "explicit"),
+                section("Duplicate", level = 1, line = 3)
+            ),
+            location = loc(1)
+        )
+
+        val result = generator.generate(document, TocConfig(maxDepth = 3))
+
+        assertNotNull(result.tocNode)
+        val targets = result.tocNode.items.map { (it.principal[0] as InlineRef).target }
+        // The renderer only counts generated ids, so the second section gets
+        // the unsuffixed derived id.
+        assertEquals(listOf("explicit", "duplicate"), targets)
+    }
 }

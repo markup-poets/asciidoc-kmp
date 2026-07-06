@@ -1,7 +1,14 @@
 package org.markup.poet.asciidoc.processing
 
 import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMacro
+import org.markup.poet.asciidoc.asg.BlockMacroName
+import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.visitBlocks
 
 /**
  * Default implementation of DocumentProcessor that orchestrates the processing pipeline.
@@ -16,7 +23,7 @@ import org.markup.poet.asciidoc.asg.ListBlock
  * 7. Callout Processor - Processes code callouts
  * 8. Bibliography Manager - Manages footnotes and citations
  * 9. Cross-Reference Resolver - Resolves internal references
- * 10. TOC Generator - Generates table of contents
+ * 10. TOC Generator - Generates and inserts the table of contents
  * 11. Document Validator - Validates final structure
  */
 class DefaultDocumentProcessor(
@@ -308,16 +315,23 @@ class DefaultDocumentProcessor(
             }
         }
 
-        // 10. TOC generation
-        if (config.enableTocGeneration && !shouldHalt) {
+        // 10. TOC generation. The step runs when the configuration asks for it
+        // OR the document itself carries a `:toc:` attribute (asciidoctor
+        // semantics); the attribute value picks the placement, the `toclevels`
+        // attribute overrides the configured depth.
+        val tocAttribute = currentDoc.attributes["toc"]?.trim()?.lowercase()
+        if ((config.enableTocGeneration || tocAttribute != null) && !shouldHalt) {
             try {
+                val tocDepth = currentDoc.attributes["toclevels"]?.trim()?.toIntOrNull()
+                    ?.takeIf { it >= 1 }
+                    ?: config.tocDepth
                 val tocConfig = TocConfig(
-                    maxDepth = config.tocDepth,
+                    maxDepth = tocDepth,
                     includeTitle = true
                 )
                 val tocResult = tocGenerator.generate(currentDoc, tocConfig)
                 if (tocResult.tocNode != null) {
-                    currentDoc = insertToc(currentDoc, tocResult.tocNode)
+                    currentDoc = insertToc(currentDoc, tocResult.tocNode, tocPlacement(tocAttribute))
                 }
                 errors.addAll(tocResult.errors)
 
@@ -407,13 +421,106 @@ class DefaultDocumentProcessor(
         )
     }
 
+    /** Where the generated TOC lands in the document, per the `toc` attribute. */
+    private enum class TocPlacement {
+        /** After the document header, i.e. before all body blocks. */
+        AUTO,
+
+        /** After the preamble: before the first top-level section. */
+        PREAMBLE,
+
+        /** In place of a `toc::[]` block macro; without one, no TOC is inserted. */
+        MACRO,
+    }
+
     /**
-     * Inserts the TOC into the document at the appropriate location.
-     * For now, this is a placeholder that returns the document unchanged.
+     * Maps the `toc` document attribute value to a placement. An absent
+     * attribute (config-driven generation), an empty value (`:toc:`), `auto`,
+     * and any unsupported position (e.g. `left`) all place the TOC after the
+     * document header.
      */
-    private fun insertToc(document: AsgDocument, tocNode: ListBlock): AsgDocument {
-        // TODO: Implement TOC insertion logic
-        // This would typically insert the TOC at the beginning of the document or at a designated location
-        return document
+    private fun tocPlacement(tocAttribute: String?): TocPlacement = when (tocAttribute) {
+        "preamble" -> TocPlacement.PREAMBLE
+        "macro" -> TocPlacement.MACRO
+        else -> TocPlacement.AUTO
+    }
+
+    /**
+     * Inserts the generated TOC into the document at the location selected by
+     * [placement]. The list is marked with id [TOC_ID] and a `toc` role so the
+     * HTML renderer emits `<ul id="toc" class="... toc">`. Insertion is
+     * idempotent: when the document already contains a list carrying the TOC
+     * id (e.g. a consumer runs the processor twice), it is returned unchanged.
+     */
+    private fun insertToc(document: AsgDocument, tocNode: ListBlock, placement: TocPlacement): AsgDocument {
+        if (containsTocList(document.blocks)) {
+            return document
+        }
+
+        val metadata = tocNode.metadata ?: BlockMetadata()
+        val toc = tocNode.copy(
+            metadata = metadata.copy(
+                id = TOC_ID,
+                roles = if (TOC_ROLE in metadata.roles) metadata.roles else metadata.roles + TOC_ROLE,
+            )
+        )
+
+        return when (placement) {
+            TocPlacement.AUTO -> document.copy(blocks = listOf(toc) + document.blocks)
+            TocPlacement.PREAMBLE -> {
+                val firstSection = document.blocks.indexOfFirst { it is SectionBlock }
+                val insertAt = if (firstSection >= 0) firstSection else document.blocks.size
+                document.copy(
+                    blocks = document.blocks.take(insertAt) + toc + document.blocks.drop(insertAt)
+                )
+            }
+            TocPlacement.MACRO -> {
+                val (blocks, replaced) = replaceTocMacro(document.blocks, toc)
+                if (replaced) document.copy(blocks = blocks) else document
+            }
+        }
+    }
+
+    /** Whether [blocks] already contain an inserted TOC list (id [TOC_ID]). */
+    private fun containsTocList(blocks: List<Block>): Boolean {
+        var found = false
+        visitBlocks(blocks) { block ->
+            if (block is ListBlock && block.metadata?.id == TOC_ID) {
+                found = true
+            }
+        }
+        return found
+    }
+
+    /**
+     * Replaces the first `toc::[]` block macro in [blocks] with [toc],
+     * recursing into sections and parent blocks (the macro may sit inside a
+     * container). Returns the rewritten blocks and whether a macro was found;
+     * untouched subtrees are returned as-is.
+     */
+    private fun replaceTocMacro(blocks: List<Block>, toc: ListBlock): Pair<List<Block>, Boolean> {
+        var replaced = false
+
+        fun rewrite(list: List<Block>): List<Block> = list.map { block ->
+            if (replaced) return@map block
+            when {
+                block is BlockMacro && block.name == BlockMacroName.TOC -> {
+                    replaced = true
+                    toc
+                }
+                block is SectionBlock -> block.copy(blocks = rewrite(block.blocks))
+                block is ParentBlock -> block.copy(blocks = rewrite(block.blocks))
+                else -> block
+            }
+        }
+
+        val rewritten = rewrite(blocks)
+        return rewritten to replaced
+    }
+
+    private companion object {
+        /** Anchor id and role marking the inserted TOC list for styling. */
+        const val TOC_ID = "toc"
+        const val TOC_ROLE = "toc"
     }
 }
