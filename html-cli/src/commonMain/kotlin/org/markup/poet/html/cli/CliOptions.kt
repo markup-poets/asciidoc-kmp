@@ -12,6 +12,7 @@ package org.markup.poet.html.cli
  * @param noDefaultCss Whether to disable default theme CSS (false by default)
  * @param theme Name of built-in theme to use ("default", "minimal", "dark")
  * @param cssVariables Map of CSS variable overrides (e.g., "--mp-color-primary" to "#007acc")
+ * @param plugins Paths to WASM extension plugins to load (repeatable `--plugin` flag)
  */
 data class CliOptions(
     val inputFile: String,
@@ -19,7 +20,8 @@ data class CliOptions(
     val cssFile: String? = null,
     val noDefaultCss: Boolean = false,
     val theme: String = "default",
-    val cssVariables: Map<String, String> = emptyMap()
+    val cssVariables: Map<String, String> = emptyMap(),
+    val plugins: List<String> = emptyList()
 )
 
 /**
@@ -46,6 +48,7 @@ fun parseArgs(args: Array<String>): CliOptions {
     var noDefaultCss = false
     var theme = "default"
     val cssVariables = mutableMapOf<String, String>()
+    val plugins = mutableListOf<String>()
     
     var i = 0
     while (i < args.size) {
@@ -66,6 +69,13 @@ fun parseArgs(args: Array<String>): CliOptions {
                     throw IllegalArgumentException("--theme requires a theme name")
                 }
                 theme = args[i]
+            }
+            "--plugin" -> {
+                i++
+                if (i >= args.size) {
+                    throw IllegalArgumentException("--plugin requires a path to a .wasm file")
+                }
+                plugins += args[i]
             }
             "--css-var" -> {
                 i++
@@ -118,6 +128,7 @@ fun parseArgs(args: Array<String>): CliOptions {
         cssFile = cssFile,
         noDefaultCss = noDefaultCss,
         theme = theme,
-        cssVariables = cssVariables
+        cssVariables = cssVariables,
+        plugins = plugins
     )
 }

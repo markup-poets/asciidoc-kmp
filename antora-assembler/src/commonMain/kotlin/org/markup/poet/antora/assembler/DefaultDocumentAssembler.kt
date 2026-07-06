@@ -397,7 +397,15 @@ class DefaultDocumentAssembler(
      */
     private fun renderDocument(document: Document): String {
         val builder = StringBuilder()
-        
+
+        // Render document title (header line)
+        if (document.title != null) {
+            builder.append("= ${document.title}\n")
+            if (document.documentAttributes.isEmpty()) {
+                builder.append("\n")
+            }
+        }
+
         // Render document attributes
         if (document.documentAttributes.isNotEmpty()) {
             for ((key, value) in document.documentAttributes) {

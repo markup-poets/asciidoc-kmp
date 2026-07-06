@@ -4,6 +4,7 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(17)
     androidLibrary {
         namespace = "org.markup.poet.theming"
         compileSdk = 36

@@ -281,6 +281,7 @@ class DefaultCrossReferenceResolver : CrossReferenceResolver {
             is MacroInvocation -> inline.macroName
             is FootnoteReference -> inline.content.joinToString("") { extractText(it) }
             is BibliographyReference -> inline.citationId
+            is RawInline -> ""
         }
     }
     
