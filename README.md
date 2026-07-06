@@ -9,11 +9,11 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 ## Features
 
 - **Platform Independent**: Runs on JVM, Android, iOS, and Linux
-- **Spec Compliant**: Follows AsciiDoc Language Specification
+- **Spec Compliant**: Passes the official Eclipse AsciiDoc TCK (run `./run-official-tck.sh`)
 - **Clean Architecture**: Clear separation between parsing, processing, conversion, and rendering phases
-- **Extensible**: Modular design allows custom processors and converters
+- **WASM Plugins**: Custom blocks via sandboxed, language-agnostic WebAssembly plugins — no Ruby required (see [docs/PLUGINS.md](docs/PLUGINS.md))
 - **Pluggable Theming**: Flexible styling system with built-in themes and CSS customization
-- **Zero Dependencies**: No external libraries required
+- **Zero Dependencies**: No external libraries required in the core parser
 
 ## Architecture
 
@@ -55,7 +55,7 @@ val config = RenderConfig(
 val result = renderer.render(document, config)
 ```
 
-See [THEMING_USAGE.md](THEMING_USAGE.md) for complete theming documentation.
+See [docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md) for theming documentation.
 
 ## Installation
 
@@ -87,14 +87,7 @@ The library includes a powerful, pluggable theming system that strictly separate
 
 ### Documentation
 
-📖 **[THEMING_INDEX.md](THEMING_INDEX.md)** - Complete documentation index (start here!)
-
-- **[THEMING_ARCHITECTURE.md](THEMING_ARCHITECTURE.md)** - Architecture overview and design principles
-- **[THEMING_USAGE.md](THEMING_USAGE.md)** - Usage guide with examples and best practices
-- **[THEMING_QUICK_REFERENCE.md](THEMING_QUICK_REFERENCE.md)** - Quick reference card
-- **[THEMING_VISUAL_GUIDE.md](THEMING_VISUAL_GUIDE.md)** - Visual diagrams and flow charts
-- **[KOTLIN_THEME.md](KOTLIN_THEME.md)** - Kotlin theme details and customization
-- **[examples/THEMING_EXAMPLES.md](examples/THEMING_EXAMPLES.md)** - Complete runnable examples
+- **[docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md)** - Architecture overview and design principles
 
 ### Quick Examples
 

@@ -63,6 +63,7 @@ class DefaultInlineRenderer(
             is MacroInvocation -> renderMacroInvocation(inline, context)
             is BibliographyReference -> renderBibliographyReference(inline)
             is FootnoteReference -> renderFootnoteReference(inline)
+            is RawInline -> if (inline.format == "html") inline.content else ""
         }
     }
     
