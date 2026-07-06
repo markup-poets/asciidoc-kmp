@@ -16,6 +16,7 @@ import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.CommentBlock
 import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DListItem
 import org.markup.poet.asciidoc.asg.DiscreteHeading
@@ -57,6 +58,14 @@ class AsgDocumentJsonSerializer(
             JsonElement.serializer(),
             buildJsonArray { inlines.forEach { add(inlineToJson(it)) } },
         )
+
+    /** One block as official ASG node JSON (for node-level consumers, e.g. converter plugins). */
+    fun blockToJsonString(block: Block): String =
+        json.encodeToString(JsonElement.serializer(), blockToJson(block))
+
+    /** One inline as official ASG node JSON (for node-level consumers, e.g. converter plugins). */
+    fun inlineToJsonString(inline: Inline): String =
+        json.encodeToString(JsonElement.serializer(), inlineToJson(inline))
 
     private fun documentToJson(document: AsgDocument): JsonObject = buildJsonObject {
         put("name", "document")
@@ -156,11 +165,14 @@ class AsgDocumentJsonSerializer(
             addMetadata(block.metadata)
             addLocation(block.location)
         }
-        // Processing-phase extension nodes are not part of the official schema;
-        // they must be resolved by document-processing before serializing.
-        is CommentBlock, is IncludeBlock, is ConditionalBlock, is BibliographyEntryBlock, is RawBlock -> error(
+        // Extension nodes are not part of the official schema; they must be
+        // resolved (by document-processing or an extension plugin) before
+        // serializing.
+        is CommentBlock, is IncludeBlock, is ConditionalBlock, is BibliographyEntryBlock, is RawBlock,
+        is CustomBlockMacro,
+        -> error(
             "${block::class.simpleName} has no official ASG serialization; " +
-                "it must be resolved by document-processing before serializing",
+                "it must be resolved by document-processing or an extension before serializing",
         )
     }
 

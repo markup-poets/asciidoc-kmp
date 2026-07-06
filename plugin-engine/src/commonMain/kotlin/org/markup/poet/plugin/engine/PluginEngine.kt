@@ -8,6 +8,7 @@ import io.github.charlietap.chasm.embedding.shapes.Memory
 import io.github.charlietap.chasm.embedding.store
 import org.markup.poet.plugin.api.PLUGIN_ABI_VERSION
 import org.markup.poet.plugin.api.PluginDescriptor
+import org.markup.poet.plugin.api.PluginDispatch
 import org.markup.poet.plugin.api.PluginJson
 
 /**
@@ -17,7 +18,7 @@ import org.markup.poet.plugin.api.PluginJson
  */
 class PluginEngine(
     private val limits: PluginLimits = PluginLimits(),
-) {
+) : PluginDispatch {
     private val plugins = LinkedHashMap<String, WasmPlugin>()
 
     /** (capability type, name) → plugin, for dispatch during processing. */
@@ -100,8 +101,8 @@ class PluginEngine(
 
     fun plugin(id: String): WasmPlugin? = plugins[id]
 
-    fun descriptors(): List<PluginDescriptor> = plugins.values.map { it.descriptor }
+    override fun descriptors(): List<PluginDescriptor> = plugins.values.map { it.descriptor }
 
     /** The plugin claiming ([type], [name]), or null. */
-    fun forCapability(type: String, name: String): WasmPlugin? = capabilities[type to name]
+    override fun forCapability(type: String, name: String): WasmPlugin? = capabilities[type to name]
 }

@@ -90,6 +90,7 @@ fun metadataOf(block: Block): BlockMetadata? = when (block) {
     is ListBlock -> block.metadata
     is DListBlock -> block.metadata
     is BlockMacro -> block.metadata
+    is CustomBlockMacro -> block.metadata
     is DiscreteHeading -> block.metadata
     else -> null
 }

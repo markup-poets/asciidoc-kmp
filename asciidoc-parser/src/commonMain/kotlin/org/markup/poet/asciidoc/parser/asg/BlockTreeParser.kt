@@ -9,6 +9,7 @@ import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.BreakVariant
 import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.ConditionalVariant
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DListItem
 import org.markup.poet.asciidoc.asg.DiscreteHeading
@@ -86,7 +87,7 @@ class BlockTreeParser {
         val blockAttributeRegex = Regex("""^\[([^\[\]]*)\]$""")
         val blockTitleRegex = Regex("""^\.([^\s.].*)$""")
         val thematicBreakRegex = Regex("""^'{3,}$""")
-        val blockMacroRegex = Regex("""^([a-z]+)::([^\[\s]*)\[([^\]]*)\]$""")
+        val blockMacroRegex = Regex("""^([a-z][a-z0-9_-]*)::([^\[\s]*)\[([^\]]*)\]$""")
         const val PAGE_BREAK = "<<<"
 
         // Processing directives (block level). These share the block-macro shape
@@ -109,6 +110,15 @@ class BlockTreeParser {
             "image" to BlockMacroName.IMAGE,
             "toc" to BlockMacroName.TOC,
         )
+
+        /**
+         * Names that share the block-macro shape but are processing directives,
+         * never (custom) block macros. Their well-formed occurrences are matched
+         * by the directive regexes before the block-macro check; malformed ones
+         * (e.g. `include::[]` with an empty target) keep falling through to
+         * paragraph parsing.
+         */
+        val processingDirectiveNames = setOf("include", "ifdef", "ifndef", "ifeval", "endif")
 
         val verbatimDelimiters = mapOf(
             '-' to LeafBlockName.LISTING,
@@ -259,16 +269,36 @@ class BlockTreeParser {
                     continue
                 }
 
+                // Block macros: built-in names become BlockMacro; any other
+                // non-directive name becomes the CustomBlockMacro extension
+                // seam claimable by blockMacro plugins. Recognized before the
+                // dlist check, but the shapes cannot collide: a block macro
+                // has no space before `::` and requires the trailing `[...]`,
+                // while a dlist description is separated by a space (and the
+                // dlist branches below explicitly skip block-macro lines).
                 val blockMacro = blockMacroRegex.matchEntire(line)
-                if (blockMacro != null && blockMacro.groupValues[1] in blockMacroNames) {
+                if (blockMacro != null && blockMacro.groupValues[1] !in processingDirectiveNames) {
+                    val macroName = blockMacro.groupValues[1]
                     val lineIndex = reader.index
                     reader.next()
-                    blocks += BlockMacro(
-                        name = blockMacroNames.getValue(blockMacro.groupValues[1]),
-                        target = blockMacro.groupValues[2].ifEmpty { null },
-                        metadata = mergeMetadata(pending, parseBlockAttributes(blockMacro.groupValues[3])),
-                        location = lineLocation(lineIndex),
-                    )
+                    val target = blockMacro.groupValues[2].ifEmpty { null }
+                    val macroMetadata = mergeMetadata(pending, parseBlockAttributes(blockMacro.groupValues[3]))
+                    val builtIn = blockMacroNames[macroName]
+                    blocks += if (builtIn != null) {
+                        BlockMacro(
+                            name = builtIn,
+                            target = target,
+                            metadata = macroMetadata,
+                            location = lineLocation(lineIndex),
+                        )
+                    } else {
+                        CustomBlockMacro(
+                            name = macroName,
+                            target = target,
+                            metadata = macroMetadata,
+                            location = lineLocation(lineIndex),
+                        )
+                    }
                     pending = null
                     continue
                 }

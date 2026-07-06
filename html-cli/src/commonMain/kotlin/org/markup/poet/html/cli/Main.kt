@@ -63,11 +63,14 @@ fun main(args: Array<String>) {
         
         println("[HTML-RENDERER] Parse complete")
 
-        // Apply WASM extension plugins to custom blocks
+        // Apply WASM extension plugins to custom blocks and block/inline macros;
+        // the engine stays loaded through rendering so converter-capability
+        // plugins can render the nodes they claim.
         var document = parseResult.document
-        if (cliOptions.plugins.isNotEmpty()) {
+        var customRenderers: Map<String, CustomRenderer> = emptyMap()
+        val engine = if (cliOptions.plugins.isEmpty()) null else org.markup.poet.plugin.engine.PluginEngine()
+        if (engine != null) {
             println("[HTML-RENDERER] Loading ${cliOptions.plugins.size} plugin(s)...")
-            val engine = org.markup.poet.plugin.engine.PluginEngine()
             cliOptions.plugins.forEach { pluginPath ->
                 if (!fileExists(pluginPath)) {
                     printlnErr("✗ Error: Plugin not found: $pluginPath")
@@ -79,17 +82,21 @@ fun main(args: Array<String>) {
             val processed = org.markup.poet.plugin.integration.WasmExtensions(engine).apply(document)
             processed.warnings.forEach { println("⚠ $it") }
             document = processed.document
-            engine.unloadAll()
+            customRenderers = org.markup.poet.plugin.integration.converterRenderers(engine, document.attributes)
+            if (customRenderers.isNotEmpty()) {
+                println("[HTML-RENDERER] Registered converter renderer(s): ${customRenderers.keys.joinToString()}")
+            }
         }
 
         // Create CSS options from CLI arguments
         val cssOptions = createCssOptions(cliOptions)
-        
+
         // Create render configuration
         val renderConfig = RenderConfig(
-            cssOptions = cssOptions
+            cssOptions = cssOptions,
+            customRenderers = customRenderers
         )
-        
+
         // Render to HTML
         println("[HTML-RENDERER] Rendering to HTML...")
         val escaper = DefaultHtmlEscaper()
@@ -97,9 +104,10 @@ fun main(args: Array<String>) {
         val inlineRenderer = DefaultInlineRenderer(builder)
         val blockRenderer = DefaultBlockRenderer(builder, inlineRenderer)
         val renderer = DefaultHtmlRenderer(blockRenderer, inlineRenderer)
-        
+
         val renderResult = renderer.render(document, renderConfig)
-        
+        engine?.unloadAll()
+
         when {
             renderResult.isSuccess -> {
                 val html = renderResult.getOrThrow()
@@ -198,8 +206,10 @@ fun printHelp() {
         |  --css-var <var>=<val>   Override CSS variable (can be used multiple times)
         |                          Example: --css-var --mp-color-primary=#007acc
         |  --plugin <path.wasm>    Load a WASM extension plugin (can be used multiple
-        |                          times); custom blocks whose style a plugin claims
-        |                          are replaced by the plugin's output (docs/PLUGINS.md)
+        |                          times); custom blocks, block macros, and inline
+        |                          macros a plugin claims are replaced by its output,
+        |                          and converter capabilities render the nodes they
+        |                          claim (docs/PLUGINS.md)
         |
         |Examples:
         |  # Convert document.adoc to document.html with default styling
