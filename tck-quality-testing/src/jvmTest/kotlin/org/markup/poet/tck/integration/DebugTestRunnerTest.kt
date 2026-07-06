@@ -15,7 +15,15 @@ class DebugTestRunnerTest {
         val context = TckIntegration.initialize()
         val allFixtures = context.fixtureLoader.loadAllFixtures()
         val officialFixtures = allFixtures.filter { it.metadata["source"] == "official" }
-        
+
+        if (officialFixtures.size < 2) {
+            // The official TCK clone is gitignored and synced on demand; without it
+            // there is nothing to run here. Conformance is gated by the dedicated
+            // official-tck CI job (Node harness), not this debug test.
+            println("⚠️  Official TCK repository not synced — skipping")
+            return
+        }
+
         val secondFixture = officialFixtures[1]  // The strong test
         
         println("Test: ${secondFixture.id}")

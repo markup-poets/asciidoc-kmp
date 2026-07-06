@@ -25,7 +25,15 @@ class OfficialTckTest {
         println("=".repeat(60))
         
         val context = TckIntegration.initialize()
-        
+
+        if (!File(context.config.sync.localPath).exists()) {
+            // No local clone: don't reach for the network from a unit test. The
+            // clone is created by scripts/sync-official-tck.sh; conformance is
+            // gated by the dedicated official-tck CI job (Node harness).
+            println("⚠️  Official TCK repository not present at ${context.config.sync.localPath} — skipping sync test")
+            return@runBlocking
+        }
+
         println("\n📥 Starting sync...")
         println("   Repository: ${context.config.sync.repositoryUrl}")
         println("   Local path: ${context.config.sync.localPath}")
@@ -72,14 +80,19 @@ class OfficialTckTest {
         
         val context = TckIntegration.initialize()
         
-        // Try to sync first (might fail if already synced or no network)
-        try {
-            println("\n📥 Attempting sync...")
-            TckIntegration.sync(context)
-            println("✅ Sync successful")
-        } catch (e: Exception) {
-            println("⚠️  Sync skipped: ${e.message}")
-            println("   Using existing repository if available")
+        // Refresh only an existing clone — never reach for the network when the
+        // repository was never synced (CI unit tests must stay offline).
+        if (File(context.config.sync.localPath).exists()) {
+            try {
+                println("\n📥 Attempting sync...")
+                TckIntegration.sync(context)
+                println("✅ Sync successful")
+            } catch (e: Exception) {
+                println("⚠️  Sync skipped: ${e.message}")
+                println("   Using existing repository if available")
+            }
+        } else {
+            println("⚠️  Official TCK repository not synced — running custom fixtures only")
         }
         
         // Filter to only official tests
@@ -159,17 +172,19 @@ class OfficialTckTest {
         println("=".repeat(60))
         
         val context = TckIntegration.initialize()
-        
-        // Try to sync
-        try {
-            TckIntegration.sync(context)
-        } catch (e: Exception) {
-            println("⚠️  Sync skipped: ${e.message}")
+
+        // Refresh only an existing clone (see above — no network from unit tests).
+        if (File(context.config.sync.localPath).exists()) {
+            try {
+                TckIntegration.sync(context)
+            } catch (e: Exception) {
+                println("⚠️  Sync skipped: ${e.message}")
+            }
         }
-        
+
         // Run tests (both custom and official)
         val results = TckIntegration.runTests(context)
-        
+
         // Generate report
         val report = TckIntegration.generateReport(context, results)
         
@@ -211,17 +226,19 @@ class OfficialTckTest {
         println("=".repeat(60))
         
         val context = TckIntegration.initialize()
-        
-        // Try to sync
-        try {
-            TckIntegration.sync(context)
-        } catch (e: Exception) {
-            println("⚠️  Sync skipped: ${e.message}")
+
+        // Refresh only an existing clone (see above — no network from unit tests).
+        if (File(context.config.sync.localPath).exists()) {
+            try {
+                TckIntegration.sync(context)
+            } catch (e: Exception) {
+                println("⚠️  Sync skipped: ${e.message}")
+            }
         }
-        
+
         // Run tests (both custom and official)
         val results = TckIntegration.runTests(context)
-        
+
         // Generate report model
         val report = TckIntegration.generateReport(context, results)
         
