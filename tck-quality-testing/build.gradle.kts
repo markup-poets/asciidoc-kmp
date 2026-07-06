@@ -45,7 +45,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
 
             // Multiplatform time and date
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
         }
         
         jvmMain {
