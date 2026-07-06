@@ -1,5 +1,6 @@
 package org.markup.poet.tck.integration
 
+import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -19,7 +20,7 @@ class QuickParserTest {
         val result = parser.parse(input)
         
         assertNotNull(result.document)
-        println("✅ Simple paragraph: ${result.errors.size} errors, ${result.document.children.size} children")
+        println("✅ Simple paragraph: ${result.errors.size} errors, ${result.document.blocks.size} children")
     }
     
     @Test
@@ -28,7 +29,7 @@ class QuickParserTest {
         val result = parser.parse(input)
         
         assertNotNull(result.document)
-        println("✅ Heading: title='${result.document.title}', ${result.errors.size} errors")
+        println("✅ Heading: title='${plainText(result.document.header?.title.orEmpty())}', ${result.errors.size} errors")
     }
     
     @Test
@@ -40,7 +41,7 @@ class QuickParserTest {
         val result = parser.parse(input)
         
         assertNotNull(result.document)
-        println("✅ List: ${result.document.children.size} children, ${result.errors.size} errors")
+        println("✅ List: ${result.document.blocks.size} children, ${result.errors.size} errors")
     }
     
     @Test
@@ -54,7 +55,7 @@ class QuickParserTest {
         val result = parser.parse(input)
         
         assertNotNull(result.document)
-        println("✅ Code block: ${result.document.children.size} children, ${result.errors.size} errors")
+        println("✅ Code block: ${result.document.blocks.size} children, ${result.errors.size} errors")
     }
     
     @Test
@@ -72,10 +73,10 @@ class QuickParserTest {
         val result = parser.parse(input)
         
         assertNotNull(result.document)
-        println("✅ Complex doc: title='${result.document.title}', ${result.document.children.size} children, ${result.errors.size} errors")
+        println("✅ Complex doc: title='${plainText(result.document.header?.title.orEmpty())}', ${result.document.blocks.size} children, ${result.errors.size} errors")
         
         // Show what was parsed
-        result.document.children.forEachIndexed { i, child ->
+        result.document.blocks.forEachIndexed { i, child ->
             println("   Child $i: ${child::class.simpleName}")
         }
     }
