@@ -41,10 +41,10 @@ fun main(args: Array<String>) {
         val content = readFileContent(cliOptions.inputFile)
         println("[HTML-RENDERER] Read ${content.length} bytes")
         
-        // Parse AsciiDoc
+        // Parse AsciiDoc into the ASG model
         println("[HTML-RENDERER] Parsing AsciiDoc...")
         val parser = DefaultAsciidocParser()
-        val parseResult = parser.parse(content)
+        val parseResult = parser.parseToAsg(content)
         
         if (parseResult.errors.isNotEmpty()) {
             printlnErr("✗ Parse errors:")

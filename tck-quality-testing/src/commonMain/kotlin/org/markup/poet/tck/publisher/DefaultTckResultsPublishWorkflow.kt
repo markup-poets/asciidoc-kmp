@@ -308,8 +308,8 @@ class DefaultTckResultsPublishWorkflow(
     private fun parseAsciidoc(
         asciidoc: String,
         errors: MutableList<String>
-    ): Result<org.markup.poet.asciidoc.parser.ParseResult> {
-        val parseResult = parser.parse(asciidoc)
+    ): Result<org.markup.poet.asciidoc.parser.AsgParseResult> {
+        val parseResult = parser.parseToAsg(asciidoc)
         
         // Check for parse errors (CRITICAL!)
         if (parseResult.errors.isNotEmpty()) {
@@ -394,7 +394,7 @@ class DefaultTckResultsPublishWorkflow(
     }
     
     /**
-     * Render the Document AST to HTML using the TCK HTML renderer.
+     * Render the ASG document to HTML using the TCK HTML renderer.
      *
      * This method uses the TckHtmlRenderer wrapper which applies the appropriate
      * configuration (KotlinTheme, inline CSS, etc.) for TCK results publishing.
@@ -404,7 +404,7 @@ class DefaultTckResultsPublishWorkflow(
      * @return Result containing the HTML string, or failure if rendering failed
      */
     private fun renderToHtml(
-        document: org.markup.poet.asciidoc.ast.Document,
+        document: org.markup.poet.asciidoc.asg.AsgDocument,
         errors: MutableList<String>
     ): Result<String> {
         val renderResult = renderer.render(document)

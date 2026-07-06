@@ -94,8 +94,7 @@ import org.markup.poet.asciidoc.ast.Text
 object AsgToLegacyAst {
 
     /** Built-in block styles that keep their standard mapping. */
-    private val builtInStyles =
-        setOf("source", "listing", "literal", "verse", "quote", "pass", "stem", "example", "sidebar")
+    private val builtInStyles = org.markup.poet.asciidoc.asg.builtInBlockStyles
 
     fun convert(asg: AsgDocument): Document {
         return Document(

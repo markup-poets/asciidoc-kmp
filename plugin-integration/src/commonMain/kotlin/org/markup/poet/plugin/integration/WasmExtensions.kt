@@ -1,17 +1,25 @@
 package org.markup.poet.plugin.integration
 
-import org.markup.poet.asciidoc.ast.AsciiDocList
-import org.markup.poet.asciidoc.ast.BlockElement
-import org.markup.poet.asciidoc.ast.CustomBlock
-import org.markup.poet.asciidoc.ast.Document
-import org.markup.poet.asciidoc.ast.Emphasis
-import org.markup.poet.asciidoc.ast.InlineElement
-import org.markup.poet.asciidoc.ast.MacroInvocation
-import org.markup.poet.asciidoc.ast.Paragraph
-import org.markup.poet.asciidoc.ast.PassthroughBlock
-import org.markup.poet.asciidoc.ast.RawInline
-import org.markup.poet.asciidoc.ast.Section
-import org.markup.poet.asciidoc.ast.Strong
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.BlockMetadata
+import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineFootnote
+import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRaw
+import org.markup.poet.asciidoc.asg.InlineRef
+import org.markup.poet.asciidoc.asg.InlineSpan
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
+import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.Location
+import org.markup.poet.asciidoc.asg.ParentBlock
+import org.markup.poet.asciidoc.asg.RawBlock
+import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.builtInBlockStyles
+import org.markup.poet.asciidoc.asg.plainText
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.plugin.api.PluginInvocation
 import org.markup.poet.plugin.api.SourcePoint
@@ -20,18 +28,23 @@ import org.markup.poet.plugin.engine.PluginException
 
 /** Result of a plugin pass over a document. */
 data class PluginProcessingResult(
-    val document: Document,
+    val document: AsgDocument,
     val warnings: List<String>,
 )
 
 /**
- * Applies WASM extension plugins to a parsed document:
+ * Applies WASM extension plugins to a parsed ASG document:
  *
- * - `block` capability: every [CustomBlock] whose style a plugin claims is
- *   replaced by the plugin's output (`html` → [PassthroughBlock], `asciidoc` →
- *   re-parsed and spliced).
- * - `inlineMacro` capability: every [MacroInvocation] whose name a plugin
- *   claims is replaced (`html` → [RawInline], `asciidoc` → re-parsed inline).
+ * - `block` capability: every [LeafBlock] whose non-built-in style
+ *   (`metadata.positional.first()`) a plugin claims is replaced by the plugin's
+ *   output (`html` -> [RawBlock], `asciidoc` -> re-parsed and spliced).
+ * - `inlineMacro` capability: every [InlineMacro] whose name a plugin claims is
+ *   replaced (`html` -> [InlineRaw], `asciidoc` -> re-parsed inline).
+ *
+ * The wire ABI (the JSON envelope in [PluginInvocation]) is unchanged from the
+ * legacy AST integration: the block style / macro name maps to `name`, the raw
+ * block text / macro target maps to `content`, and [BlockMetadata] maps to the
+ * `attributes` map with positional attributes keyed by their 1-based index.
  *
  * Unclaimed constructs and failed invocations are left in place (rendering
  * falls back to a listing / placeholder) with a warning.
@@ -39,10 +52,10 @@ data class PluginProcessingResult(
 class WasmExtensions(
     private val engine: PluginEngine,
 ) {
-    fun apply(document: Document): PluginProcessingResult {
+    fun apply(document: AsgDocument): PluginProcessingResult {
         val warnings = mutableListOf<String>()
-        val children = processBlocks(document.children, document.documentAttributes, warnings)
-        return PluginProcessingResult(document.copy(children = children), warnings)
+        val blocks = processBlocks(document.blocks, document.attributes, warnings)
+        return PluginProcessingResult(document.copy(blocks = blocks), warnings)
     }
 
     // -----------------------------------------------------------------------
@@ -50,47 +63,83 @@ class WasmExtensions(
     // -----------------------------------------------------------------------
 
     private fun processBlocks(
-        blocks: List<BlockElement>,
+        blocks: List<Block>,
         documentAttributes: Map<String, String>,
         warnings: MutableList<String>,
-    ): List<BlockElement> = blocks.flatMap { block ->
+    ): List<Block> = blocks.flatMap { block ->
         when (block) {
-            is CustomBlock -> processCustomBlock(block, documentAttributes, warnings)
-            is Section -> listOf(
-                block.copy(children = processBlocks(block.children, documentAttributes, warnings)),
+            is LeafBlock -> processLeafBlock(block, documentAttributes, warnings)
+            is SectionBlock -> listOf(
+                block.copy(blocks = processBlocks(block.blocks, documentAttributes, warnings)),
             )
-            is Paragraph -> listOf(
-                block.copy(content = processInlines(block.content, documentAttributes, warnings)),
+            is ParentBlock -> listOf(
+                block.copy(blocks = processBlocks(block.blocks, documentAttributes, warnings)),
             )
-            is AsciiDocList -> listOf(
+            is ListBlock -> listOf(
                 block.copy(items = block.items.map { item ->
-                    item.copy(content = processInlines(item.content, documentAttributes, warnings))
+                    item.copy(
+                        principal = processInlines(item.principal, documentAttributes, warnings),
+                        blocks = processBlocks(item.blocks, documentAttributes, warnings),
+                    )
                 }),
+            )
+            is DListBlock -> listOf(
+                block.copy(items = block.items.map { item ->
+                    item.copy(
+                        principal = processInlines(item.principal, documentAttributes, warnings),
+                        blocks = processBlocks(item.blocks, documentAttributes, warnings),
+                    )
+                }),
+            )
+            is ConditionalBlock -> listOf(
+                block.copy(
+                    blocks = processBlocks(block.blocks, documentAttributes, warnings),
+                    elseBlocks = processBlocks(block.elseBlocks, documentAttributes, warnings),
+                ),
             )
             else -> listOf(block)
         }
     }
 
-    private fun processCustomBlock(
-        block: CustomBlock,
+    /**
+     * A leaf block is plugin-claimable when its style is not one of the
+     * built-in styles; otherwise only its inline content is processed.
+     */
+    private fun processLeafBlock(
+        block: LeafBlock,
         documentAttributes: Map<String, String>,
         warnings: MutableList<String>,
-    ): List<BlockElement> {
-        val plugin = engine.forCapability("block", block.name) ?: return listOf(block)
+    ): List<Block> {
+        val style = block.metadata?.positional?.firstOrNull()
+        if (style != null && style !in builtInBlockStyles) {
+            return processCustomBlock(block, style, documentAttributes, warnings)
+        }
+        return listOf(
+            block.copy(inlines = processInlines(block.inlines, documentAttributes, warnings)),
+        )
+    }
+
+    private fun processCustomBlock(
+        block: LeafBlock,
+        style: String,
+        documentAttributes: Map<String, String>,
+        warnings: MutableList<String>,
+    ): List<Block> {
+        val plugin = engine.forCapability("block", style) ?: return listOf(block)
 
         val response = try {
             plugin.process(
                 PluginInvocation(
                     extensionPoint = "block",
-                    name = block.name,
-                    attributes = block.attributes,
-                    content = block.rawContent,
+                    name = style,
+                    attributes = block.metadata.toAttributeMap(),
+                    content = plainText(block.inlines),
                     documentAttributes = documentAttributes,
-                    location = SourcePoint(block.sourceLocation.line, block.sourceLocation.column),
+                    location = block.location.toSourcePoint(),
                 ),
             )
         } catch (e: PluginException) {
-            warnings += "plugin '${plugin.id}' failed on [${block.name}] block at line ${block.sourceLocation.line}: ${e.message}"
+            warnings += "plugin '${plugin.id}' failed on [$style] block at line ${block.location.lineNumber()}: ${e.message}"
             return listOf(block)
         }
 
@@ -98,21 +147,21 @@ class WasmExtensions(
         val replacement = response.replacement
         if (!response.ok || replacement == null) {
             response.error?.let {
-                warnings += "plugin '${plugin.id}' rejected [${block.name}] block at line ${block.sourceLocation.line}: $it"
+                warnings += "plugin '${plugin.id}' rejected [$style] block at line ${block.location.lineNumber()}: $it"
             }
             return listOf(block)
         }
 
         return when (replacement.contentType) {
             "html" -> listOf(
-                PassthroughBlock(
+                RawBlock(
                     format = "html",
                     content = replacement.value,
-                    sourceLocation = block.sourceLocation,
+                    location = block.location,
                 ),
             )
             // Re-parse and splice: the replacement flows through the normal pipeline.
-            "asciidoc" -> DefaultAsciidocParser().parse(replacement.value).document.children
+            "asciidoc" -> DefaultAsciidocParser().parseToAsg(replacement.value).document.blocks
             else -> {
                 warnings += "plugin '${plugin.id}' returned unsupported contentType '${replacement.contentType}'"
                 listOf(block)
@@ -125,42 +174,45 @@ class WasmExtensions(
     // -----------------------------------------------------------------------
 
     private fun processInlines(
-        inlines: List<InlineElement>,
+        inlines: List<Inline>,
         documentAttributes: Map<String, String>,
         warnings: MutableList<String>,
-    ): List<InlineElement> = inlines.flatMap { inline ->
+    ): List<Inline> = inlines.flatMap { inline ->
         when (inline) {
-            is MacroInvocation -> processMacro(inline, documentAttributes, warnings)
-            is Strong -> listOf(
-                inline.copy(content = processInlines(inline.content, documentAttributes, warnings)),
+            is InlineMacro -> processMacro(inline, documentAttributes, warnings)
+            is InlineSpan -> listOf(
+                inline.copy(inlines = processInlines(inline.inlines, documentAttributes, warnings)),
             )
-            is Emphasis -> listOf(
-                inline.copy(content = processInlines(inline.content, documentAttributes, warnings)),
+            is InlineRef -> listOf(
+                inline.copy(inlines = processInlines(inline.inlines, documentAttributes, warnings)),
+            )
+            is InlineFootnote -> listOf(
+                inline.copy(inlines = processInlines(inline.inlines, documentAttributes, warnings)),
             )
             else -> listOf(inline)
         }
     }
 
     private fun processMacro(
-        macro: MacroInvocation,
+        macro: InlineMacro,
         documentAttributes: Map<String, String>,
         warnings: MutableList<String>,
-    ): List<InlineElement> {
-        val plugin = engine.forCapability("inlineMacro", macro.macroName) ?: return listOf(macro)
+    ): List<Inline> {
+        val plugin = engine.forCapability("inlineMacro", macro.name) ?: return listOf(macro)
 
         val response = try {
             plugin.process(
                 PluginInvocation(
                     extensionPoint = "inlineMacro",
-                    name = macro.macroName,
-                    attributes = macro.parameters,
-                    content = macro.parameters["target"] ?: "",
+                    name = macro.name,
+                    attributes = macro.toAttributeMap(),
+                    content = macro.target,
                     documentAttributes = documentAttributes,
-                    location = SourcePoint(macro.sourceLocation.line, macro.sourceLocation.column),
+                    location = macro.location.toSourcePoint(),
                 ),
             )
         } catch (e: PluginException) {
-            warnings += "plugin '${plugin.id}' failed on ${macro.macroName} macro at line ${macro.sourceLocation.line}: ${e.message}"
+            warnings += "plugin '${plugin.id}' failed on ${macro.name} macro at line ${macro.location.lineNumber()}: ${e.message}"
             return listOf(macro)
         }
 
@@ -168,19 +220,20 @@ class WasmExtensions(
         val replacement = response.replacement
         if (!response.ok || replacement == null) {
             response.error?.let {
-                warnings += "plugin '${plugin.id}' rejected ${macro.macroName} macro at line ${macro.sourceLocation.line}: $it"
+                warnings += "plugin '${plugin.id}' rejected ${macro.name} macro at line ${macro.location.lineNumber()}: $it"
             }
             return listOf(macro)
         }
 
         return when (replacement.contentType) {
             "html" -> listOf(
-                RawInline(format = "html", content = replacement.value, sourceLocation = macro.sourceLocation),
+                InlineRaw(format = "html", content = replacement.value, location = macro.location),
             )
             // Re-parse as a snippet and splice the first paragraph's inlines.
-            "asciidoc" -> DefaultAsciidocParser().parse(replacement.value).document.children
-                .filterIsInstance<Paragraph>()
-                .firstOrNull()?.content
+            "asciidoc" -> DefaultAsciidocParser().parseToAsg(replacement.value).document.blocks
+                .filterIsInstance<LeafBlock>()
+                .firstOrNull { it.name == LeafBlockName.PARAGRAPH }
+                ?.inlines
                 ?: listOf(macro)
             else -> {
                 warnings += "plugin '${plugin.id}' returned unsupported contentType '${replacement.contentType}'"
@@ -188,6 +241,28 @@ class WasmExtensions(
             }
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Envelope mapping (wire-ABI compatible with the legacy AST integration)
+    // -----------------------------------------------------------------------
+
+    /** Attributes map for the envelope: positional by 1-based index plus named. */
+    private fun BlockMetadata?.toAttributeMap(): Map<String, String> = buildMap {
+        this@toAttributeMap?.positional?.forEachIndexed { index, value -> put((index + 1).toString(), value) }
+        this@toAttributeMap?.named?.let { putAll(it) }
+    }
+
+    /** Macro attributes: target plus positional by 1-based index plus named. */
+    private fun InlineMacro.toAttributeMap(): Map<String, String> = buildMap {
+        put("target", target)
+        positional.forEachIndexed { index, value -> put((index + 1).toString(), value) }
+        putAll(named)
+    }
+
+    private fun Location?.toSourcePoint(): SourcePoint =
+        SourcePoint(this?.start?.line ?: 1, this?.start?.col ?: 1)
+
+    private fun Location?.lineNumber(): Int = this?.start?.line ?: 1
 }
 
 @Deprecated("Renamed to WasmExtensions", ReplaceWith("WasmExtensions"))

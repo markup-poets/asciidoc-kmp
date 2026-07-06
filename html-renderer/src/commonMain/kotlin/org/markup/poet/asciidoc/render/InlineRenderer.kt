@@ -1,246 +1,213 @@
 package org.markup.poet.asciidoc.render
 
-import org.markup.poet.asciidoc.ast.*
+import org.markup.poet.asciidoc.asg.Inline
+import org.markup.poet.asciidoc.asg.InlineAttributeRef
+import org.markup.poet.asciidoc.asg.InlineCallout
+import org.markup.poet.asciidoc.asg.InlineCitation
+import org.markup.poet.asciidoc.asg.InlineFootnote
+import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.InlineRaw
+import org.markup.poet.asciidoc.asg.InlineRef
+import org.markup.poet.asciidoc.asg.InlineSpan
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.RefVariant
+import org.markup.poet.asciidoc.asg.SpanVariant
+import org.markup.poet.asciidoc.asg.plainText
 
 /**
- * Renders inline elements to HTML.
- * 
+ * Renders ASG inline nodes to HTML.
+ *
  * InlineRenderer handles text-level markup like emphasis, strong text, code spans,
- * links, and images. It processes nested inline elements recursively to maintain
- * proper HTML structure.
- * 
+ * marks, links, and cross-references. It processes nested inline nodes recursively
+ * to maintain proper HTML structure.
+ *
  * Implementations must ensure:
  * - All text content is properly escaped to prevent XSS attacks
  * - URLs are sanitized to prevent javascript: and data: URI schemes
  * - Images include alt text for accessibility
- * - Nested inline elements are rendered correctly
+ * - Nested inline nodes are rendered correctly
  */
 interface InlineRenderer {
     /**
-     * Renders an inline element to HTML.
-     * 
-     * @param inline The inline element to render
+     * Renders an inline node to HTML.
+     *
+     * @param inline The inline node to render
      * @param context The rendering context containing configuration and state
-     * @return The HTML string representation of the inline element
+     * @return The HTML string representation of the inline node
      */
-    fun render(inline: InlineElement, context: RenderContext): String
+    fun render(inline: Inline, context: RenderContext): String
 }
 
 /**
  * Default implementation of InlineRenderer that produces semantic HTML5 output.
- * 
+ *
  * This implementation:
- * - Converts Text nodes to escaped text content
- * - Converts Strong nodes to `<strong>` elements
- * - Converts Emphasis nodes to `<em>` elements
- * - Converts Code nodes to `<code>` elements
- * - Converts Link nodes to `<a>` elements with URL sanitization
- * - Converts Image nodes to `<img>` elements with alt text
- * - Handles nested inline elements recursively
- * - Logs warnings for unknown inline element types
- * 
- * Note: The design document mentions Bold, Italic, Subscript, and Superscript,
- * but the actual AST uses Strong and Emphasis. This implementation follows the
- * actual AST structure while maintaining semantic correctness.
- * 
- * @param builder The HtmlBuilder to use for constructing HTML
+ * - Converts InlineText nodes to escaped text content
+ * - Converts InlineSpan nodes to `<strong>`, `<em>`, `<code>`, or `<mark>` elements
+ * - Converts InlineRef nodes to `<a>` elements (links with URL sanitization,
+ *   xrefs as fragment anchors)
+ * - Converts InlineMacro nodes: built-in `image`/`link`/`xref` names map to their
+ *   HTML elements, anything else renders as a placeholder with a warning
+ * - Converts the processing-phase extension nodes (attribute refs, callouts,
+ *   footnotes, citations, raw inline output) to their HTML forms
+ * - Handles nested inline nodes recursively
+ *
+ * @param builder The HtmlBuilder to use for escaping
  */
 class DefaultInlineRenderer(
     private val builder: HtmlBuilder
 ) : InlineRenderer {
-    
-    override fun render(inline: InlineElement, context: RenderContext): String {
+
+    override fun render(inline: Inline, context: RenderContext): String {
         return when (inline) {
-            is Text -> renderText(inline)
-            is Strong -> renderStrong(inline, context)
-            is Emphasis -> renderEmphasis(inline, context)
-            is Code -> renderCode(inline)
-            is Link -> renderLink(inline, context)
-            is Image -> renderImage(inline)
-            is AttributeReference -> renderAttributeReference(inline, context)
-            is Callout -> renderCallout(inline)
-            is CrossReference -> renderCrossReference(inline, context)
-            is MacroInvocation -> renderMacroInvocation(inline, context)
-            is BibliographyReference -> renderBibliographyReference(inline)
-            is FootnoteReference -> renderFootnoteReference(inline)
-            is RawInline -> if (inline.format == "html") inline.content else ""
+            is InlineText -> renderText(inline)
+            is InlineSpan -> renderSpan(inline, context)
+            is InlineRef -> renderRef(inline, context)
+            is InlineMacro -> renderMacro(inline, context)
+            is InlineAttributeRef -> renderAttributeRef(inline, context)
+            is InlineCallout -> renderCallout(inline)
+            is InlineFootnote -> renderFootnote(inline)
+            is InlineCitation -> renderCitation(inline)
+            is InlineRaw -> if (inline.format == "html") inline.content else ""
         }
     }
-    
-    /**
-     * Renders plain text with HTML escaping.
-     * 
-     * Validates: Requirements 1.3, 3.1, 4.1, 4.2, 4.3
-     */
-    private fun renderText(text: Text): String {
-        return builder.escape(text.content)
+
+    /** Renders plain text with HTML escaping. */
+    private fun renderText(text: InlineText): String {
+        return builder.escape(text.value)
     }
-    
+
     /**
-     * Renders strong (bold) text as `<strong>` element.
-     * 
-     * Validates: Requirements 1.3, 3.1
+     * Renders a formatting span.
+     *
+     * - STRONG -> `<strong>` with nested inlines
+     * - EMPHASIS -> `<em>` with nested inlines
+     * - CODE -> `<code>` holding the span's concatenated text, escaped
+     * - MARK -> `<mark>` with nested inlines
      */
-    private fun renderStrong(strong: Strong, context: RenderContext): String {
-        val content = renderNestedInline(strong.content, context)
-        return "<strong>$content</strong>"
+    private fun renderSpan(span: InlineSpan, context: RenderContext): String {
+        return when (span.variant) {
+            SpanVariant.STRONG -> "<strong>${renderNested(span.inlines, context)}</strong>"
+            SpanVariant.EMPHASIS -> "<em>${renderNested(span.inlines, context)}</em>"
+            SpanVariant.CODE -> "<code>${builder.escape(plainText(span.inlines))}</code>"
+            SpanVariant.MARK -> "<mark>${renderNested(span.inlines, context)}</mark>"
+        }
     }
-    
+
     /**
-     * Renders emphasized (italic) text as `<em>` element.
-     * 
-     * Validates: Requirements 1.3, 3.2
+     * Renders a reference.
+     *
+     * - LINK -> `<a href="...">` with URL sanitization; the link text is the
+     *   nested inline content (falling back to the target)
+     * - XREF -> `<a href="#target">` pointing at an in-document anchor
      */
-    private fun renderEmphasis(emphasis: Emphasis, context: RenderContext): String {
-        val content = renderNestedInline(emphasis.content, context)
-        return "<em>$content</em>"
+    private fun renderRef(ref: InlineRef, context: RenderContext): String {
+        return when (ref.variant) {
+            RefVariant.LINK -> {
+                val escapedUrl = builder.escapeAttribute(sanitizeUrl(ref.target))
+                val text = if (ref.inlines.isEmpty()) {
+                    builder.escape(ref.target)
+                } else {
+                    renderNested(ref.inlines, context)
+                }
+                "<a href=\"$escapedUrl\">$text</a>"
+            }
+            RefVariant.XREF -> {
+                val escapedId = builder.escapeAttribute(ref.target)
+                val text = if (ref.inlines.isEmpty()) {
+                    builder.escape(ref.target)
+                } else {
+                    renderNested(ref.inlines, context)
+                }
+                "<a href=\"#$escapedId\">$text</a>"
+            }
+        }
     }
-    
+
     /**
-     * Renders inline code as `<code>` element with escaped content.
-     * 
-     * Validates: Requirements 1.3, 3.3
+     * Renders a generic inline macro.
+     *
+     * The built-in names map to their HTML elements (`image` -> `<img>`,
+     * `link` -> `<a>`, `xref` -> in-document anchor). Any other name is an
+     * extension seam: by the time rendering runs, extension processors should
+     * have replaced claimed macros, so a leftover macro renders as a
+     * placeholder with a warning.
      */
-    private fun renderCode(code: Code): String {
-        val escaped = builder.escape(code.content)
-        return "<code>$escaped</code>"
+    private fun renderMacro(macro: InlineMacro, context: RenderContext): String {
+        return when (macro.name) {
+            "image" -> {
+                val escapedSrc = builder.escapeAttribute(sanitizeUrl(macro.target))
+                val escapedAlt = builder.escapeAttribute(macro.positional.firstOrNull() ?: "")
+                val titleAttr = macro.named["title"]?.let { " title=\"${builder.escapeAttribute(it)}\"" } ?: ""
+                "<img src=\"$escapedSrc\" alt=\"$escapedAlt\"$titleAttr>"
+            }
+            "link" -> {
+                val escapedUrl = builder.escapeAttribute(sanitizeUrl(macro.target))
+                val text = builder.escape(macro.positional.firstOrNull() ?: macro.target)
+                val titleAttr = macro.named["title"]?.let { " title=\"${builder.escapeAttribute(it)}\"" } ?: ""
+                "<a href=\"$escapedUrl\"$titleAttr>$text</a>"
+            }
+            "xref" -> {
+                val escapedId = builder.escapeAttribute(macro.target)
+                val text = builder.escape(macro.positional.firstOrNull() ?: macro.target)
+                "<a href=\"#$escapedId\">$text</a>"
+            }
+            else -> {
+                context.logWarning("Unexpanded macro: ${macro.name}")
+                val escapedName = builder.escape("${macro.name}[]")
+                "<span class=\"macro-placeholder\">$escapedName</span>"
+            }
+        }
     }
-    
+
     /**
-     * Renders a hyperlink as `<a>` element with URL sanitization.
-     * 
-     * Sanitizes URLs to prevent javascript: and data: URI schemes.
-     * Escapes the link text to prevent XSS attacks.
-     * 
-     * Validates: Requirements 1.3, 3.4, 4.6
-     */
-    private fun renderLink(link: Link, context: RenderContext): String {
-        val sanitizedUrl = sanitizeUrl(link.url)
-        val escapedUrl = builder.escapeAttribute(sanitizedUrl)
-        val escapedText = builder.escape(link.text)
-        
-        val titleAttr = link.attributes["title"]?.let { title ->
-            " title=\"${builder.escapeAttribute(title)}\""
-        } ?: ""
-        
-        return "<a href=\"$escapedUrl\"$titleAttr>$escapedText</a>"
-    }
-    
-    /**
-     * Renders an inline image as `<img>` element with alt text.
-     * 
-     * Always includes alt attribute for accessibility, even if empty.
-     * 
-     * Validates: Requirements 1.3, 3.5, 8.1
-     */
-    private fun renderImage(image: Image): String {
-        val escapedSrc = builder.escapeAttribute(image.path)
-        val escapedAlt = builder.escapeAttribute(image.altText)
-        
-        val titleAttr = image.attributes["title"]?.let { title ->
-            " title=\"${builder.escapeAttribute(title)}\""
-        } ?: ""
-        
-        return "<img src=\"$escapedSrc\" alt=\"$escapedAlt\"$titleAttr>"
-    }
-    
-    /**
-     * Renders an attribute reference.
-     * 
+     * Renders an unresolved attribute reference as its literal `{name}` text.
+     *
      * In the rendering phase, attribute references should have been resolved
-     * by the document-processing module. If we encounter one here, we render
-     * it as-is with a warning.
-     * 
-     * Validates: Requirements 11.1
+     * by the document-processing module; encountering one here is worth a warning.
      */
-    private fun renderAttributeReference(ref: AttributeReference, context: RenderContext): String {
-        context.logWarning("Unresolved attribute reference: {${ref.key}}")
-        return builder.escape("{${ref.key}}")
+    private fun renderAttributeRef(ref: InlineAttributeRef, context: RenderContext): String {
+        context.logWarning("Unresolved attribute reference: {${ref.name}}")
+        return builder.escape("{${ref.name}}")
     }
-    
-    /**
-     * Renders a callout number.
-     * 
-     * Callouts are rendered as `<span>` elements with a specific class for styling.
-     */
-    private fun renderCallout(callout: Callout): String {
+
+    /** Renders a callout marker as a styled `<span>` (e.g. `<1>`). */
+    private fun renderCallout(callout: InlineCallout): String {
         return "<span class=\"callout\">&lt;${callout.number}&gt;</span>"
     }
-    
-    /**
-     * Renders a cross-reference as an anchor link.
-     * 
-     * Uses the target ID for the href attribute. If custom text is provided,
-     * uses it; otherwise uses the target ID as the link text.
-     * 
-     * Validates: Requirements 11.2
-     */
-    private fun renderCrossReference(ref: CrossReference, context: RenderContext): String {
-        val linkText = ref.customText ?: ref.targetId
-        val escapedText = builder.escape(linkText)
-        val escapedId = builder.escapeAttribute(ref.targetId)
-        
-        return "<a href=\"#$escapedId\">$escapedText</a>"
+
+    /** Renders a footnote reference as a superscript anchor. */
+    private fun renderFootnote(footnote: InlineFootnote): String {
+        return """<sup class="footnote-ref"><a href="#fn-${footnote.id}">${footnote.id}</a></sup>"""
     }
-    
-    /**
-     * Renders a macro invocation.
-     * 
-     * In the rendering phase, macros should have been expanded by the
-     * document-processing module. If we encounter one here, we render
-     * a placeholder with a warning.
-     * 
-     * Validates: Requirements 11.5
-     */
-    private fun renderMacroInvocation(macro: MacroInvocation, context: RenderContext): String {
-        context.logWarning("Unexpanded macro: ${macro.macroName}")
-        val escapedName = builder.escape("${macro.macroName}[]")
-        return "<span class=\"macro-placeholder\">$escapedName</span>"
+
+    /** Renders a bibliography citation as an anchor to the entry. */
+    private fun renderCitation(citation: InlineCitation): String {
+        return """<a href="#${citation.citationId}" class="bibliography-ref">[${citation.citationId}]</a>"""
     }
-    
+
     /**
-     * Renders a list of nested inline elements recursively.
-     * 
-     * This method is used for inline elements that contain other inline elements,
-     * such as Strong and Emphasis.
-     * 
-     * Validates: Requirements 1.4, 3.8
+     * Renders a list of nested inline nodes recursively.
      */
-    private fun renderNestedInline(content: List<InlineElement>, context: RenderContext): String {
+    private fun renderNested(content: List<Inline>, context: RenderContext): String {
         return content.joinToString("") { render(it, context) }
     }
-    
+
     /**
      * Sanitizes a URL to prevent XSS attacks.
-     * 
+     *
      * Blocks javascript: and data: URI schemes by replacing them with "#".
      * This prevents execution of malicious scripts through link URLs.
-     * 
-     * Validates: Requirements 4.6
      */
     private fun sanitizeUrl(url: String): String {
         val trimmed = url.trim()
         val lower = trimmed.lowercase()
-        
+
         // Block dangerous URI schemes
         if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
             return "#"
         }
-        
+
         return trimmed
-    }
-    
-    /**
-     * Render a bibliography reference
-     */
-    private fun renderBibliographyReference(ref: BibliographyReference): String {
-        return """<a href="#${ref.citationId}" class="bibliography-ref">[${ref.citationId}]</a>"""
-    }
-    
-    /**
-     * Render a footnote reference
-     */
-    private fun renderFootnoteReference(ref: FootnoteReference): String {
-        return """<sup class="footnote-ref"><a href="#fn-${ref.id}">${ref.id}</a></sup>"""
     }
 }

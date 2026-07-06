@@ -1,6 +1,6 @@
 package org.markup.poet.tck.publisher
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.render.DefaultHtmlRenderer
 import org.markup.poet.asciidoc.render.HtmlRenderer
 import org.markup.poet.asciidoc.render.RenderConfig
@@ -37,7 +37,7 @@ class TckHtmlRenderer(
 ) {
     
     /**
-     * Renders a Document AST to HTML with TCK results styling.
+     * Renders an ASG document to HTML with TCK results styling.
      *
      * This method:
      * 1. Creates a RenderConfig optimized for TCK results (KotlinTheme, inline CSS, etc.)
@@ -61,12 +61,12 @@ class TckHtmlRenderer(
      *
      * Validates: Requirements 3.1, 3.6
      *
-     * @param document The Document AST to render (typically generated from TCK results)
+     * @param document The ASG document to render (typically generated from TCK results)
      * @param documentTitle Optional custom document title (overrides default)
      * @return Result containing the rendered HTML string, or an error if rendering failed
      */
     fun render(
-        document: Document,
+        document: AsgDocument,
         documentTitle: String? = null
     ): Result<String> {
         return try {
@@ -117,17 +117,17 @@ class TckHtmlRenderer(
     }
     
     /**
-     * Renders a Document AST to HTML with a custom RenderConfig.
+     * Renders an ASG document to HTML with a custom RenderConfig.
      *
      * This method allows full control over the rendering configuration,
      * useful for testing or special rendering scenarios.
      *
-     * @param document The Document AST to render
+     * @param document The ASG document to render
      * @param config Custom render configuration
      * @return Result containing the rendered HTML string, or an error if rendering failed
      */
     fun renderWithConfig(
-        document: Document,
+        document: AsgDocument,
         config: RenderConfig
     ): Result<String> {
         return try {
@@ -178,7 +178,7 @@ class TckHtmlRenderer(
             // TODO: Replace with actual DefaultHtmlRenderer initialization
             // For now, return a stub that will be replaced when renderer is implemented
             return object : HtmlRenderer {
-                override fun render(document: Document, config: RenderConfig): Result<String> {
+                override fun render(document: AsgDocument, config: RenderConfig): Result<String> {
                     return Result.failure(
                         NotImplementedError("DefaultHtmlRenderer not yet fully implemented")
                     )

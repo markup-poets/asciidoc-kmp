@@ -1,6 +1,8 @@
 package org.markup.poet.tck.publisher
 
-import org.markup.poet.asciidoc.ast.Document
+import org.markup.poet.asciidoc.asg.AsgDocument
+import org.markup.poet.asciidoc.asg.Header
+import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.render.HtmlRenderer
 import org.markup.poet.asciidoc.render.RenderConfig
 import kotlin.test.Test
@@ -228,19 +230,14 @@ class TckHtmlRendererTest {
     
     // Helper functions
     
-    private fun createMockDocument(): Document {
-        return Document(
-            title = "TCK Results",
-            children = emptyList(),
-            documentAttributes = mapOf(
+    private fun createMockDocument(): AsgDocument {
+        return AsgDocument(
+            attributes = mapOf(
                 "author" to "TCK Bot",
                 "description" to "Test results"
             ),
-            attributes = emptyMap(),
-            sourceLocation = org.markup.poet.asciidoc.ast.SourceLocation(
-                line = 1,
-                column = 1
-            )
+            header = Header(title = listOf(InlineText("TCK Results"))),
+            blocks = emptyList()
         )
     }
 }
@@ -254,10 +251,10 @@ class TckHtmlRendererTest {
 private class MockHtmlRenderer(
     private val renderResult: Result<String> = Result.success("<html></html>"),
     private val throwException: Exception? = null,
-    private val onRender: ((Document, RenderConfig) -> Unit)? = null
+    private val onRender: ((AsgDocument, RenderConfig) -> Unit)? = null
 ) : HtmlRenderer {
     
-    override fun render(document: Document, config: RenderConfig): Result<String> {
+    override fun render(document: AsgDocument, config: RenderConfig): Result<String> {
         // Call the callback if provided (for capturing config)
         onRender?.invoke(document, config)
         

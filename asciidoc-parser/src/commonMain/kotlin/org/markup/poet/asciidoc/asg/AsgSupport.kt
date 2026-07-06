@@ -7,6 +7,15 @@ package org.markup.poet.asciidoc.asg
  * logic.
  */
 
+/**
+ * Block styles with a built-in meaning (verbatim/container styles that keep
+ * their standard mapping). Any other block style marks the block as claimable
+ * by extension processors (WASM plugins); unclaimed blocks fall back to a
+ * visible listing-style rendering.
+ */
+val builtInBlockStyles: Set<String> =
+    setOf("source", "listing", "literal", "verse", "quote", "pass", "stem", "example", "sidebar")
+
 /** Concatenated plain-text value of [inlines], recursing into spans and refs. */
 fun plainText(inlines: List<Inline>): String = buildString {
     fun visit(inline: Inline) {
