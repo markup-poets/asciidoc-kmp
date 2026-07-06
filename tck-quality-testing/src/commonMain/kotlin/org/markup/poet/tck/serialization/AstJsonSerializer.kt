@@ -9,6 +9,7 @@ import org.markup.poet.asciidoc.asg.BlockMacroName
 import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.CommentBlock
 import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.IncludeBlock
@@ -226,7 +227,8 @@ class AstJsonSerializer {
         is IncludeBlock,
         is ConditionalBlock,
         is BibliographyEntryBlock,
-        is RawBlock -> listOf(unknownBlock())
+        is RawBlock,
+        is CustomBlockMacro -> listOf(unknownBlock())
     }
 
     private fun unknownBlock(): JsonObject = buildJsonObject {

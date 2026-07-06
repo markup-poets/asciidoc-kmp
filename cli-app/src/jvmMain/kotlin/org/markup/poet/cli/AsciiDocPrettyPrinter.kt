@@ -8,6 +8,7 @@ import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.BreakVariant
 import org.markup.poet.asciidoc.asg.CommentBlock
 import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.IncludeBlock
@@ -99,6 +100,10 @@ class AsciiDocPrettyPrinter {
             is BlockMacro -> {
                 val attrlist = block.metadata?.positional?.joinToString(",") ?: ""
                 builder.appendLine("$indent${block.name.asgName}::${block.target ?: ""}[$attrlist]")
+            }
+            is CustomBlockMacro -> {
+                val attrlist = block.metadata?.positional?.joinToString(",") ?: ""
+                builder.appendLine("$indent${block.name}::${block.target ?: ""}[$attrlist]")
             }
             is DiscreteHeading -> {
                 builder.appendLine("$indent[discrete]")

@@ -5,6 +5,7 @@ import io.github.charlietap.chasm.embedding.shapes.Memory
 import io.github.charlietap.chasm.embedding.shapes.Store
 import io.github.charlietap.chasm.runtime.value.NumberValue
 import org.markup.poet.plugin.api.PluginDescriptor
+import org.markup.poet.plugin.api.PluginHandle
 import org.markup.poet.plugin.api.PluginInvocation
 import org.markup.poet.plugin.api.PluginJson
 import org.markup.poet.plugin.api.PluginResponse
@@ -18,8 +19,8 @@ class WasmPlugin internal constructor(
     private val memory: Memory,
     private val hasOnUnload: Boolean,
     private val limits: PluginLimits,
-) {
-    val id: String get() = descriptor.id
+) : PluginHandle {
+    override val id: String get() = descriptor.id
 
     private var disposed = false
 
@@ -27,7 +28,7 @@ class WasmPlugin internal constructor(
     var poisoned: Boolean = false
         private set
 
-    fun process(invocation: PluginInvocation): PluginResponse {
+    override fun process(invocation: PluginInvocation): PluginResponse {
         check(!disposed) { "Plugin '$id' has been disposed" }
         check(!poisoned) { "Plugin '$id' is poisoned after a previous failure" }
 

@@ -14,8 +14,24 @@ the JSON envelopes the host hands it. No filesystem, no network, no clock.
 |---------------|-------------------------------------|--------|
 | `block`       | `[name]` + delimited/paragraph body | v1     |
 | `inlineMacro` | `name:target[attrs]`                | v1     |
-| `blockMacro`  | `name::target[attrs]`               | planned |
-| `converter`   | ASG node → output string            | planned |
+| `blockMacro`  | `name::target[attrs]`               | v1     |
+| `converter`   | ASG node → HTML string              | v1     |
+
+All four are ABI v1: the capability types and the `asg` content type are
+additive — plugins built against the original v1 surface keep working
+unchanged.
+
+- **`block`** claims a block whose style (`[name]` attribute line) matches the
+  capability name and replaces it *before* rendering.
+- **`blockMacro`** claims a `name::target[attrs]` line whose macro name is not
+  built in (`image`, `audio`, `video`, `toc`) and not a processing directive
+  (`include`, `ifdef`, `ifndef`, `ifeval`, `endif`), and replaces it before
+  rendering. An unclaimed custom block macro renders as nothing plus a warning.
+- **`inlineMacro`** claims `name:target[attrs]` inline macros.
+- **`converter`** does not transform the document — it renders. The capability
+  `name` names the block style (e.g. `gallery`) or ASG node kind (e.g.
+  `ListBlock`) it renders; the host registers it as a custom renderer and calls
+  it whenever the HTML renderer reaches a matching node.
 
 ## ABI v1
 
@@ -70,6 +86,26 @@ Hosts refuse `abiVersion != 1`, duplicate plugin ids, and duplicate
 }
 ```
 
+`attributes` carries the construct's own attributes: positional attributes
+keyed by their 1-based index plus the named attributes. For `blockMacro` and
+`inlineMacro` invocations the macro target is additionally available as
+`attributes["target"]`, and `content` is the target:
+
+```json
+{
+  "abiVersion": 1,
+  "extensionPoint": "blockMacro",
+  "name": "gallery",
+  "attributes": { "target": "photos/2024", "1": "grid", "size": "big" },
+  "content": "photos/2024",
+  "documentAttributes": {},
+  "location": { "line": 3, "column": 1 }
+}
+```
+
+For `converter` invocations `content` is the claimed node serialized as
+**official ASG node JSON** (see the converter section below).
+
 ### Response (plugin → host)
 
 ```json
@@ -83,9 +119,57 @@ Hosts refuse `abiVersion != 1`, duplicate plugin ids, and duplicate
 - `contentType: "asciidoc"` — the host re-parses the value and splices the
   resulting blocks (attribute substitution and macro expansion still apply).
 - `contentType: "html"` — spliced as a raw passthrough block.
-- `contentType: "asg"` — reserved: ASG node JSON (see `asciidoc-asg`).
+- `contentType: "asg"` — official ASG node JSON: `nodes` holds an array of
+  nodes (a single node object is also accepted); hosts fall back to parsing
+  `value` as JSON when `nodes` is absent. In block context the nodes must be
+  blocks, in inline context inlines — a mismatch (or malformed node JSON) is
+  treated like `ok: false`: the original construct stays and a warning is
+  reported.
+
+  ```json
+  {
+    "ok": true,
+    "replacement": {
+      "contentType": "asg",
+      "nodes": [
+        { "name": "paragraph", "type": "block",
+          "inlines": [ { "name": "text", "type": "string", "value": "spliced" } ] }
+      ]
+    }
+  }
+  ```
+
 - `ok: false` + `error` — the host leaves the original construct untouched
   and surfaces the error as a processing warning.
+
+## Converter plugins
+
+A `converter` capability plugs into HTML rendering instead of document
+processing. The host (e.g. `html-cli --plugin`) registers each converter
+capability as a custom renderer under its capability name; the html-renderer
+dispatches to it for leaf blocks carrying that block style, or for nodes whose
+class simple name matches (e.g. `ListBlock`, `SectionBlock`) — style wins.
+
+The invocation's `content` is the claimed node as official ASG node JSON (the
+node-level encoding of `asciidoc-asg`'s `AsgDocumentJsonSerializer`), and
+`documentAttributes` carries the resolved document attributes:
+
+```json
+{
+  "abiVersion": 1,
+  "extensionPoint": "converter",
+  "name": "gallery",
+  "attributes": {},
+  "content": "{\"name\":\"listing\",\"type\":\"block\",\"form\":\"delimited\",…}",
+  "documentAttributes": { "brand": "poet" },
+  "location": { "line": 5, "column": 1 }
+}
+```
+
+The response must be `{ "contentType": "html", "value": "…" }`; the value is
+emitted verbatim in the node's place. Any failure — `ok: false`, another
+content type, or a node with no official ASG form — renders as nothing plus a
+rendering warning.
 
 ## Writing a plugin in Rust
 
@@ -123,6 +207,20 @@ val response = plugin.process(
 engine.forCapability("block", "shout")            // dispatch lookup
 engine.unloadAll()
 ```
+
+The integration layer (`org.markup.poet.plugin.integration`) applies loaded
+plugins to a parsed document and wires converters into rendering:
+
+```kotlin
+val processed = WasmExtensions(engine).apply(parsedDocument)   // block / blockMacro / inlineMacro
+val renderers = converterRenderers(engine, processed.document.attributes)
+val config = RenderConfig(customRenderers = renderers)         // converter capabilities
+// render with `config`, then engine.unloadAll()
+```
+
+`PluginEngine` implements the `PluginDispatch` interface (and `WasmPlugin`
+implements `PluginHandle`, both in `org.markup.poet.plugin.api`), so test
+suites can drive the integration layer with pure-Kotlin plugin doubles.
 
 `PluginEngine(PluginLimits(...))` customizes payload caps. A plugin whose
 invocation fails is marked *poisoned* and refuses further calls — unload it.

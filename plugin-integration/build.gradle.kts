@@ -20,14 +20,12 @@ kotlin {
             api(project(":plugin-api"))
             api(project(":plugin-engine"))
             api(project(":asciidoc-parser"))
+            api(project(":asciidoc-asg"))
+            api(project(":html-renderer"))
         }
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-        }
-
-        jvmTest.dependencies {
-            implementation(project(":html-renderer"))
         }
     }
 }

@@ -9,6 +9,7 @@ import org.markup.poet.asciidoc.asg.BreakBlock
 import org.markup.poet.asciidoc.asg.BreakVariant
 import org.markup.poet.asciidoc.asg.CommentBlock
 import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.IncludeBlock
@@ -95,6 +96,12 @@ class DefaultBlockRenderer(
             }
             is ConditionalBlock -> {
                 context.logWarning("Unresolved conditional directive: ${block.condition}")
+                ""
+            }
+            // A custom block macro no extension processor claimed: like the
+            // unresolved directives above it produces no output, only a warning.
+            is CustomBlockMacro -> {
+                context.logWarning("Unclaimed block macro: ${block.name}")
                 ""
             }
         }

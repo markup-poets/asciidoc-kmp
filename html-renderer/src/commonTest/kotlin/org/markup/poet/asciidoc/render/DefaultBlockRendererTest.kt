@@ -10,6 +10,7 @@ import org.markup.poet.asciidoc.asg.BreakVariant
 import org.markup.poet.asciidoc.asg.CommentBlock
 import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.ConditionalVariant
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DListItem
 import org.markup.poet.asciidoc.asg.DiscreteHeading
@@ -528,6 +529,18 @@ class DefaultBlockRendererTest {
 
         assertEquals("", html)
         assertTrue(context.getWarnings().any { it.contains("chapter.adoc") })
+    }
+
+    @Test
+    fun `unclaimed custom block macro produces no output but logs warning`() {
+        val context = context()
+        val html = renderer.render(
+            CustomBlockMacro(name = "gallery", target = "photos/2024"),
+            context
+        )
+
+        assertEquals("", html)
+        assertTrue(context.getWarnings().any { it.contains("gallery") })
     }
 
     @Test

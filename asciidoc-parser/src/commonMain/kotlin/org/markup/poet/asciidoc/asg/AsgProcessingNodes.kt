@@ -4,11 +4,13 @@ package org.markup.poet.asciidoc.asg
  * ASG extension nodes for the post-parse processing phase.
  *
  * None of these are part of the official AsciiDoc ASG schema (`asg/schema.json`).
- * The parser core ([org.markup.poet.asciidoc.parser.asg.BlockTreeParser]) never
- * emits them; they are injected and consumed by the document-processing layer
- * (includes, conditionals, callouts, bibliography, footnotes) and by extension
- * plugins that splice pre-rendered output into the tree. The TCK serialization
- * path (`AsgDocumentJsonSerializer`) therefore never encounters them.
+ * With the exception of [CustomBlockMacro] (see its KDoc) the parser core
+ * ([org.markup.poet.asciidoc.parser.asg.BlockTreeParser]) never emits them;
+ * they are injected and consumed by the document-processing layer (includes,
+ * conditionals, callouts, bibliography, footnotes) and by extension plugins
+ * that splice pre-rendered output into the tree. The TCK serialization path
+ * (`AsgDocumentJsonSerializer`) never encounters them (no TCK fixture contains
+ * a non-built-in block macro line).
  */
 
 // ---------------------------------------------------------------------------
@@ -37,6 +39,21 @@ data class ConditionalBlock(
     val condition: String,
     val blocks: List<Block>,
     val elseBlocks: List<Block> = emptyList(),
+    override val location: Location? = null,
+) : Block
+
+/**
+ * A block macro `name::target[attrs]` whose name is not one of the built-in
+ * [BlockMacroName]s (and not a processing directive). Unlike the other nodes
+ * in this file it IS emitted by the parser core — the official schema has no
+ * generic block-macro node, so it exists as an extension seam: WASM plugins
+ * claim it by name (`blockMacro` capability); unclaimed macros render as
+ * nothing plus a warning.
+ */
+data class CustomBlockMacro(
+    val name: String,
+    val target: String?,
+    val metadata: BlockMetadata? = null,
     override val location: Location? = null,
 ) : Block
 

@@ -4,6 +4,7 @@ import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.BlockMetadata
 import org.markup.poet.asciidoc.asg.ConditionalBlock
+import org.markup.poet.asciidoc.asg.CustomBlockMacro
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.InlineFootnote
@@ -20,10 +21,13 @@ import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.builtInBlockStyles
 import org.markup.poet.asciidoc.asg.plainText
+import org.markup.poet.asciidoc.asg.serialization.AsgDocumentJsonDeserializer
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
+import org.markup.poet.plugin.api.PluginDispatch
+import org.markup.poet.plugin.api.PluginHandle
 import org.markup.poet.plugin.api.PluginInvocation
+import org.markup.poet.plugin.api.PluginReplacement
 import org.markup.poet.plugin.api.SourcePoint
-import org.markup.poet.plugin.engine.PluginEngine
 import org.markup.poet.plugin.engine.PluginException
 
 /** Result of a plugin pass over a document. */
@@ -37,9 +41,17 @@ data class PluginProcessingResult(
  *
  * - `block` capability: every [LeafBlock] whose non-built-in style
  *   (`metadata.positional.first()`) a plugin claims is replaced by the plugin's
- *   output (`html` -> [RawBlock], `asciidoc` -> re-parsed and spliced).
+ *   output.
+ * - `blockMacro` capability: every [CustomBlockMacro] whose name a plugin
+ *   claims is replaced by the plugin's output.
  * - `inlineMacro` capability: every [InlineMacro] whose name a plugin claims is
- *   replaced (`html` -> [InlineRaw], `asciidoc` -> re-parsed inline).
+ *   replaced.
+ *
+ * Replacement content types: `html` splices a [RawBlock]/[InlineRaw]
+ * passthrough node, `asciidoc` is re-parsed and spliced, and `asg` is decoded
+ * as official ASG node JSON ([AsgDocumentJsonDeserializer]) and spliced —
+ * blocks in block context, inlines in inline context; a mismatch is a plugin
+ * error, not a crash.
  *
  * The wire ABI (the JSON envelope in [PluginInvocation]) is unchanged from the
  * legacy AST integration: the block style / macro name maps to `name`, the raw
@@ -47,11 +59,13 @@ data class PluginProcessingResult(
  * `attributes` map with positional attributes keyed by their 1-based index.
  *
  * Unclaimed constructs and failed invocations are left in place (rendering
- * falls back to a listing / placeholder) with a warning.
+ * falls back to a listing / placeholder / warning) with a warning.
  */
 class WasmExtensions(
-    private val engine: PluginEngine,
+    private val engine: PluginDispatch,
 ) {
+    private val asgDecoder = AsgDocumentJsonDeserializer()
+
     fun apply(document: AsgDocument): PluginProcessingResult {
         val warnings = mutableListOf<String>()
         val blocks = processBlocks(document.blocks, document.attributes, warnings)
@@ -69,6 +83,7 @@ class WasmExtensions(
     ): List<Block> = blocks.flatMap { block ->
         when (block) {
             is LeafBlock -> processLeafBlock(block, documentAttributes, warnings)
+            is CustomBlockMacro -> processBlockMacro(block, documentAttributes, warnings)
             is SectionBlock -> listOf(
                 block.copy(blocks = processBlocks(block.blocks, documentAttributes, warnings)),
             )
@@ -151,21 +166,72 @@ class WasmExtensions(
             }
             return listOf(block)
         }
+        return spliceBlockReplacement(plugin, replacement, block, block.location, warnings)
+    }
 
-        return when (replacement.contentType) {
-            "html" -> listOf(
-                RawBlock(
-                    format = "html",
-                    content = replacement.value,
-                    location = block.location,
+    /**
+     * A [CustomBlockMacro] is claimable by a plugin registering a `blockMacro`
+     * capability under the macro name. The envelope carries the macro target
+     * both as `content` and as the `target` attribute (mirroring inline
+     * macros); [BlockMetadata] maps as for the `block` capability.
+     */
+    private fun processBlockMacro(
+        macro: CustomBlockMacro,
+        documentAttributes: Map<String, String>,
+        warnings: MutableList<String>,
+    ): List<Block> {
+        val plugin = engine.forCapability("blockMacro", macro.name) ?: return listOf(macro)
+
+        val response = try {
+            plugin.process(
+                PluginInvocation(
+                    extensionPoint = "blockMacro",
+                    name = macro.name,
+                    attributes = macro.toAttributeMap(),
+                    content = macro.target ?: "",
+                    documentAttributes = documentAttributes,
+                    location = macro.location.toSourcePoint(),
                 ),
             )
-            // Re-parse and splice: the replacement flows through the normal pipeline.
-            "asciidoc" -> DefaultAsciidocParser().parse(replacement.value).document.blocks
-            else -> {
-                warnings += "plugin '${plugin.id}' returned unsupported contentType '${replacement.contentType}'"
-                listOf(block)
+        } catch (e: PluginException) {
+            warnings += "plugin '${plugin.id}' failed on ${macro.name}:: block macro at line ${macro.location.lineNumber()}: ${e.message}"
+            return listOf(macro)
+        }
+
+        warnings += response.warnings.map { "plugin '${plugin.id}': $it" }
+        val replacement = response.replacement
+        if (!response.ok || replacement == null) {
+            response.error?.let {
+                warnings += "plugin '${plugin.id}' rejected ${macro.name}:: block macro at line ${macro.location.lineNumber()}: $it"
             }
+            return listOf(macro)
+        }
+        return spliceBlockReplacement(plugin, replacement, macro, macro.location, warnings)
+    }
+
+    /** Turns a block-context replacement into the blocks spliced in place of [original]. */
+    private fun spliceBlockReplacement(
+        plugin: PluginHandle,
+        replacement: PluginReplacement,
+        original: Block,
+        location: Location?,
+        warnings: MutableList<String>,
+    ): List<Block> = when (replacement.contentType) {
+        "html" -> listOf(
+            RawBlock(format = "html", content = replacement.value, location = location),
+        )
+        // Re-parse and splice: the replacement flows through the normal pipeline.
+        "asciidoc" -> DefaultAsciidocParser().parse(replacement.value).document.blocks
+        // Official ASG node JSON, decoded and spliced verbatim.
+        "asg" -> try {
+            asgDecoder.deserializeBlocks(replacement.nodes?.toString() ?: replacement.value)
+        } catch (e: Exception) {
+            warnings += "plugin '${plugin.id}' returned invalid ASG block replacement: ${e.message}"
+            listOf(original)
+        }
+        else -> {
+            warnings += "plugin '${plugin.id}' returned unsupported contentType '${replacement.contentType}'"
+            listOf(original)
         }
     }
 
@@ -235,6 +301,14 @@ class WasmExtensions(
                 .firstOrNull { it.name == LeafBlockName.PARAGRAPH }
                 ?.inlines
                 ?: listOf(macro)
+            // Official ASG inline node JSON, decoded and spliced verbatim.
+            // Block nodes in inline context fail the decode -> plugin error path.
+            "asg" -> try {
+                asgDecoder.deserializeInlines(replacement.nodes?.toString() ?: replacement.value)
+            } catch (e: Exception) {
+                warnings += "plugin '${plugin.id}' returned invalid ASG inline replacement: ${e.message}"
+                listOf(macro)
+            }
             else -> {
                 warnings += "plugin '${plugin.id}' returned unsupported contentType '${replacement.contentType}'"
                 listOf(macro)
@@ -257,6 +331,12 @@ class WasmExtensions(
         put("target", target)
         positional.forEachIndexed { index, value -> put((index + 1).toString(), value) }
         putAll(named)
+    }
+
+    /** Block-macro attributes: target plus the metadata mapping. */
+    private fun CustomBlockMacro.toAttributeMap(): Map<String, String> = buildMap {
+        target?.let { put("target", it) }
+        putAll(metadata.toAttributeMap())
     }
 
     private fun Location?.toSourcePoint(): SourcePoint =
