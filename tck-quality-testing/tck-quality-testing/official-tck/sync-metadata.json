@@ -1,8 +1,0 @@
-{
-    "timestamp": 1769377539202,
-    "specVersion": "1.0.0",
-    "commitHash": "62cf488ebd7ad3c33cd7d120dd4dd778320e9683",
-    "repositoryUrl": "https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git",
-    "testCount": 13,
-    "durationMs": 580
-}
