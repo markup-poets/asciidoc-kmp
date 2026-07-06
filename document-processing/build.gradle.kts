@@ -45,5 +45,10 @@ kotlin {
             implementation(libs.kotest.assertions.core)
             implementation(libs.kotest.property)
         }
+
+        jvmTest.dependencies {
+            // End-to-end TOC test: parse -> process -> render to HTML
+            implementation(project(":html-renderer"))
+        }
     }
 }

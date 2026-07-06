@@ -7,6 +7,14 @@ import org.markup.poet.asciidoc.asg.Location
 /**
  * Configuration for document processing pipeline.
  * Controls which processors are enabled and their behavior.
+ *
+ * TOC generation is attribute-driven in addition to config-driven: the step
+ * runs when [enableTocGeneration] is true OR the document carries a `:toc:`
+ * attribute. The attribute value picks the placement (empty/`auto` = after the
+ * document header, `preamble` = before the first section, `macro` = replacing
+ * a `toc::[]` block macro); config-driven generation without the attribute
+ * uses the `auto` placement. A `toclevels` document attribute overrides
+ * [tocDepth].
  */
 data class ProcessingConfig(
     val enableIncludes: Boolean = true,
