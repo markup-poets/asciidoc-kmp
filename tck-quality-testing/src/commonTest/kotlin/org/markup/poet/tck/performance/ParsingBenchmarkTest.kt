@@ -2,6 +2,7 @@ package org.markup.poet.tck.performance
 
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.tck.benchmark.DefaultBenchmarkRunner
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
@@ -102,17 +103,13 @@ class ParsingBenchmarkTest {
         )
     }
 
+    /**
+     * Pending: incremental parsing (re-parsing after small edits) is not yet
+     * implemented, so there is nothing to benchmark. Remove the @Ignore once
+     * the parser supports incremental re-parsing.
+     */
     @Test
-    fun `benchmark incremental parsing performance`() {
-        pending("Incremental parsing (re-parsing after small edits) not yet implemented")
-    }
-
-    private fun pending(reason: String): Nothing {
-        throw PendingBenchmarkException(reason)
+    @Ignore
+    fun `benchmark incremental parsing performance - IGNORED incremental parsing not yet implemented`() {
     }
 }
-
-/**
- * Exception thrown when a benchmark is pending implementation.
- */
-class PendingBenchmarkException(message: String) : Exception(message)
