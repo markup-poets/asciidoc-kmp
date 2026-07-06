@@ -14,7 +14,7 @@ if [ -z "$1" ]; then
     echo "  2. Convert the assembled document to HTML"
     echo ""
     echo "Example:"
-    echo "  $0 article1"
+    echo "  $0 my-article"
     echo ""
     echo "The article directory should contain:"
     echo "  - index.adoc (main file with include directives)"
