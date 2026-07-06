@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.shadow.jar)
 }
 
-group = "org.markup.poet"
+group = "org.markup-poet"
 version = "1.0.0"
 
 kotlin {

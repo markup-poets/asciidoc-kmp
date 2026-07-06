@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.vanniktech.mavenPublish)
 }
 
-group = "org.markup.poet"
+group = "org.markup-poet"
 version = "1.0.0"
 
 kotlin {

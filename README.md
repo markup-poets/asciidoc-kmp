@@ -1,6 +1,6 @@
 # Markup Poet - AsciiDoc Converter
 
-[![Maven Central](https://img.shields.io/maven-central/v/org.markup.poet/asciidoc-parser)](https://central.sonatype.com/namespace/org.markup.poet)
+[![Maven Central](https://img.shields.io/maven-central/v/org.markup-poet/asciidoc-parser)](https://central.sonatype.com/namespace/org.markup-poet)
 [![Build](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -66,8 +66,8 @@ See [docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md) for theming doc
 
 ## Installation
 
-Artifacts are published to [Maven Central](https://central.sonatype.com/namespace/org.markup.poet)
-under the `org.markup.poet` group. Make sure `mavenCentral()` is among your
+Artifacts are published to [Maven Central](https://central.sonatype.com/namespace/org.markup-poet)
+under the `org.markup-poet` group. Make sure `mavenCentral()` is among your
 repositories (it is by default in new Gradle projects):
 
 ```kotlin
@@ -82,9 +82,9 @@ Android, iOS, Linux):
 
 ```kotlin
 dependencies {
-    implementation("org.markup.poet:asciidoc-parser:<version>")     // parser + ASG model (zero deps)
-    implementation("org.markup.poet:document-processing:<version>") // includes, conditionals, TOC, xrefs (optional)
-    implementation("org.markup.poet:html-renderer:<version>")       // HTML output with theming (optional)
+    implementation("org.markup-poet:asciidoc-parser:<version>")     // parser + ASG model (zero deps)
+    implementation("org.markup-poet:document-processing:<version>") // includes, conditionals, TOC, xrefs (optional)
+    implementation("org.markup-poet:html-renderer:<version>")       // HTML output with theming (optional)
 }
 ```
 
@@ -99,7 +99,7 @@ In a Kotlin Multiplatform project, declare the dependency in your shared source 
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("org.markup.poet:asciidoc-parser:<version>")
+            implementation("org.markup-poet:asciidoc-parser:<version>")
         }
     }
 }
