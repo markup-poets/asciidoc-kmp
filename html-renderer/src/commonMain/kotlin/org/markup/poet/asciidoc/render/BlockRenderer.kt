@@ -22,6 +22,9 @@ import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.TableBlock
+import org.markup.poet.asciidoc.asg.TableColumnAlignment
+import org.markup.poet.asciidoc.asg.TableRow
 import org.markup.poet.asciidoc.asg.builtInBlockStyles
 import org.markup.poet.asciidoc.asg.plainText
 
@@ -85,6 +88,7 @@ class DefaultBlockRenderer(
             is BreakBlock -> renderBreak(block)
             is BlockMacro -> renderBlockMacro(block, context)
             is DiscreteHeading -> renderDiscreteHeading(block, context)
+            is TableBlock -> renderTable(block, context)
             is BibliographyEntryBlock -> renderBibliographyEntry(block)
             is RawBlock -> if (block.format == "html") block.content else ""
             // Comments never render; unresolved include/conditional directives
@@ -477,6 +481,83 @@ class DefaultBlockRenderer(
             text("\n")
             closeTag("dl")
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Tables
+    // -----------------------------------------------------------------------
+
+    /**
+     * Renders a table as `<table class="tableblock">` with a `<thead>` for the
+     * header row (when present) and a `<tbody>` for the body rows. Non-default
+     * column alignments become `halign-center`/`halign-right` cell classes;
+     * column spans become `colspan` attributes.
+     */
+    private fun renderTable(table: TableBlock, context: RenderContext): String {
+        val classes = withRoles("tableblock", table.metadata)
+        val attrs = mutableMapOf("class" to classes)
+        table.metadata?.id?.let { attrs["id"] = it }
+
+        // Rendered before build {} — the shared builder is not re-entrant.
+        val title = renderBlockTitle(table.metadata, context)
+        val header = table.header?.let { row ->
+            row.cells.mapIndexed { index, cell -> renderInlineContent(cell.inlines, context) to cellAttributes(table, row, index) }
+        }
+        val body = table.rows.map { row ->
+            row.cells.mapIndexed { index, cell -> renderInlineContent(cell.inlines, context) to cellAttributes(table, row, index) }
+        }
+
+        return builder.build {
+            text(title)
+            openTag("table", attrs)
+            if (header != null) {
+                text("\n")
+                openTag("thead")
+                text("\n")
+                openTag("tr")
+                header.forEach { (content, cellAttrs) ->
+                    openTag("th", cellAttrs)
+                    text(content)
+                    closeTag("th")
+                }
+                closeTag("tr")
+                text("\n")
+                closeTag("thead")
+            }
+            text("\n")
+            openTag("tbody")
+            body.forEach { cells ->
+                text("\n")
+                openTag("tr")
+                cells.forEach { (content, cellAttrs) ->
+                    openTag("td", cellAttrs)
+                    text(content)
+                    closeTag("td")
+                }
+                closeTag("tr")
+            }
+            text("\n")
+            closeTag("tbody")
+            text("\n")
+            closeTag("table")
+        }
+    }
+
+    /** The class/colspan attributes of the cell at [index] of [row]. */
+    private fun cellAttributes(table: TableBlock, row: TableRow, index: Int): Map<String, String> {
+        // The column a cell lands in accounts for the spans of the cells before it.
+        val columnIndex = row.cells.take(index).sumOf { it.colSpan }
+        val alignment = table.columns.getOrNull(columnIndex)?.alignment ?: TableColumnAlignment.LEFT
+        val attrs = mutableMapOf<String, String>()
+        when (alignment) {
+            TableColumnAlignment.LEFT -> Unit
+            TableColumnAlignment.CENTER -> attrs["class"] = "halign-center"
+            TableColumnAlignment.RIGHT -> attrs["class"] = "halign-right"
+        }
+        val cell = row.cells[index]
+        if (cell.colSpan > 1) attrs["colspan"] = cell.colSpan.toString()
+        if (cell.rowSpan > 1) attrs["rowspan"] = cell.rowSpan.toString()
+        return attrs
     }
 
     // -----------------------------------------------------------------------

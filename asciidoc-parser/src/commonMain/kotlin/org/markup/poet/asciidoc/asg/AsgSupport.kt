@@ -79,6 +79,7 @@ fun inlineListsOf(block: Block): List<List<Inline>> = when (block) {
     is DiscreteHeading -> listOf(block.title)
     is ListBlock -> block.items.map { it.principal }
     is DListBlock -> block.items.flatMap { it.terms + listOf(it.principal) }
+    is TableBlock -> (listOfNotNull(block.header) + block.rows).flatMap { row -> row.cells.map { it.inlines } }
     else -> emptyList()
 }
 
@@ -92,5 +93,6 @@ fun metadataOf(block: Block): BlockMetadata? = when (block) {
     is BlockMacro -> block.metadata
     is CustomBlockMacro -> block.metadata
     is DiscreteHeading -> block.metadata
+    is TableBlock -> block.metadata
     else -> null
 }

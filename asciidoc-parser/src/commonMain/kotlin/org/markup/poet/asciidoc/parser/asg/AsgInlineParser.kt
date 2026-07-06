@@ -71,6 +71,12 @@ class AsgInlineParser(
         '#' to SpanVariant.MARK,
     )
 
+    /** Single-character sub/superscript delimiters (no-space content rule). */
+    private val subSupDelimiters = mapOf(
+        '~' to SpanVariant.SUBSCRIPT,
+        '^' to SpanVariant.SUPERSCRIPT,
+    )
+
     /** Bare URL schemes are autolink territory, not inline macros. */
     private val excludedMacroNames = setOf("http", "https", "ftp", "irc", "mailto")
 
@@ -111,7 +117,9 @@ class AsgInlineParser(
 
         while (i < to) {
             val c = text[i]
-            if (c == '\\' && i + 1 < to && (spanDelimiters.containsKey(text[i + 1]) || text[i + 1] == '{')) {
+            if (c == '\\' && i + 1 < to &&
+                (spanDelimiters.containsKey(text[i + 1]) || subSupDelimiters.containsKey(text[i + 1]) || text[i + 1] == '{')
+            ) {
                 if (plain.isEmpty()) plainStart = i
                 plain.append(text[i + 1])
                 i += 2
@@ -120,6 +128,14 @@ class AsgInlineParser(
             val variant = spanDelimiters[c]
             if (variant != null) {
                 val span = tryParseSpan(text, i, to, c, variant, map, inCode)
+                if (span != null) {
+                    consume(span)
+                    continue
+                }
+            }
+            val subSupVariant = subSupDelimiters[c]
+            if (subSupVariant != null && !inCode) {
+                val span = tryParseSubSup(text, i, to, c, subSupVariant, map)
                 if (span != null) {
                     consume(span)
                     continue
@@ -143,6 +159,11 @@ class AsgInlineParser(
                 val autolink = tryParseAutolink(text, i, to, map, inCode)
                 if (autolink != null) {
                     consume(autolink)
+                    continue
+                }
+                val link = tryParseLinkMacro(text, i, to, map, inCode)
+                if (link != null) {
+                    consume(link)
                     continue
                 }
                 val macro = tryParseInlineMacro(text, i, to, map)
@@ -230,6 +251,42 @@ class AsgInlineParser(
             location = location,
         )
         return ref to end
+    }
+
+    /**
+     * The `link:` macro is a built-in: `link:target[text]` produces the same
+     * [InlineRef] as an autolink (rather than the generic [InlineMacro]
+     * extension seam). Unlike generic macro targets, a link target may contain
+     * `:` (`link:https://...`); it ends at the required `[`. Empty brackets
+     * make the target its own text, mirroring autolinks.
+     */
+    private fun tryParseLinkMacro(
+        text: String,
+        start: Int,
+        to: Int,
+        map: SegmentMap,
+        inCode: Boolean,
+    ): Pair<Inline, Int>? {
+        if (!text.startsWith("link:", start)) return null
+        val targetStart = start + "link:".length
+        var j = targetStart
+        while (j < to && text[j] != '[' && text[j] != ' ' && text[j] != '\n' && text[j] != ']') j++
+        if (j >= to || text[j] != '[' || j == targetStart) return null
+        val target = text.substring(targetStart, j)
+        val close = text.indexOf(']', j + 1)
+        if (close < 0 || close >= to) return null
+        val inlines = if (close == j + 1) {
+            listOf(InlineText(target, Location(map.position(targetStart), map.position(j - 1))))
+        } else {
+            parseRange(text, j + 1, close, map, inCode)
+        }
+        val ref = InlineRef(
+            variant = RefVariant.LINK,
+            target = target,
+            inlines = inlines,
+            location = Location(map.position(start), map.position(close)),
+        )
+        return ref to (close + 1)
     }
 
     /**
@@ -373,6 +430,35 @@ class AsgInlineParser(
             j++
         }
         return null
+    }
+
+    /**
+     * A sub/superscript span `~sub~` / `^super^`: single-character delimiters
+     * whose content must be non-empty and contain no whitespace (the standard
+     * rule that keeps `~/.bashrc` and `2^10` literal). No word-boundary
+     * requirement — `H~2~O` and `E=mc^2^` are the canonical uses.
+     */
+    private fun tryParseSubSup(
+        text: String,
+        start: Int,
+        to: Int,
+        delimiter: Char,
+        variant: SpanVariant,
+        map: SegmentMap,
+    ): Pair<InlineSpan, Int>? {
+        var j = start + 1
+        while (j < to && text[j] != delimiter) {
+            if (text[j] == ' ' || text[j] == '\n' || text[j] == '\t') return null
+            j++
+        }
+        if (j >= to || j == start + 1) return null // unclosed or empty
+        val span = InlineSpan(
+            variant = variant,
+            form = SpanForm.UNCONSTRAINED,
+            inlines = parseRange(text, start + 1, j, map),
+            location = Location(map.position(start), map.position(j)),
+        )
+        return span to (j + 1)
     }
 
     private fun tryConstrained(

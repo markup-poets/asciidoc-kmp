@@ -531,6 +531,20 @@ class DefaultDocumentAssembler(
                     }
                     builder.append("#")
                 }
+                SpanVariant.SUBSCRIPT -> {
+                    builder.append("~")
+                    for (child in inline.inlines) {
+                        renderInline(child, builder)
+                    }
+                    builder.append("~")
+                }
+                SpanVariant.SUPERSCRIPT -> {
+                    builder.append("^")
+                    for (child in inline.inlines) {
+                        renderInline(child, builder)
+                    }
+                    builder.append("^")
+                }
             }
             is InlineRef -> when (inline.variant) {
                 RefVariant.XREF -> {

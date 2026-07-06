@@ -144,12 +144,28 @@ class InlineFormattingCompatibilityTest : CompatibilityTest() {
 
     @Test
     fun `should parse subscript text`() {
-        pending("Subscript spans (~sub~) not yet implemented in the ASG inline parser")
+        val inlines = parseInlines("The formula H~2~O is water.")
+        val subscript = inlines.spans(SpanVariant.SUBSCRIPT).single()
+        assertEquals("2", plainText(subscript.inlines))
+        assertEquals("The formula H2O is water.", plainText(inlines))
+
+        // Whitespace in the content keeps the tildes literal.
+        val literal = parseInlines("a ~ b ~ c")
+        val text = assertIs<InlineText>(literal.single())
+        assertEquals("a ~ b ~ c", text.value)
     }
 
     @Test
     fun `should parse superscript text`() {
-        pending("Superscript spans (^super^) not yet implemented in the ASG inline parser")
+        val inlines = parseInlines("Einstein wrote E=mc^2^ on the board.")
+        val superscript = inlines.spans(SpanVariant.SUPERSCRIPT).single()
+        assertEquals("2", plainText(superscript.inlines))
+        assertEquals("Einstein wrote E=mc2 on the board.", plainText(inlines))
+
+        // An unclosed caret stays literal.
+        val literal = parseInlines("2^10 is 1024")
+        val text = assertIs<InlineText>(literal.single())
+        assertEquals("2^10 is 1024", text.value)
     }
 
     // Combined Formatting Tests

@@ -182,6 +182,31 @@ class InlineRendererTest {
         assertEquals("<mark>very <strong>important</strong></mark>", html)
     }
 
+    // ========== Subscript and Superscript Rendering Tests ==========
+
+    @Test
+    fun `renders subscript with sub tag`() {
+        val html = renderer.render(span(SpanVariant.SUBSCRIPT, text("2")), context)
+
+        assertEquals("<sub>2</sub>", html)
+    }
+
+    @Test
+    fun `renders superscript with sup tag`() {
+        val html = renderer.render(span(SpanVariant.SUPERSCRIPT, text("2")), context)
+
+        assertEquals("<sup>2</sup>", html)
+    }
+
+    @Test
+    fun `escapes HTML inside subscript and superscript`() {
+        val sub = renderer.render(span(SpanVariant.SUBSCRIPT, text("<i>")), context)
+        val sup = renderer.render(span(SpanVariant.SUPERSCRIPT, text("<i>")), context)
+
+        assertEquals("<sub>&lt;i&gt;</sub>", sub)
+        assertEquals("<sup>&lt;i&gt;</sup>", sup)
+    }
+
     // ========== Link Rendering Tests ==========
 
     @Test

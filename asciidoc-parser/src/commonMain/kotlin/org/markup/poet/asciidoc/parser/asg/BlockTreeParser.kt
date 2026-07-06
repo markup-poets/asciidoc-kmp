@@ -28,6 +28,11 @@ import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.Position
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.TableBlock
+import org.markup.poet.asciidoc.asg.TableCell
+import org.markup.poet.asciidoc.asg.TableColumn
+import org.markup.poet.asciidoc.asg.TableColumnAlignment
+import org.markup.poet.asciidoc.asg.TableRow
 
 /**
  * Line-based recursive-descent parser producing the ASG block tree.
@@ -81,6 +86,13 @@ class BlockTreeParser {
 
     private companion object {
         val headingRegex = Regex("""^(=+) (.+)$""")
+
+        /**
+         * The deepest heading marker that still opens a section: `======`
+         * (document title `=` + section levels 1-5, matching asciidoctor's cap).
+         * Lines with 7+ markers are not headings and fall through to paragraphs.
+         */
+        const val MAX_HEADING_MARKERS = 6
         val attributeEntryRegex = Regex("""^:([A-Za-z0-9_][A-Za-z0-9_-]*):(?: (.*))?$""")
         val listItemRegex = Regex("""^(\*+|\.+|-|\d+\.) (.+)$""")
         val dlistItemRegex = Regex("""^([^\s:].*?)(::)(?: (.+))?$""")
@@ -101,6 +113,28 @@ class BlockTreeParser {
 
         /** A callout-list line: `<1> text` or `<.> text`. */
         val calloutItemRegex = Regex("""^(<(?:\d+|\.)>) (.+)$""")
+
+        /** `|===` (3+ `=`) opens and closes a table. */
+        val tableDelimiterRegex = Regex("""^\|={3,}$""")
+
+        /** A table line that starts cells: optional `N+` span spec, then `|`. */
+        val tableRowStartRegex = Regex("""^(\d+\+)?\|""")
+
+        /** A `N+` column-span spec at the end of the text preceding a `|` boundary. */
+        val tableCellSpanSpecRegex = Regex("""(?:^|\s)(\d+)\+$""")
+
+        /** One item of a `cols` attribute: `[repeat*][alignment][width]`. */
+        val tableColsItemRegex = Regex("""^(?:(\d+)\*)?([<^>])?(\d+)?$""")
+
+        /**
+         * The author line directly below the document title: 2+ capitalized
+         * words, or 1+ words plus an `<email>`. The shape gate (capitalization,
+         * email) keeps ordinary body text from being mistaken for an author.
+         */
+        val authorLineRegex = Regex("""^([A-Z][A-Za-z0-9.'-]*(?: [A-Z][A-Za-z0-9.'-]*)*)(?: <([^<>@\s]+@[^<>\s]+)>)?$""")
+
+        /** A list-continuation line: `+` alone attaches the next block to the item. */
+        const val LIST_CONTINUATION = "+"
 
         val admonitionParagraphRegex = Regex("""^(NOTE|TIP|IMPORTANT|WARNING|CAUTION): (.+)$""")
         val admonitionNames = setOf("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
@@ -160,6 +194,19 @@ class BlockTreeParser {
 
             val attributes = LinkedHashMap<String, String>()
             var lastHeaderLineIndex = titleLineIndex
+
+            // Author line: the first non-attribute line directly below the title,
+            // when it has an author shape, becomes author metadata (never a paragraph).
+            if (!reader.eof && attributeEntryRegex.matchEntire(reader.peek()) == null) {
+                val author = authorLineRegex.matchEntire(reader.peek())
+                val email = author?.groupValues?.get(2).orEmpty()
+                if (author != null && (email.isNotEmpty() || author.groupValues[1].contains(' '))) {
+                    attributes += authorAttributes(author.groupValues[1], email)
+                    lastHeaderLineIndex = reader.index
+                    reader.next()
+                }
+            }
+
             while (!reader.eof) {
                 val attr = attributeEntryRegex.matchEntire(reader.peek()) ?: break
                 attributes[attr.groupValues[1]] = attr.groupValues[2]
@@ -175,6 +222,21 @@ class BlockTreeParser {
                 ),
             )
             return header to attributes
+        }
+
+        /** Splits an author line into the implicit author attributes. */
+        private fun authorAttributes(fullName: String, email: String): Map<String, String> {
+            val attributes = LinkedHashMap<String, String>()
+            attributes["author"] = fullName
+            if (email.isNotEmpty()) attributes["email"] = email
+            val names = fullName.split(' ')
+            attributes["firstname"] = names.first()
+            if (names.size > 1) {
+                attributes["lastname"] = names.last()
+                if (names.size > 2) attributes["middlename"] = names.subList(1, names.size - 1).joinToString(" ")
+            }
+            attributes["authorinitials"] = names.take(3).map { it.first() }.joinToString("")
+            return attributes
         }
 
         // -------------------------------------------------------------------
@@ -303,7 +365,7 @@ class BlockTreeParser {
                     continue
                 }
 
-                val heading = headingRegex.matchEntire(line)
+                val heading = sectionHeadingMatch(line)
                 if (heading != null) {
                     val level = heading.groupValues[1].length - 1
                     if (pending?.positional?.firstOrNull() == "discrete") {
@@ -313,6 +375,12 @@ class BlockTreeParser {
                     }
                     if (stopHeadingLevel != null && level <= stopHeadingLevel) return blocks
                     blocks += parseSection(heading, pending, stopAtEndif)
+                    pending = null
+                    continue
+                }
+
+                if (tableDelimiterRegex.matches(line)) {
+                    blocks += parseTable(pending)
                     pending = null
                     continue
                 }
@@ -353,10 +421,17 @@ class BlockTreeParser {
             return blocks
         }
 
+        /** The heading match for [line], or null when it is no heading (7+ markers included). */
+        private fun sectionHeadingMatch(line: String): MatchResult? {
+            val match = headingRegex.matchEntire(line) ?: return null
+            return match.takeIf { it.groupValues[1].length <= MAX_HEADING_MARKERS }
+        }
+
         private fun isStructuralLine(line: String): Boolean =
-            isDelimiterLine(line) || headingRegex.matches(line) || listItemRegex.matches(line) ||
+            isDelimiterLine(line) || sectionHeadingMatch(line) != null || listItemRegex.matches(line) ||
                 thematicBreakRegex.matches(line) || line == PAGE_BREAK ||
-                isDirectiveLine(line) || calloutItemRegex.matches(line)
+                isDirectiveLine(line) || calloutItemRegex.matches(line) ||
+                tableDelimiterRegex.matches(line)
 
         /** True for `include::`/`ifdef::`/`ifndef::`/`ifeval::`/`endif::` lines. */
         private fun isDirectiveLine(line: String): Boolean =
@@ -495,6 +570,148 @@ class BlockTreeParser {
                 metadata = metadata,
                 location = location,
             )
+        }
+
+        // -------------------------------------------------------------------
+        // Tables
+        // -------------------------------------------------------------------
+
+        /**
+         * A `|===` delimited table. Cells are split on unescaped `|` (a `N+`
+         * prefix spans N columns); a line without a leading `|` continues the
+         * previous cell. The column count comes from the `cols` attribute when
+         * present, otherwise from the first row. The first row becomes the
+         * header for `%header`/`options="header"` tables, or implicitly when
+         * the delimiter-adjacent first line is followed by a blank line.
+         */
+        private fun parseTable(metadata: BlockMetadata?): TableBlock {
+            val openLineIndex = reader.index
+            val delimiter = reader.next()
+            val contentLines = mutableListOf<Pair<Int, String>>() // 0-based line index to text
+            var closeLineIndex = reader.lines.size - 1
+            while (!reader.eof) {
+                if (reader.peek() == delimiter) {
+                    closeLineIndex = reader.index
+                    reader.next()
+                    break
+                }
+                contentLines += reader.index to reader.next()
+            }
+
+            // Tokenize into cells; remember which content-line ordinal each cell run starts on.
+            val pendingCells = mutableListOf<PendingTableCell>()
+            var nonBlankOrdinal = -1 // ordinal of non-blank content lines, 0 = first
+            var firstLineIsAdjacent = false
+            var blankAfterFirstLine = false
+            var firstLineCellCount = 0
+            contentLines.forEachIndexed { ordinal, (lineIndex, text) ->
+                if (text.isBlank()) return@forEachIndexed
+                nonBlankOrdinal++
+                if (nonBlankOrdinal == 0) {
+                    firstLineIsAdjacent = ordinal == 0
+                    blankAfterFirstLine = contentLines.getOrNull(ordinal + 1)?.second?.isBlank() == true
+                }
+                if (tableRowStartRegex.containsMatchIn(text)) {
+                    val lineCells = tableLineCells(text)
+                    lineCells.forEach { cell ->
+                        pendingCells += PendingTableCell(cell.colSpan, nonBlankOrdinal).apply {
+                            addSegment(lineIndex, cell.startCol, cell.text)
+                        }
+                    }
+                    if (nonBlankOrdinal == 0) firstLineCellCount = lineCells.size
+                } else {
+                    // Continuation of the previous cell's content.
+                    pendingCells.lastOrNull()?.addSegment(lineIndex, 1, text)
+                }
+            }
+
+            val columns = parseColumns(metadata)
+                ?: List(maxOf(firstLineCellCount, 1)) { TableColumn() }
+            val colCount = columns.size
+            val cells = pendingCells.map { it.toCell(inlineParser) to it.startLineOrdinal }
+
+            // Group the flat cell sequence into rows of colCount columns.
+            val rows = mutableListOf<TableRow>()
+            var current = mutableListOf<TableCell>()
+            var width = 0
+            for ((cell, _) in cells) {
+                current += cell
+                width += cell.colSpan
+                if (width >= colCount) {
+                    rows += tableRow(current)
+                    current = mutableListOf()
+                    width = 0
+                }
+            }
+            if (current.isNotEmpty()) rows += tableRow(current)
+
+            val explicitHeader = metadata?.options?.contains("header") == true ||
+                metadata?.named?.get("options")?.split(',')?.map { it.trim() }?.contains("header") == true
+            val implicitHeader = firstLineIsAdjacent && blankAfterFirstLine &&
+                cells.any { it.second > 0 } // header only makes sense with body rows
+            val hasHeader = rows.size > 1 && (explicitHeader || implicitHeader)
+
+            return TableBlock(
+                columns = columns,
+                header = if (hasHeader) rows.first() else null,
+                rows = if (hasHeader) rows.drop(1) else rows,
+                metadata = metadata,
+                location = Location(
+                    Position(openLineIndex + 1, 1),
+                    Position(closeLineIndex + 1, reader.endCol(closeLineIndex)),
+                ),
+            )
+        }
+
+        private fun tableRow(cells: List<TableCell>): TableRow = TableRow(
+            cells = cells,
+            location = cells.firstOrNull()?.location?.let { first ->
+                Location(first.start, cells.last().location?.end ?: first.end)
+            },
+        )
+
+        /** The [TableColumn]s described by a `cols` attribute, or null when absent. */
+        private fun parseColumns(metadata: BlockMetadata?): List<TableColumn>? {
+            val spec = metadata?.named?.get("cols")?.takeIf { it.isNotBlank() } ?: return null
+            val columns = mutableListOf<TableColumn>()
+            for (item in spec.split(',')) {
+                val match = tableColsItemRegex.matchEntire(item.trim()) ?: continue
+                val repetitions = match.groupValues[1].toIntOrNull() ?: 1
+                val alignment = when (match.groupValues[2]) {
+                    "^" -> TableColumnAlignment.CENTER
+                    ">" -> TableColumnAlignment.RIGHT
+                    else -> TableColumnAlignment.LEFT
+                }
+                val width = match.groupValues[3].toIntOrNull() ?: 1
+                repeat(repetitions) { columns += TableColumn(alignment, width) }
+            }
+            return columns.ifEmpty { null }
+        }
+
+        /** Splits one cell-bearing table line into its cells. */
+        private fun tableLineCells(line: String): List<TableLineCell> {
+            val boundaries = mutableListOf<Int>()
+            for (k in line.indices) {
+                if (line[k] == '|' && (k == 0 || line[k - 1] != '\\')) boundaries += k
+            }
+            val cells = mutableListOf<TableLineCell>()
+            boundaries.forEachIndexed { index, boundary ->
+                val prefixStart = if (index == 0) 0 else boundaries[index - 1] + 1
+                val prefix = line.substring(prefixStart, boundary)
+                val colSpan = tableCellSpanSpecRegex.find(prefix)?.groupValues?.get(1)?.toIntOrNull() ?: 1
+                val contentEnd = if (index + 1 < boundaries.size) boundaries[index + 1] else line.length
+                var content = line.substring(boundary + 1, contentEnd)
+                // The next cell's span spec trails this cell's content; peel it off.
+                if (index + 1 < boundaries.size) {
+                    tableCellSpanSpecRegex.find(content)?.let { content = content.substring(0, it.range.first) }
+                }
+                cells += TableLineCell(
+                    colSpan = colSpan,
+                    startCol = boundary + 2, // 1-based col of the first content char
+                    text = content.replace("\\|", "|"),
+                )
+            }
+            return cells
         }
 
         // -------------------------------------------------------------------
@@ -691,6 +908,20 @@ class BlockTreeParser {
                     repeat(ahead) { reader.next() }
                     continue
                 }
+                if (line == LIST_CONTINUATION && items.isNotEmpty()) {
+                    // `+` alone attaches the following block to the current item.
+                    reader.next()
+                    if (reader.eof || reader.peek().isBlank()) continue
+                    val attached: Block = tryParseDelimitedBlock(null)
+                        ?: (if (isStructuralLine(reader.peek())) null else parseParagraph(closingDelimiter = null))
+                        ?: continue // vacuous continuation (next line starts a new structure)
+                    val last = items.removeAt(items.size - 1)
+                    items += last.copy(
+                        blocks = last.blocks + attached,
+                        location = last.location?.let { Location(it.start, attached.location?.end ?: it.end) },
+                    )
+                    continue
+                }
                 val match = listItemRegex.matchEntire(line) ?: break
                 val itemMarker = match.groupValues[1]
                 if (marker == null) marker = itemMarker
@@ -872,6 +1103,28 @@ class BlockTreeParser {
             )
         }
 
+        /** Splits an attrlist on commas, keeping commas inside `"..."` values intact. */
+        private fun splitAttributeList(raw: String): List<String> {
+            val parts = mutableListOf<String>()
+            val current = StringBuilder()
+            var inQuotes = false
+            for (ch in raw) {
+                when {
+                    ch == '"' -> {
+                        inQuotes = !inQuotes
+                        current.append(ch)
+                    }
+                    ch == ',' && !inQuotes -> {
+                        parts += current.toString()
+                        current.clear()
+                    }
+                    else -> current.append(ch)
+                }
+            }
+            parts += current.toString()
+            return parts
+        }
+
         /**
          * Parses the inside of a `[...]` attribute line: positional and named
          * attributes, plus the `style#id.role%option` shorthand in the first
@@ -881,7 +1134,7 @@ class BlockTreeParser {
             if (raw.isBlank()) return BlockMetadata()
             val positional = mutableListOf<String>()
             val named = LinkedHashMap<String, String>()
-            raw.split(',').forEach { part ->
+            splitAttributeList(raw).forEach { part ->
                 val trimmed = part.trim()
                 if (trimmed.isEmpty()) return@forEach
                 val eq = trimmed.indexOf('=')
@@ -930,5 +1183,66 @@ class BlockTreeParser {
                 options = options,
             )
         }
+    }
+}
+
+/** One cell as it appears on a single table line: span spec, text start col, raw text. */
+private data class TableLineCell(
+    val colSpan: Int,
+    val startCol: Int,
+    val text: String,
+)
+
+/**
+ * A table cell being accumulated across source lines (a cell's content
+ * continues on following lines that do not start with `|`).
+ */
+private class PendingTableCell(
+    val colSpan: Int,
+    val startLineOrdinal: Int,
+) {
+    private val sourceLines = mutableListOf<Int>() // 0-based
+    private val startCols = mutableListOf<Int>() // 1-based
+    private val texts = mutableListOf<String>()
+
+    fun addSegment(lineIndex: Int, startCol: Int, text: String) {
+        sourceLines += lineIndex
+        startCols += startCol
+        texts += text
+    }
+
+    /** Trims the segments and inline-parses the joined content. */
+    fun toCell(inlineParser: AsgInlineParser): TableCell {
+        data class Segment(val sourceLine: Int, val startCol: Int, val text: String)
+
+        val segments = texts.mapIndexedNotNull { index, raw ->
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) {
+                null
+            } else {
+                val leading = raw.indexOf(trimmed.first())
+                Segment(sourceLines[index] + 1, startCols[index] + leading, trimmed)
+            }
+        }
+        if (segments.isEmpty()) {
+            return TableCell(inlines = emptyList(), colSpan = colSpan)
+        }
+        val lineStarts = ArrayList<Int>(segments.size)
+        var offset = 0
+        segments.forEach { segment ->
+            lineStarts.add(offset)
+            offset += segment.text.length + 1 // the joining '\n'
+        }
+        val map = SegmentMap(lineStarts, segments.map { it.sourceLine }, segments.map { it.startCol })
+        val inlines = inlineParser.parse(segments.joinToString("\n") { it.text }, map)
+        val last = segments.last()
+        return TableCell(
+            inlines = inlines,
+            colSpan = colSpan,
+            location = Location(
+                Position(segments.first().sourceLine, segments.first().startCol),
+                Position(last.sourceLine, last.startCol + last.text.length - 1),
+            ),
+        )
     }
 }

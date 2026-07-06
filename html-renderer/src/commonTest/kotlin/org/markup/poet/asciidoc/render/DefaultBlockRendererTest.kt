@@ -28,6 +28,11 @@ import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.ParentBlockName
 import org.markup.poet.asciidoc.asg.RawBlock
 import org.markup.poet.asciidoc.asg.SectionBlock
+import org.markup.poet.asciidoc.asg.TableBlock
+import org.markup.poet.asciidoc.asg.TableCell
+import org.markup.poet.asciidoc.asg.TableColumn
+import org.markup.poet.asciidoc.asg.TableColumnAlignment
+import org.markup.poet.asciidoc.asg.TableRow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -557,5 +562,112 @@ class DefaultBlockRendererTest {
 
         assertEquals("", html)
         assertTrue(context.getWarnings().isNotEmpty())
+    }
+
+    // ========== Tables ==========
+
+    private fun cell(content: String, colSpan: Int = 1) =
+        TableCell(inlines = listOf(text(content)), colSpan = colSpan)
+
+    @Test
+    fun `renders table with thead and tbody`() {
+        val table = TableBlock(
+            columns = List(2) { TableColumn() },
+            header = TableRow(listOf(cell("Name"), cell("Age"))),
+            rows = listOf(
+                TableRow(listOf(cell("Alice"), cell("30"))),
+                TableRow(listOf(cell("Bob"), cell("29")))
+            )
+        )
+        val html = renderer.render(table, context())
+
+        assertTrue(html.contains("<table class=\"tableblock\">"))
+        assertTrue(html.contains("<thead>"))
+        assertTrue(html.contains("<th>Name</th><th>Age</th>"))
+        assertTrue(html.contains("<tbody>"))
+        assertTrue(html.contains("<td>Alice</td><td>30</td>"))
+        assertTrue(html.contains("<td>Bob</td><td>29</td>"))
+    }
+
+    @Test
+    fun `renders headerless table without thead`() {
+        val table = TableBlock(
+            columns = List(1) { TableColumn() },
+            rows = listOf(TableRow(listOf(cell("only"))))
+        )
+        val html = renderer.render(table, context())
+
+        assertFalse(html.contains("<thead>"))
+        assertTrue(html.contains("<tbody>"))
+        assertTrue(html.contains("<td>only</td>"))
+    }
+
+    @Test
+    fun `renders column alignment as halign classes`() {
+        val table = TableBlock(
+            columns = listOf(
+                TableColumn(TableColumnAlignment.LEFT),
+                TableColumn(TableColumnAlignment.CENTER),
+                TableColumn(TableColumnAlignment.RIGHT)
+            ),
+            rows = listOf(TableRow(listOf(cell("l"), cell("c"), cell("r"))))
+        )
+        val html = renderer.render(table, context())
+
+        assertTrue(html.contains("<td>l</td>"))
+        assertTrue(html.contains("<td class=\"halign-center\">c</td>"))
+        assertTrue(html.contains("<td class=\"halign-right\">r</td>"))
+    }
+
+    @Test
+    fun `renders column span as colspan attribute`() {
+        val table = TableBlock(
+            columns = List(2) { TableColumn() },
+            rows = listOf(
+                TableRow(listOf(cell("a"), cell("b"))),
+                TableRow(listOf(cell("wide", colSpan = 2)))
+            )
+        )
+        val html = renderer.render(table, context())
+
+        assertTrue(html.contains("<td colspan=\"2\">wide</td>"))
+    }
+
+    @Test
+    fun `table cell content is escaped and formatted`() {
+        val table = TableBlock(
+            columns = List(1) { TableColumn() },
+            rows = listOf(
+                TableRow(
+                    listOf(
+                        TableCell(
+                            inlines = listOf(
+                                org.markup.poet.asciidoc.asg.InlineSpan(
+                                    variant = org.markup.poet.asciidoc.asg.SpanVariant.STRONG,
+                                    form = org.markup.poet.asciidoc.asg.SpanForm.CONSTRAINED,
+                                    inlines = listOf(text("bold <tag>"))
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+        val html = renderer.render(table, context())
+
+        assertTrue(html.contains("<td><strong>bold &lt;tag&gt;</strong></td>"))
+    }
+
+    @Test
+    fun `table metadata id roles and title are applied`() {
+        val table = TableBlock(
+            columns = List(1) { TableColumn() },
+            rows = listOf(TableRow(listOf(cell("x")))),
+            metadata = BlockMetadata(id = "data", roles = listOf("wide"), title = listOf(text("Results")))
+        )
+        val html = renderer.render(table, context())
+
+        assertTrue(html.contains("<table class=\"tableblock wide\" id=\"data\">"))
+        assertTrue(html.contains("<div class=\"title\">Results</div>"))
     }
 }
