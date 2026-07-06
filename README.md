@@ -10,32 +10,35 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 
 - **Platform Independent**: Runs on JVM, Android, iOS, and Linux
 - **Spec Compliant**: Passes the official Eclipse AsciiDoc TCK (run `./run-official-tck.sh`)
-- **Clean Architecture**: Clear separation between parsing, processing, conversion, and rendering phases
-- **WASM Plugins**: Custom blocks via sandboxed, language-agnostic WebAssembly plugins — no Ruby required (see [docs/PLUGINS.md](docs/PLUGINS.md))
+- **ASG-Native**: One document model end to end — the Abstract Semantic Graph mirroring the official AsciiDoc schema
+- **Broad Syntax Coverage**: Sections, lists (incl. description and callout lists), tables, admonitions, sidebars/examples/quotes, includes, conditionals, cross-references, footnotes, and rich inline formatting
+- **WASM Plugins**: Custom blocks, block macros, inline macros, and converter plugins via sandboxed, language-agnostic WebAssembly — no Ruby required (see [docs/PLUGINS.md](docs/PLUGINS.md))
 - **Pluggable Theming**: Flexible styling system with built-in themes and CSS customization
 - **Zero Dependencies**: No external libraries required in the core parser
 
 ## Architecture
 
-The library follows a clean pipeline architecture:
+The library follows a clean pipeline architecture built on the ASG (Abstract Semantic Graph):
 
-1. **Parse** - Analyzes AsciiDoc source text → AST
-2. **Process** - Resolves includes, attributes, and substitutions  
-3. **Convert** - Transforms AST into target format (HTML, etc.)
-4. **Render** - Final output or persistence
+1. **Parse** - AsciiDoc source text → ASG (`asciidoc-parser`)
+2. **Process** - Resolves includes, conditionals, attributes, cross-references (`document-processing`)
+3. **Render** - ASG → HTML with theming (`html-renderer`), or export to Graphviz DOT / official ASG JSON
 
 ## Quick Start
 
 ### Basic Rendering
 
 ```kotlin
+import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import org.markup.poet.asciidoc.render.*
-import org.markup.poet.asciidoc.ast.Document
 
-val renderer = DefaultHtmlRenderer(blockRenderer, inlineRenderer)
-val result = renderer.render(document)
+val document = DefaultAsciidocParser().parse(asciidocSource).document
 
-result.onSuccess { html ->
+val builder = DefaultHtmlBuilder(DefaultHtmlEscaper())
+val inlineRenderer = DefaultInlineRenderer(builder)
+val renderer = DefaultHtmlRenderer(DefaultBlockRenderer(builder, inlineRenderer), inlineRenderer)
+
+renderer.render(document).onSuccess { html ->
     println(html)
 }
 ```
@@ -63,7 +66,9 @@ Add to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("org.markup.poet:asciidoc-core:$version")
+    implementation("org.markup.poet:asciidoc-parser:$version")     // parser + ASG model
+    implementation("org.markup.poet:document-processing:$version") // includes, conditionals, xrefs (optional)
+    implementation("org.markup.poet:html-renderer:$version")       // HTML output (optional)
 }
 ```
 
@@ -175,7 +180,7 @@ The project includes a comprehensive TCK for ensuring consistent behavior across
 - **Performance Benchmarking**: Infrastructure for measuring parsing and rendering performance
 - **Memory Monitoring**: Tools for tracking memory usage across platforms
 
-**Note**: This is currently a custom TCK designed for Kotlin Multiplatform development. The project roadmap includes integration with the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) to achieve full specification conformance and certification. See [tck-quality-testing/OFFICIAL_TCK_INTEGRATION.md](tck-quality-testing/OFFICIAL_TCK_INTEGRATION.md) for the integration roadmap.
+**Official TCK**: the project passes the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) via its Node.js harness — run `./run-official-tck.sh` (requires Node 20+). The TCK is synced to upstream HEAD with `./scripts/sync-official-tck.sh`, and conformance is enforced in CI on every pull request.
 
 See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed TCK documentation and usage examples.
 
@@ -186,11 +191,14 @@ See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed 
 ./gradlew test
 
 # Platform-specific tests
-./gradlew :library:jvmTest        # JVM only
-./gradlew :library:iosX64Test     # iOS only
+./gradlew :asciidoc-parser:jvmTest        # JVM only
+./gradlew :asciidoc-parser:linuxX64Test   # Linux native
 
-# TCK tests
-./gradlew :tck-quality-testing:test
+# Official TCK conformance (source of truth)
+./run-official-tck.sh
+
+# Fixture-replay quality suite
+./gradlew :tck-quality-testing:jvmTest
 ```
 
 ## Development
