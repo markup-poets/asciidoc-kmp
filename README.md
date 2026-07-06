@@ -4,7 +4,7 @@
 [![Build](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-A lightweight, spec-compliant AsciiDoc converter library built with Kotlin Multiplatform.
+A lightweight AsciiDoc converter library built with Kotlin Multiplatform, aiming for compatibility with the official AsciiDoc Language Specification.
 
 ## Overview
 
@@ -13,7 +13,7 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 ## Features
 
 - **Platform Independent**: Runs on JVM, Android, iOS, and Linux
-- **Spec Compliant**: Passes the official Eclipse AsciiDoc TCK (run `./run-official-tck.sh`)
+- **Specification-Oriented**: Aims for compatibility with the official AsciiDoc Language Specification, tracked via its Technology Compatibility Kit (run `./run-official-tck.sh`)
 - **ASG-Native**: One document model end to end — the Abstract Semantic Graph mirroring the official AsciiDoc schema
 - **Broad Syntax Coverage**: Sections, lists (incl. description and callout lists), tables, admonitions, sidebars/examples/quotes, includes, conditionals, cross-references, footnotes, and rich inline formatting
 - **WASM Plugins**: Custom blocks, block macros, inline macros, and converter plugins via sandboxed, language-agnostic WebAssembly — no Ruby required (see [docs/PLUGINS.md](docs/PLUGINS.md))
@@ -213,7 +213,15 @@ The project includes a comprehensive TCK for ensuring consistent behavior across
 - **Performance Benchmarking**: Infrastructure for measuring parsing and rendering performance
 - **Memory Monitoring**: Tools for tracking memory usage across platforms
 
-**Official TCK**: the project passes the [official Eclipse Foundation AsciiDoc TCK](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck) via its Node.js harness — run `./run-official-tck.sh` (requires Node 20+). The TCK is synced to upstream HEAD with `./scripts/sync-official-tck.sh`, and conformance is enforced in CI on every pull request.
+**Official TCK**: this project aims to implement the AsciiDoc language in a way that is compatible with the official AsciiDoc Language Specification and its [Technology Compatibility Kit (TCK)](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck). Compatibility is a work in progress and should not be interpreted as official certification.
+
+Current TCK results, kept honest in CI on every pull request:
+
+- **TCK tested against**: commit `3490153d3eb2ef5984497428b75364f49749dfc7` (upstream HEAD at last sync)
+- **Result**: 13 of 13 published tests passing via the official Node.js harness
+- **Reproduce**: `./run-official-tck.sh` (requires Node 20+); re-sync the TCK with `./scripts/sync-official-tck.sh`
+
+The TCK itself is still growing alongside the specification; passing all currently published tests is a snapshot, not a completeness claim.
 
 See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed TCK documentation and usage examples.
 
