@@ -3,6 +3,7 @@ package org.markup.poet.asciidoc.parser.asg
 import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.ConditionalVariant
 import org.markup.poet.asciidoc.asg.IncludeBlock
+import org.markup.poet.asciidoc.asg.InlineMacro
 import org.markup.poet.asciidoc.asg.InlineRef
 import org.markup.poet.asciidoc.asg.InlineSpan
 import org.markup.poet.asciidoc.asg.InlineText
@@ -539,6 +540,15 @@ class BlockTreeParserTest {
         assertEquals("the intro", label.value)
         assertEquals(Position(1, 9), label.location?.start)
         assertEquals(Position(1, 17), label.location?.end)
+    }
+
+    @Test
+    fun xrefMacroTargetMayContainColons() {
+        val inlines = parser.parseInline("see xref:recipes:tips.adoc[the tips]")
+        val macro = assertIs<InlineMacro>(inlines[1])
+        assertEquals("xref", macro.name)
+        assertEquals("recipes:tips.adoc", macro.target)
+        assertEquals(listOf("the tips"), macro.positional)
     }
 
     @Test

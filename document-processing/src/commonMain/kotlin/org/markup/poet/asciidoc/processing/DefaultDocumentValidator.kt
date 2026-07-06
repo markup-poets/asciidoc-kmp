@@ -5,6 +5,8 @@ import org.markup.poet.asciidoc.asg.AsgNode
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.InlineAttributeRef
 import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.asg.inlineListsOf
@@ -154,6 +156,9 @@ class DefaultDocumentValidator : DocumentValidator {
         visitBlocks(document.blocks) { block ->
             if (block is SectionBlock) {
                 checkSectionTitleWhitespace(block, warnings)
+            } else if (block is LeafBlock && block.name != LeafBlockName.PARAGRAPH) {
+                // Verbatim content (listing/literal/pass/stem/verse) keeps its
+                // spacing by design — alignment there is not a normalization issue.
             } else {
                 inlineListsOf(block).forEach { inlines ->
                     visitInlines(inlines) { inline ->

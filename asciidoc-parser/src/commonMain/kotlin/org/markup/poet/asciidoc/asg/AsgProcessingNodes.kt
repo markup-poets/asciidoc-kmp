@@ -4,13 +4,13 @@ package org.markup.poet.asciidoc.asg
  * ASG extension nodes for the post-parse processing phase.
  *
  * None of these are part of the official AsciiDoc ASG schema (`asg/schema.json`).
- * With the exception of [CustomBlockMacro] (see its KDoc) the parser core
- * ([org.markup.poet.asciidoc.parser.asg.BlockTreeParser]) never emits them;
- * they are injected and consumed by the document-processing layer (includes,
- * conditionals, callouts, bibliography, footnotes) and by extension plugins
- * that splice pre-rendered output into the tree. The TCK serialization path
- * (`AsgDocumentJsonSerializer`) never encounters them (no TCK fixture contains
- * a non-built-in block macro line).
+ * The parser core ([org.markup.poet.asciidoc.parser.asg.BlockTreeParser]) emits
+ * [IncludeBlock], [ConditionalBlock], [CustomBlockMacro], and the table nodes for
+ * the corresponding source constructs; the rest are injected and consumed by the
+ * document-processing layer (callouts, bibliography, footnotes) and by extension
+ * plugins that splice pre-rendered output into the tree. The TCK serialization
+ * path (`AsgDocumentJsonSerializer`) never encounters any of them (no TCK
+ * fixture contains these constructs; it fails loudly if one ever does).
  */
 
 // ---------------------------------------------------------------------------
