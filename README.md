@@ -90,7 +90,7 @@ dependencies {
 
 Pick `<version>` from the Maven Central badge above. Further modules follow the
 same coordinates pattern: `asciidoc-asg` (official ASG JSON), `asg-graphviz-export`
-(DOT export), `antora-resolution`/`antora-assembler` (multi-file assembly), and
+(DOT export; published as `ast-graphviz` in 0.1.0), `antora-resolution`/`antora-assembler` (multi-file assembly), and
 the `plugin-api`/`plugin-engine`/`plugin-integration` trio (WASM plugins).
 
 In a Kotlin Multiplatform project, declare the dependency in your shared source set:
