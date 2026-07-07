@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-07-07
+
+Hotfix: browser support via Kotlin/Wasm.
+
+### Added
+
+- **Kotlin/Wasm browser target** (`wasmJs`) for `asciidoc-parser` and
+  `html-renderer`, so the parser and HTML renderer run in the browser as a
+  WebAssembly module.
+- **`wasm-bridge` module**: browser entry point exporting `convertToHtml()`
+  and `version()` to JavaScript via `@JsExport`; builds an ES module +
+  `.wasm` pair (`asciidoc-kmp.mjs` / `asciidoc-kmp.wasm`) with
+  `:wasm-bridge:wasmJsBrowserDistribution`. Powers the live demo on the
+  Markup Poets website.
+- `wasmJs` actuals for `PlatformFileReader`/`PlatformFileWriter` in
+  `html-renderer` (file I/O is unavailable in the browser; both return
+  failed `Result`s — use inline CSS content or built-in themes).
+
 ## [0.1.0] - 2026-07-07
 
 First public release. Published to Maven Central under the `org.markup-poet`
@@ -45,4 +63,5 @@ Linux x64, and macOS arm64.
   (`cli-app`), multi-file assembly (`antora-resolution`,
   `antora-assembler`).
 
+[0.1.1]: https://github.com/markup-poets/asciidoc-kmp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/markup-poets/asciidoc-kmp/releases/tag/v0.1.0

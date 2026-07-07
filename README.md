@@ -8,11 +8,11 @@ A lightweight AsciiDoc converter library built with Kotlin Multiplatform, aiming
 
 ## Overview
 
-Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into various output formats. Built with Kotlin Multiplatform, it runs on JVM, Android, iOS, and Linux platforms without external dependencies.
+Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into various output formats. Built with Kotlin Multiplatform, it runs on JVM, Android, iOS, Linux, and in the browser (WebAssembly) without external dependencies.
 
 ## Features
 
-- **Platform Independent**: Runs on JVM, Android, iOS, and Linux
+- **Platform Independent**: Runs on JVM, Android, iOS, Linux, and the browser via Kotlin/Wasm
 - **Specification-Oriented**: Aims for compatibility with the official AsciiDoc Language Specification, tracked via its Technology Compatibility Kit (run `./run-official-tck.sh`)
 - **ASG-Native**: One document model end to end — the Abstract Semantic Graph mirroring the official AsciiDoc schema
 - **Broad Syntax Coverage**: Sections, lists (incl. description and callout lists), tables, admonitions, sidebars/examples/quotes, includes, conditionals, cross-references, footnotes, and rich inline formatting
