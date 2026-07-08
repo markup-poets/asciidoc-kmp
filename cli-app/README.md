@@ -1,6 +1,6 @@
 # AsciiDoc to Graphviz CLI
 
-A simple command-line tool to convert AsciiDoc files into Graphviz DOT format for AST visualization.
+A simple command-line tool to convert AsciiDoc files into Graphviz DOT format for ASG visualization.
 
 ## Quick Start
 
@@ -72,15 +72,15 @@ Download from: https://graphviz.org/download/
 
 ## Features
 
-- Parses AsciiDoc files into an Abstract Syntax Tree (AST)
-- Exports AST as Graphviz DOT format
+- Parses AsciiDoc files into an Abstract Semantic Graph (ASG)
+- Exports the ASG as Graphviz DOT format
 - Color-coded nodes by type (sections, paragraphs, lists, etc.)
 - Shows document structure and relationships
 - Reports parsing errors and warnings
 
 ## Node Types
 
-The visualization uses different colors and shapes for different AST node types:
+The visualization uses different colors and shapes for different ASG node kinds:
 
 - **Document** (blue double octagon) - Root document node
 - **Section** (green box) - Section headers

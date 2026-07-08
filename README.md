@@ -90,7 +90,7 @@ dependencies {
 
 Pick `<version>` from the Maven Central badge above. Further modules follow the
 same coordinates pattern: `asciidoc-asg` (official ASG JSON), `asg-graphviz-export`
-(DOT export; published as `ast-graphviz` in 0.1.0), `antora-resolution`/`antora-assembler` (multi-file assembly), and
+(DOT export), `antora-resolution`/`antora-assembler` (multi-file assembly), and
 the `plugin-api`/`plugin-engine`/`plugin-integration` trio (WASM plugins).
 
 In a Kotlin Multiplatform project, declare the dependency in your shared source set:
@@ -177,7 +177,7 @@ Contributions are welcome! Please read our contribution guidelines and ensure al
 
 ## CLI Tool
 
-A command-line tool is included to convert AsciiDoc files to Graphviz DOT format for AST visualization.
+A command-line tool is included to convert AsciiDoc files to Graphviz DOT format for ASG visualization.
 
 ### Quick Usage
 
