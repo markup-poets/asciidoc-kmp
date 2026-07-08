@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "org.markup-poet"
-version = "0.1.0"
+version = "0.1.1"
 
 kotlin {
     jvmToolchain(17)
@@ -32,6 +32,9 @@ kotlin {
     iosSimulatorArm64()
     linuxX64()
     macosArm64()
+    wasmJs {
+        browser()
+    }
 
     sourceSets {
         commonMain.dependencies {
