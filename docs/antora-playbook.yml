@@ -1,0 +1,28 @@
+site:
+  title: Markup Poet — AsciiDoc Converter
+  start_page: asciidoc-kmp::index.adoc
+
+runtime:
+  cache_dir: ./.cache/antora
+
+content:
+  sources:
+    - url: /antora
+      start_path: docs
+      branches: HEAD
+
+antora:
+  extensions:
+    - '@antora/lunr-extension'
+
+asciidoc:
+  extensions:
+    - /opt/antora/local-mermaid-extension.js
+
+ui:
+  bundle:
+    url: /opt/antora-ui/ui-bundle.zip
+    snapshot: true
+
+output:
+  dir: ./build/site

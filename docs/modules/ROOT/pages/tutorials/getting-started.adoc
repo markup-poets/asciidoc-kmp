@@ -1,0 +1,93 @@
+= Getting started with the library
+
+In this tutorial you will add the Markup Poet dependencies to a Kotlin project, parse an AsciiDoc string, render it to HTML, and apply a built-in theme. It takes about ten minutes.
+
+include::partial$compatibility-note.adoc[]
+
+== Step 1: Add the dependencies
+
+Artifacts are published to Maven Central under the `{maven-group}` group. Make sure `mavenCentral()` is among your repositories, then add the parser and the HTML renderer. In a Kotlin Multiplatform project, declare them in `commonMain` — a single dependency resolves the right variant per target (JVM, Android, iOS, Linux):
+
+[source,kotlin,subs="attributes+"]
+----
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("{maven-group}:asciidoc-parser:{artifact-version}")
+            implementation("{maven-group}:html-renderer:{artifact-version}")
+            // Optional: includes, conditionals, TOC, cross-references
+            implementation("{maven-group}:document-processing:{artifact-version}")
+        }
+    }
+}
+----
+
+In a plain JVM project, use the same coordinates in a regular `dependencies` block. Sync the build; both modules should resolve from Maven Central.
+
+== Step 2: Parse a document
+
+Parsing turns AsciiDoc source text into the ASG (Abstract Semantic Graph), the document model used throughout the pipeline:
+
+[source,kotlin]
+----
+import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
+
+val source = """
+    = Hello, Markup Poet
+
+    This is a *test* document with an https://asciidoc.org[external link].
+""".trimIndent()
+
+val result = DefaultAsciidocParser().parse(source)
+val document = result.document
+----
+
+`parse` returns a `ParseResult`: the parsed `document` plus any diagnostics collected during parsing. Parsing does not throw on malformed input — you always get a document back, so check the result's diagnostics if you need to surface problems to users. See xref:reference/parser-api.adoc[the parser API reference] for the full `ParseResult` shape.
+
+== Step 3: Render to HTML
+
+Wire up the renderer components and render the document:
+
+[source,kotlin]
+----
+import org.markup.poet.asciidoc.render.*
+
+val builder = DefaultHtmlBuilder(DefaultHtmlEscaper())
+val inlineRenderer = DefaultInlineRenderer(builder)
+val renderer = DefaultHtmlRenderer(DefaultBlockRenderer(builder, inlineRenderer), inlineRenderer)
+
+renderer.render(document).onSuccess { html ->
+    println(html)
+}
+----
+
+For the input above, the output is a self-contained HTML document. The body contains markup along these lines (trimmed for readability):
+
+[source,html]
+----
+<h1>Hello, Markup Poet</h1>
+<p>This is a <strong>test</strong> document with an
+<a href="https://asciidoc.org">external link</a>.</p>
+----
+
+The full output also embeds the active theme's CSS, so the file renders styled when opened directly in a browser.
+
+== Step 4: Apply a theme
+
+Rendering accepts a `RenderConfig`. Pass a built-in theme to change the look without touching the document:
+
+[source,kotlin]
+----
+val config = RenderConfig(theme = DarkTheme())
+renderer.render(document, config).onSuccess { html ->
+    println(html)
+}
+----
+
+Re-run the program: the generated HTML now carries the dark theme's stylesheet. The other built-in themes are `DefaultTheme`, `MinimalTheme`, and `KotlinTheme`, and CSS variables can be overridden per render via `CssOptions`.
+
+== Next steps
+
+* xref:how-to/customize-theming.adoc[Customize themes and CSS] — variable overrides, custom stylesheets, writing your own `Theme`
+* xref:explanation/architecture.adoc[ASG-native pipeline architecture] — how Parse, Process, and Render share one document model
+* xref:reference/parser-api.adoc[Parser API and the ASG model] — the exhaustive reference for `ParseResult` and the node hierarchy

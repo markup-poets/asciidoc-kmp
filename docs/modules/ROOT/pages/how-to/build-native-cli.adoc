@@ -1,0 +1,115 @@
+= Build native CLI binaries
+
+This page shows how to compile the `html-cli` converter to a self-contained native executable with Kotlin/Native — no JVM required at runtime.
+
+== Prerequisites
+
+* A checkout of the repository.
+* Xcode command-line tools on macOS, or a standard GCC/Clang toolchain on Linux. Kotlin/Native downloads its own compiler toolchain on first use.
+
+== Build with the script
+
+From the project root:
+
+[source,bash]
+----
+./build-native-cli.sh
+----
+
+The script compiles the CLI to native machine code, links all dependencies into a single executable, and copies it to `build/native-cli/html-renderer`.
+
+NOTE: The script currently builds the macOS ARM64 target. For other targets, use the manual Gradle invocation below.
+
+== Build manually with Gradle
+
+Each native target has its own link task:
+
+[source,bash]
+----
+# Apple Silicon
+./gradlew :html-cli:linkReleaseExecutableMacosArm64
+
+# Intel Mac
+./gradlew :html-cli:linkReleaseExecutableMacosX64
+
+# Linux x64
+./gradlew :html-cli:linkReleaseExecutableLinuxX64
+----
+
+The binary lands at:
+
+[source,text]
+----
+html-cli/build/bin/<target>/releaseExecutable/html-renderer.kexe
+----
+
+for example `html-cli/build/bin/macosArm64/releaseExecutable/html-renderer.kexe`.
+
+NOTE: Kotlin/Native links against platform libraries, so build each target on a matching host: macOS targets on a Mac, `linuxX64` on Linux. Cross-compiling Apple targets from Linux is not supported.
+
+== Install
+
+Copy the binary system-wide:
+
+[source,bash]
+----
+sudo cp build/native-cli/html-renderer /usr/local/bin/
+----
+
+Or add the output directory to your `PATH` (persist it in `~/.zshrc` or `~/.bash_profile`):
+
+[source,bash]
+----
+export PATH="$PATH:$(pwd)/build/native-cli"
+----
+
+== Use it
+
+[source,bash]
+----
+html-renderer document.adoc output.html
+html-renderer --help
+----
+
+== How platform file I/O works
+
+The CLI shares its parsing and rendering logic in `commonMain`; only file I/O and process exit differ per platform, via `expect`/`actual` declarations:
+
+[source,kotlin]
+----
+// Common declaration
+expect fun readFileContent(path: String): String
+expect fun writeFileContent(path: String, content: String)
+expect fun fileExists(path: String): Boolean
+expect fun exitProcess(code: Int): Nothing
+
+// Native implementation (using POSIX)
+@OptIn(ExperimentalForeignApi::class)
+actual fun readFileContent(path: String): String {
+    val file = fopen(path, "r") ?: throw Exception("Cannot open file: $path")
+    // ... POSIX file operations
+}
+----
+
+== What you gain over the JVM build
+
+[cols="1,1,1"]
+|===
+| |Native binary |JVM
+
+|Startup time
+|~10–50 ms
+|~200–500 ms
+
+|Distribution
+|Single binary, no runtime install
+|Requires a JVM
+
+|Size
+|~2–5 MB
+|~50 MB+ with a bundled JVM
+|===
+
+The native binary also has a lower baseline memory footprint.
+
+TIP: If the binary is not executable, run `chmod +x build/native-cli/html-renderer`. On compilation errors, `./gradlew clean` and rebuild. Run the script from the project root, or pass absolute paths.

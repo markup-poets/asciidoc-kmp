@@ -1,0 +1,121 @@
+= Convert a document with html-cli
+
+In this tutorial you will convert an AsciiDoc file to HTML with the `html-cli` tool, switch themes, override CSS variables, and load a WASM plugin. You need a clone of the {url-repo}[repository] and Java {java-min}+ (the build itself uses a pinned toolchain).
+
+== Step 1: Run the CLI
+
+The simplest path is the `render-html.sh` wrapper in the repository root, which invokes the Gradle `jvmRun` task for you:
+
+[source,bash]
+----
+./render-html.sh document.adoc output.html
+----
+
+Equivalently, run Gradle directly (note: `--args` requires paths to be absolute or relative to the `html-cli` module, which is why the wrapper converts them):
+
+[source,bash]
+----
+./gradlew -q :html-cli:jvmRun --args="/absolute/path/document.adoc /absolute/path/output.html"
+----
+
+For multi-file articles there is also `publish-to-html.sh`, which assembles includes first and then renders; see xref:how-to/assemble-multi-file-documents.adoc[Assemble multi-file documents].
+
+== Step 2: Convert a sample document
+
+Create a test file and convert it:
+
+[source,bash]
+------
+cat > test.adoc << 'EOF'
+= Test Document
+
+This is a *test* document.
+
+[source,kotlin]
+----
+fun main() {
+    println("Hello, Native!")
+}
+----
+EOF
+
+./render-html.sh test.adoc test.html
+------
+
+Expected output:
+
+----
+Converting AsciiDoc to HTML...
+Input:  test.adoc
+Output: test.html
+...
+Done! Open test.html in your browser to view the result.
+----
+
+Open `test.html` in a browser: you should see the heading, the bold text, and a syntax-highlighted Kotlin code block, styled by the default theme.
+
+== Step 3: Themes and CSS variables
+
+Pick a built-in theme with `--theme` and override individual CSS variables with `--css-var` (repeatable):
+
+[source,bash]
+----
+./gradlew -q :html-cli:jvmRun --args="$PWD/test.adoc $PWD/dark.html --theme dark"
+
+./gradlew -q :html-cli:jvmRun --args="$PWD/test.adoc $PWD/custom.html \
+    --theme default \
+    --css-var --mp-color-primary=#DC2626 \
+    --css-var --mp-font-family=Georgia,serif"
+----
+
+Compare `dark.html` and `custom.html` in the browser: the first uses the dark theme's palette, the second the default theme with a red primary color and serif font.
+
+== Step 4: Load a WASM plugin
+
+Extension plugins are sandboxed WebAssembly modules loaded with the repeatable `--plugin` flag:
+
+[source,bash]
+----
+./gradlew -q :html-cli:jvmRun --args="$PWD/test.adoc $PWD/out.html --plugin shout.wasm"
+----
+
+Any custom blocks or macros the plugin registers are then available in the document. Building `shout.wasm` and writing your own plugins is covered in xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin].
+
+== Flag reference
+
+[cols="1,1,3"]
+|===
+|Option |Default |Description
+
+|`<input>` (first positional)
+|required
+|Path to the input AsciiDoc file (`.adoc`)
+
+|`<output>` (second positional)
+|input name with `.html` extension
+|Path to the output HTML file
+
+|`--theme <name>`
+|`default`
+|Built-in theme: `default`, `minimal`, `dark`, or `kotlin`
+
+|`--css-file <path>`
+|none
+|Custom CSS file to include in the output
+
+|`--no-default-css`
+|off
+|Disable the default theme CSS entirely
+
+|`--css-var <variable>=<value>`
+|none
+|CSS variable override, e.g. `--mp-color-primary=#007acc`; repeatable
+
+|`--plugin <path>`
+|none
+|WASM extension plugin to load; repeatable
+|===
+
+== Native binaries
+
+Running through Gradle is convenient for development, but `html-cli` also compiles to standalone native executables (Linux, macOS) with fast startup and no JVM. See xref:how-to/build-native-cli.adoc[Build native CLI binaries].

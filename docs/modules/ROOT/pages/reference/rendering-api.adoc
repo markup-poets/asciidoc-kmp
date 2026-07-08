@@ -1,0 +1,130 @@
+= Rendering configuration
+
+The `html-renderer` module (`org.markup.poet.asciidoc.render`) renders an
+`AsgDocument` to HTML:
+
+[source,kotlin]
+----
+fun render(document: AsgDocument, config: RenderConfig = RenderConfig.default()): Result<String>
+----
+
+== RenderConfig
+
+[cols="1,1,2"]
+|===
+|Field |Default |Meaning
+
+|`outputOptions` |`OutputOptions.default()` |Document structure and CSS inclusion mode
+|`theme` |`Theme.default()` (= `DefaultTheme`) |CSS class provider + theme stylesheet
+|`cssOptions` |`CssOptions.default()` |Custom CSS sources and variable overrides
+|`customRenderers` |`emptyMap()` |`Map<String, CustomRenderer>` — SPI hook, keyed by block style or node class simple name (style wins); converter plugins register here
+|`attributeHandlers` |`emptyMap()` |`Map<String, AttributeHandler>` for attribute-driven output hooks
+|`documentTemplate` |`null` |Optional replacement for the standalone document skeleton
+|===
+
+== CssOptions
+
+[cols="1,1,2"]
+|===
+|Field |Default |Meaning
+
+|`customCssContent` |`null` |Custom CSS as a string (takes precedence over `customCssPath`)
+|`customCssPath` |`null` |Path to a custom CSS file (relative or absolute)
+|`includeDefaultCss` |`true` |Whether to include the theme's CSS
+|`builtInTheme` |`""` |Built-in theme name (`"default"`, `"minimal"`, `"dark"`); empty string uses the theme from `RenderConfig`
+|`cssVariables` |`emptyMap()` |CSS variable overrides, e.g. `"--mp-color-primary"` to `"#007acc"`, emitted as a `:root` block
+|===
+
+== OutputOptions and CssMode
+
+[cols="1,1,2"]
+|===
+|Field |Default |Meaning
+
+|`standalone` |`true` |Full HTML document vs. body fragment
+|`cssMode` |`CssMode.INLINE` |How CSS reaches the output (see below)
+|`cssPath` |`null` |Target path/href for `CssMode.EXTERNAL`
+|`includeMetadata` |`true` |Emit `<meta>` document metadata
+|`includeToc` |`false` |Emit a table of contents
+|`documentTitle` |`null` |Overrides the document title
+|`language` |`"en"` |`lang` attribute of the HTML document
+|`customAttributes` |`emptyMap()` |Extra attributes available to templates
+|===
+
+[cols="1,3"]
+|===
+|`CssMode` |Effect
+
+|`NONE` |No CSS included in the output
+|`INLINE` |CSS embedded in a `<style>` tag
+|`EXTERNAL` |CSS referenced via a `<link>` tag
+|===
+
+== Core interfaces
+
+`Theme` supplies CSS classes per element kind plus the theme stylesheet.
+Built-in implementations: `DefaultTheme`, `DarkTheme`, `KotlinTheme`,
+`MinimalTheme`.
+
+[source,kotlin]
+----
+interface Theme {
+    fun headingClasses(level: Int): String
+    fun paragraphClasses(): String
+    fun codeBlockClasses(): String
+    fun tableClasses(): String
+    fun listClasses(): String
+    fun quoteClasses(): String
+    fun admonitionClasses(type: String): String
+    fun getCss(): String
+
+    companion object {
+        fun default(): Theme = DefaultTheme()
+    }
+}
+----
+
+`CssProvider` loads and merges the CSS for a render:
+
+[source,kotlin]
+----
+interface CssProvider {
+    fun provideCss(cssOptions: CssOptions, theme: Theme): Result<String>
+}
+----
+
+`CustomRenderer` replaces the default rendering of a node:
+
+[source,kotlin]
+----
+interface CustomRenderer {
+    fun render(node: AsgNode, context: RenderContext): String
+}
+----
+
+== CSS merge order
+
+When multiple CSS sources are configured, they are merged in this order:
+
+. CSS variable overrides (`cssVariables`), emitted as a `:root` block
+. Theme CSS (`theme.getCss()`, skipped when `includeDefaultCss = false`)
+. Custom CSS (`customCssContent`, or `customCssPath` when no content string is set)
+
+Custom CSS therefore overrides theme styles while the variable definitions
+stay in effect.
+
+== Custom renderers and converter plugins
+
+`customRenderers` keys are matched against a leaf block's style (the
+`[name]` attribute) first, then against the node's class simple name (e.g.
+`ListBlock`, `SectionBlock`). WASM `converter` plugins are wired into this
+hook by `plugin-integration`:
+
+[source,kotlin]
+----
+val renderers = converterRenderers(engine, processed.document.attributes)
+val config = RenderConfig(customRenderers = renderers)
+----
+
+See xref:reference/plugin-abi.adoc[Plugin ABI v1] for the converter
+invocation contract.

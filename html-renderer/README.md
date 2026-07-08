@@ -1,6 +1,6 @@
 # HTML Renderer Module
 
-The HTML Renderer module provides a flexible, themeable system for rendering AsciiDoc AST to HTML output.
+The HTML Renderer module provides a flexible, themeable system for rendering the AsciiDoc ASG to HTML output.
 
 ## Features
 

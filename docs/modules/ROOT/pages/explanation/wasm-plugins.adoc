@@ -1,0 +1,85 @@
+= Why WASM plugins
+
+Markup Poet supports custom AsciiDoc extensions as sandboxed WebAssembly
+plugins. This page explains why WebAssembly was chosen over the traditional
+extension model, and what the sandbox does and does not guarantee. For the
+wire format see xref:reference/plugin-abi.adoc[Plugin ABI v1]; for a
+step-by-step guide see
+xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin].
+
+== The problem with host-language extensions
+
+Asciidoctor extensions are Ruby code running with full host privileges: an
+extension can read files, open sockets, and do anything the converter process
+can do. That model couples extensions to one implementation language, and it
+makes "load this plugin" a full-trust decision.
+
+Neither property works for a Kotlin Multiplatform library. Markup Poet runs
+on JVM, Android, iOS, Linux, and macOS; an extension mechanism tied to a
+scripting runtime would exclude most of those targets, and native bindings
+would break the pure-Kotlin build.
+
+== Why WebAssembly
+
+WASM plugins solve both problems at once:
+
+* *Language-agnostic* — a plugin is a compiled WASM module. It can be written
+  in Rust, Zig, C, Go, or anything else that targets
+  `wasm32-unknown-unknown`. The example plugin in
+  `examples/plugins/shout-rust/` is Rust.
+* *Every KMP target* — plugins execute on
+  https://github.com/CharlieTap/chasm[Chasm], a pure-Kotlin WASM runtime, so
+  the same `.wasm` file runs on JVM, Android, iOS, Linux, and macOS with no
+  native bindings and no platform-specific loader.
+* *No ambient authority* — a plugin sees only the JSON envelopes the host
+  hands it. No filesystem, no network, no clock.
+
+== The capability model
+
+The sandbox is enforced structurally rather than by policy checks:
+
+* *No imports.* A module that requires WASI or any host function is rejected
+  at load time. A plugin is pure compute over its input envelope — the only
+  way data enters or leaves is through the length-prefixed JSON payloads the
+  host writes into and reads out of the plugin's own linear memory.
+* *Payload caps.* Payloads are capped at 1 MB (64 KB for the descriptor), so
+  a plugin cannot force the host to buffer unbounded output.
+* *Isolation.* Each plugin gets its own store, instance, and memory; nothing
+  is shared between plugins or with the host.
+* *Poisoning.* A plugin whose invocation fails is marked poisoned and refuses
+  further calls. A misbehaving plugin fails once, visibly, instead of
+  corrupting later invocations.
+
+=== Known limitation: no fuel metering
+
+Chasm does not yet support fuel metering, so a hostile plugin containing an
+infinite loop can pin the calling thread — the sandbox bounds *what* a plugin
+can touch, not *how long* it computes. Until metering lands: load only
+plugins you trust, or invoke the engine with a timeout on a background
+dispatcher.
+
+== Two kinds of extension point
+
+The four capability types split into two semantic groups, and the split
+mirrors the pipeline described in
+xref:explanation/architecture.adoc[the architecture page]:
+
+* `block`, `blockMacro`, and `inlineMacro` *transform the document* before
+  rendering. They claim a construct in the parsed ASG and replace it with new
+  content — AsciiDoc to be re-parsed, raw HTML, or official ASG node JSON to
+  be spliced in. Whatever renders afterwards sees an ordinary document.
+* `converter` *participates in rendering*. It does not change the document;
+  the host registers it as a custom renderer, and the html-renderer calls it
+  with the claimed node serialized as official ASG JSON whenever it reaches a
+  matching node. The response is emitted verbatim in the node's place.
+
+Keeping transformation and rendering separate means a document-transforming
+plugin composes with any renderer, and a converter plugin can restyle a node
+without needing to understand parsing at all.
+
+== Failure philosophy
+
+Plugin failures are never fatal to the document. A response of `ok: false`,
+a malformed replacement, or a poisoned instance leaves the original construct
+untouched and surfaces a processing or rendering warning. A broken plugin
+degrades output; it does not break conversion.

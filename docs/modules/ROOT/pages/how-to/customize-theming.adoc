@@ -1,0 +1,129 @@
+= Customize themes and CSS
+
+This page shows how to control the styling of HTML output: pick a built-in theme, override CSS variables, add your own stylesheet, or implement a theme from scratch.
+
+== Prerequisites
+
+* The `html-renderer` module on your classpath (see xref:reference/rendering-api.adoc[Rendering API]).
+* A parsed document and a renderer, as in the Quick Start.
+
+== Pick a built-in theme
+
+Pass a theme to the renderer via `RenderConfig`:
+
+[source,kotlin]
+----
+val config = RenderConfig(theme = DarkTheme())
+renderer.render(document, config)
+----
+
+Four themes ship with the library:
+
+[cols="1,3"]
+|===
+|Theme |Purpose
+
+|`DefaultTheme`
+|Clean, minimal styling with good readability; the default when no theme is given.
+
+|`DarkTheme`
+|Dark background (`#1e1e1e`) with light text, for low-light environments and code-heavy documents.
+
+|`KotlinTheme`
+|Dark background (`#0A0B0D`) with red accents (`#DC2626`) and system fonts.
+
+|`MinimalTheme`
+|Bare structural CSS only — the ideal starting point for custom styling.
+|===
+
+== Override CSS variables
+
+All built-in themes expose CSS variables named `+--mp-{category}-{property}+`, where the category is one of `color`, `font`, `spacing`, `border`, or `line-height` — for example `--mp-color-primary`, `--mp-font-family`, `--mp-spacing-unit`, `--mp-border-radius`.
+
+Override them without writing any CSS:
+
+[source,kotlin]
+----
+val config = RenderConfig(
+    theme = DefaultTheme(),
+    cssOptions = CssOptions(
+        cssVariables = mapOf(
+            "--mp-color-primary" to "#DC2626",
+            "--mp-font-family" to "Georgia, serif"
+        )
+    )
+)
+----
+
+== Add custom CSS
+
+Supply extra CSS inline:
+
+[source,kotlin]
+----
+val config = RenderConfig(
+    theme = DefaultTheme(),
+    cssOptions = CssOptions(
+        customCssContent = """
+            .heading-1 { color: red; }
+            .code-block { background: #f0f0f0; }
+        """.trimIndent()
+    )
+)
+----
+
+Or load it from a file:
+
+[source,kotlin]
+----
+val config = RenderConfig(
+    theme = DefaultTheme(),
+    cssOptions = CssOptions(customCssPath = "path/to/custom.css")
+)
+----
+
+CSS sources are merged in a fixed order — variable overrides first, then theme CSS, then custom CSS — so your custom rules always win over the theme.
+
+== Disable the default theme CSS
+
+To ship only your own stylesheet while keeping the theme's class names on the HTML elements:
+
+[source,kotlin]
+----
+val config = RenderConfig(
+    theme = DefaultTheme(),           // still provides class names
+    cssOptions = CssOptions(
+        customCssPath = "path/to/custom.css",
+        includeDefaultCss = false     // omit the theme's CSS
+    )
+)
+----
+
+== Implement a custom theme
+
+Any class implementing the `Theme` interface can be passed to `RenderConfig`. The interface maps document constructs to CSS class names and supplies the stylesheet:
+
+[source,kotlin]
+----
+class MyCustomTheme : Theme {
+    override fun headingClasses(level: Int) = "my-heading my-h$level"
+    override fun paragraphClasses() = "my-paragraph"
+    // ... implement the remaining methods (codeBlockClasses,
+    //     tableClasses, listClasses, quoteClasses, admonitionClasses)
+
+    override fun getCss(): String = """
+        .my-heading { font-weight: bold; }
+        .my-h1 { font-size: 2em; }
+        .my-paragraph { margin: 1em 0; }
+    """.trimIndent()
+}
+
+val config = RenderConfig(theme = MyCustomTheme())
+----
+
+`MinimalTheme` is a good base to copy when starting a theme of your own.
+
+== Related pages
+
+* xref:reference/rendering-api.adoc[Rendering API] — `RenderConfig`, `CssOptions`, `OutputOptions`, and `CssMode` in full.
+* xref:explanation/theming.adoc[Theming design] — why structure and presentation are separated, and how CSS merging works.

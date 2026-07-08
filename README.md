@@ -3,6 +3,9 @@
 [![Maven Central](https://img.shields.io/maven-central/v/org.markup-poet/asciidoc-parser)](https://central.sonatype.com/namespace/org.markup-poet)
 [![Build](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/markup-poets/asciidoc-kmp/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-markup--poets.github.io-blue)](https://markup-poets.github.io/asciidoc-kmp/)
+
+**Documentation:** https://markup-poets.github.io/asciidoc-kmp/
 
 A lightweight AsciiDoc converter library built with Kotlin Multiplatform, aiming for compatibility with the official AsciiDoc Language Specification.
 
@@ -16,7 +19,7 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 - **Specification-Oriented**: Aims for compatibility with the official AsciiDoc Language Specification, tracked via its Technology Compatibility Kit (run `./run-official-tck.sh`)
 - **ASG-Native**: One document model end to end — the Abstract Semantic Graph mirroring the official AsciiDoc schema
 - **Broad Syntax Coverage**: Sections, lists (incl. description and callout lists), tables, admonitions, sidebars/examples/quotes, includes, conditionals, cross-references, footnotes, and rich inline formatting
-- **WASM Plugins**: Custom blocks, block macros, inline macros, and converter plugins via sandboxed, language-agnostic WebAssembly — no Ruby required (see [docs/PLUGINS.md](docs/PLUGINS.md))
+- **WASM Plugins**: Custom blocks, block macros, inline macros, and converter plugins via sandboxed, language-agnostic WebAssembly — no Ruby required (see the [plugin guide](https://markup-poets.github.io/asciidoc-kmp/asciidoc-kmp/how-to/write-a-wasm-plugin.html))
 - **Pluggable Theming**: Flexible styling system with built-in themes and CSS customization
 - **Zero Dependencies**: No external libraries required in the core parser
 
@@ -53,7 +56,7 @@ renderer.render(document).onSuccess { html ->
 val config = RenderConfig(
     theme = KotlinTheme(),
     cssOptions = CssOptions(
-        cssVariableOverrides = mapOf(
+        cssVariables = mapOf(
             "--mp-color-primary" to "#DC2626"
         )
     )
@@ -62,7 +65,7 @@ val config = RenderConfig(
 val result = renderer.render(document, config)
 ```
 
-See [docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md) for theming documentation.
+See the [theming guide](https://markup-poets.github.io/asciidoc-kmp/asciidoc-kmp/how-to/customize-theming.html) for theming documentation.
 
 ## Installation
 
@@ -90,7 +93,7 @@ dependencies {
 
 Pick `<version>` from the Maven Central badge above. Further modules follow the
 same coordinates pattern: `asciidoc-asg` (official ASG JSON), `asg-graphviz-export`
-(DOT export; published as `ast-graphviz` in 0.1.0), `antora-resolution`/`antora-assembler` (multi-file assembly), and
+(DOT export), `antora-resolution`/`antora-assembler` (multi-file assembly), and
 the `plugin-api`/`plugin-engine`/`plugin-integration` trio (WASM plugins).
 
 In a Kotlin Multiplatform project, declare the dependency in your shared source set:
@@ -125,7 +128,7 @@ The library includes a powerful, pluggable theming system that strictly separate
 
 ### Documentation
 
-- **[docs/THEMING_ARCHITECTURE.md](docs/THEMING_ARCHITECTURE.md)** - Architecture overview and design principles
+- **[Theming architecture](https://markup-poets.github.io/asciidoc-kmp/asciidoc-kmp/explanation/theming.html)** - Architecture overview and design principles
 
 ### Quick Examples
 
@@ -140,7 +143,7 @@ renderer.render(document, config)
 val config = RenderConfig(
     theme = DefaultTheme(),
     cssOptions = CssOptions(
-        cssVariableOverrides = mapOf(
+        cssVariables = mapOf(
             "--mp-color-primary" to "#DC2626",
             "--mp-font-family" to "Georgia, serif"
         )
@@ -177,7 +180,7 @@ Contributions are welcome! Please read our contribution guidelines and ensure al
 
 ## CLI Tool
 
-A command-line tool is included to convert AsciiDoc files to Graphviz DOT format for AST visualization.
+A command-line tool is included to convert AsciiDoc files to Graphviz DOT format for ASG visualization.
 
 ### Quick Usage
 

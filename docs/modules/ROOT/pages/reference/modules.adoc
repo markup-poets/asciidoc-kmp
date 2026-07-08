@@ -1,0 +1,116 @@
+= Modules and coordinates
+
+The repository builds 14 Gradle modules. Published libraries are on
+{url-maven-central}[Maven Central] under the `{maven-group}` group; each is a
+Kotlin Multiplatform library, so a single `commonMain` dependency resolves the
+right variant per target.
+
+== Module table
+
+[cols="1,2,3"]
+|===
+|Module |Maven coordinates |Purpose
+
+|`asciidoc-parser`
+|`{maven-group}:asciidoc-parser:{artifact-version}`
+|Core parser + ASG document model (`+org.markup.poet.asciidoc.{parser,asg,error}+`); zero external dependencies
+
+|`document-processing`
+|`{maven-group}:document-processing:{artifact-version}`
+|Post-parse phase: includes, attribute substitution, conditionals, TOC, cross-references, callouts, footnotes, bibliography
+
+|`html-renderer`
+|`{maven-group}:html-renderer:{artifact-version}`
+|ASG -> HTML with theming (`org.markup.poet.asciidoc.render`); see xref:reference/rendering-api.adoc[Rendering configuration]
+
+|`asciidoc-asg`
+|`{maven-group}:asciidoc-asg:{artifact-version}`
+|Serializes/deserializes the parsed document to the official ASG JSON interchange format
+
+|`asg-graphviz-export`
+|`{maven-group}:asg-graphviz-export:{artifact-version}`
+|ASG -> Graphviz DOT conversion library
+
+|`antora-resolution`
+|`{maven-group}:antora-resolution:{artifact-version}`
+|Antora resource coordinate resolution
+
+|`antora-assembler`
+|`{maven-group}:antora-assembler:{artifact-version}`
+|Multi-file AsciiDoc document assembly
+
+|`plugin-api`
+|`{maven-group}:plugin-api:{artifact-version}`
+|WASM plugin interfaces (`PluginDispatch`, `PluginHandle`); see xref:reference/plugin-abi.adoc[Plugin ABI v1]
+
+|`plugin-engine`
+|`{maven-group}:plugin-engine:{artifact-version}`
+|WASM plugin engine on the Chasm runtime (`PluginEngine`)
+
+|`plugin-integration`
+|`{maven-group}:plugin-integration:{artifact-version}`
+|Applies loaded plugins to a parsed document and wires converter plugins into rendering
+
+|`tck-quality-testing`
+|`{maven-group}:tck-quality-testing:{artifact-version}`
+|Fixture-replay harness, TCK sync, conformance reporting (`org.markup.poet.tck`)
+
+|`tck-adapter`
+|_not published_
+|CLI adapter for the official TCK harness (stdin JSON request -> ASG JSON on stdout)
+
+|`html-cli`
+|_not published_
+|AsciiDoc -> HTML command-line tool (JVM + native)
+
+|`cli-app`
+|_not published_
+|AsciiDoc -> Graphviz DOT export CLI
+|===
+
+`tck-adapter`, `html-cli`, and `cli-app` are executables, not libraries; they
+do not apply the Maven publishing plugin and have no coordinates.
+
+== Dependency layering
+
+* `asciidoc-parser` — zero dependencies; everything else builds on it
+* `asciidoc-parser` -> `document-processing` -> `html-renderer` (the Parse -> Process -> Render pipeline)
+* `asciidoc-asg` — official ASG JSON, on top of the parser's ASG model
+* `asg-graphviz-export` — DOT export, on top of the parser's ASG model
+* `antora-resolution` + `antora-assembler` — multi-file assembly pair
+* `plugin-api` -> `plugin-engine` -> `plugin-integration` — WASM plugin trio
+
+== Supported platforms
+
+[cols="1,2"]
+|===
+|Platform |Targets
+
+|JVM
+|Java {java-min}+
+
+|Android
+|API {android-min-api}+
+
+|iOS
+|x64, arm64, simulator arm64
+
+|Linux
+|x64
+
+|macOS
+|arm64
+|===
+
+== Adding a dependency
+
+[source,kotlin,subs="attributes+"]
+----
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("{maven-group}:asciidoc-parser:{artifact-version}")
+        }
+    }
+}
+----

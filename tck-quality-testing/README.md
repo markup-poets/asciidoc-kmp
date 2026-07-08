@@ -167,7 +167,7 @@ import org.markup.poet.tck.memory.*
 
 val monitor = PlatformMemoryMonitor()
 val metrics = monitor.monitor("render_document") {
-    renderer.render(ast)
+    renderer.render(asg)
 }
 
 println("Allocated: ${metrics.allocated} bytes")
@@ -188,7 +188,7 @@ class MyCompatibilityTest : CompatibilityTest() {
         runCompatibilityTest(
             fixtureId = "block-paragraph-simple",
             parser = { input -> myParser.parse(input) },
-            renderer = { ast -> myRenderer.render(ast) }
+            renderer = { asg -> myRenderer.render(asg) }
         )
     }
     
@@ -247,10 +247,10 @@ Platform-specific implementations can be enhanced as needed.
 ## Dependencies
 
 This module depends on:
-- `asciidoc-parser` - For AST node types
+- `asciidoc-parser` - For ASG node types
 - `html-renderer` - For rendering functionality
 - `document-processing` - For document processing
-- `asg-graphviz-export` - For AST visualization
+- `asg-graphviz-export` - For ASG visualization
 - `kotlin-test` - For testing framework
 - `kotest` - For property-based testing
 

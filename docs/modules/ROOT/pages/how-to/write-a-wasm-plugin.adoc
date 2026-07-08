@@ -1,0 +1,147 @@
+= Write a WASM plugin
+
+This page walks through writing a sandboxed WebAssembly extension plugin in Rust and running it — both from the command line and programmatically. Plugins are plain WASM modules exchanging JSON envelopes with the host, so any language that compiles to `wasm32-unknown-unknown` works.
+
+== Prerequisites
+
+* A Rust toolchain with the WASM target: `rustup target add wasm32-unknown-unknown`.
+* For the host side: the `plugin-engine` and `plugin-integration` modules, or a built `html-cli` binary.
+
+== Choose an extension point
+
+A plugin declares one or more capabilities, each tied to an extension point:
+
+[cols="1,2,3"]
+|===
+|Type |AsciiDoc syntax |Effect
+
+|`block`
+|`[name]` + delimited/paragraph body
+|Replaces a block whose style matches the capability name, before rendering.
+
+|`blockMacro`
+|`name::target[attrs]`
+|Replaces a custom block macro line before rendering.
+
+|`inlineMacro`
+|`name:target[attrs]`
+|Replaces a custom inline macro.
+
+|`converter`
+|ASG node → HTML string
+|Registers a custom renderer; called during HTML rendering for matching nodes.
+|===
+
+== Implement the module
+
+A plugin is a WASM module with no imports (modules requiring WASI or host functions are rejected at load) that exports `memory`, `plugin_alloc`, `plugin_dealloc`, `plugin_info`, and `process`. Every payload crossing the boundary is a 4-byte little-endian length prefix followed by UTF-8 JSON.
+
+The complete example lives in `examples/plugins/shout-rust/` — a `cdylib` crate using `serde_json`. The skeleton:
+
+[source,rust]
+----
+#[no_mangle]
+pub extern "C" fn plugin_alloc(size: u32) -> *mut u8 {
+    let mut buf = Vec::<u8>::with_capacity(size as usize);
+    let ptr = buf.as_mut_ptr();
+    std::mem::forget(buf);
+    ptr
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn plugin_dealloc(ptr: *mut u8, size: u32) {
+    drop(Vec::from_raw_parts(ptr, 0, size as usize));
+}
+
+#[no_mangle]
+pub extern "C" fn plugin_info() -> *const u8 {
+    // return length-prefixed descriptor JSON
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn process(ptr: *const u8, len: u32) -> *const u8 {
+    // parse invocation JSON -> build response JSON -> length-prefixed buffer
+}
+----
+
+`plugin_info` returns the descriptor. For the shout plugin:
+
+[source,json]
+----
+{
+  "abiVersion": 1,
+  "id": "shout-plugin",
+  "name": "Shout",
+  "version": "0.1.0",
+  "description": "Uppercases the content of [shout] blocks",
+  "capabilities": [ { "type": "block", "name": "shout" } ],
+  "metadata": {}
+}
+----
+
+`process` receives an invocation (extension point, name, attributes, content, document attributes, location) and answers with a response:
+
+[source,json]
+----
+{
+  "ok": true,
+  "replacement": { "contentType": "html", "value": "<div class=\"shout\">HELLO!</div>" },
+  "warnings": []
+}
+----
+
+`contentType` may be `html` (raw passthrough), `asciidoc` (re-parsed and spliced), or `asg` (official ASG node JSON). Returning `ok: false` with an `error` leaves the original construct in place and surfaces a processing warning. See xref:reference/plugin-abi.adoc[Plugin ABI reference] for the exact envelope schemas, payload limits, and the converter invocation format.
+
+== Build
+
+[source,bash]
+----
+cd examples/plugins/shout-rust
+cargo build --release --target wasm32-unknown-unknown
+# or: ./build.sh
+----
+
+The module lands at `target/wasm32-unknown-unknown/release/shout_plugin.wasm`.
+
+== Run via the CLI
+
+Pass the module to `html-cli` with `--plugin` (repeatable):
+
+[source,bash]
+----
+html-renderer document.adoc output.html --plugin shout_plugin.wasm
+----
+
+== Run programmatically
+
+Load plugins with `PluginEngine` (`org.markup.poet.plugin.engine`):
+
+[source,kotlin]
+----
+val engine = PluginEngine()
+val plugin = engine.loadPlugin(wasmBytes, "shout.wasm")
+val response = plugin.process(
+    PluginInvocation(extensionPoint = "block", name = "shout", content = "hello"),
+)
+engine.forCapability("block", "shout")   // dispatch lookup
+engine.unloadAll()
+----
+
+The integration layer (`org.markup.poet.plugin.integration`) applies loaded plugins to a parsed document and wires converter capabilities into rendering:
+
+[source,kotlin]
+----
+val processed = WasmExtensions(engine).apply(parsedDocument)   // block / blockMacro / inlineMacro
+val renderers = converterRenderers(engine, processed.document.attributes)
+val config = RenderConfig(customRenderers = renderers)         // converter capabilities
+// render with `config`, then engine.unloadAll()
+----
+
+`PluginEngine(PluginLimits(...))` customizes payload caps. A plugin whose invocation fails is marked poisoned and refuses further calls — unload it.
+
+WARNING: The runtime has no fuel metering yet, so a hostile infinite loop can pin the calling thread. Load only plugins you trust, or invoke with a timeout on a background dispatcher.
+
+== Related pages
+
+* xref:reference/plugin-abi.adoc[Plugin ABI reference] — exact envelopes, exports, and limits.
+* xref:explanation/wasm-plugins.adoc[WASM plugin design] — why WASM, the sandbox model, and how it compares to Asciidoctor extensions.

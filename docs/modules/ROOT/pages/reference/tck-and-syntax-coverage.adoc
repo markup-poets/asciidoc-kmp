@@ -1,0 +1,72 @@
+= TCK status and syntax coverage
+
+include::partial$compatibility-note.adoc[]
+
+== Current TCK status
+
+Kept honest in CI on every pull request.
+
+[cols="1,3"]
+|===
+|Fact |Value
+
+|TCK tested against
+|Commit `{tck-commit}` of the {url-tck}[official AsciiDoc TCK] (upstream HEAD at last sync)
+
+|Result
+|{tck-passing} of {tck-total} published tests passing via the official Node.js harness
+
+|Harness requirement
+|Node.js {node-min}+
+|===
+
+== Reproducing the result
+
+[source,bash]
+----
+./run-official-tck.sh              # run the official harness (source of truth)
+./scripts/sync-official-tck.sh     # re-sync the TCK repo to upstream HEAD
+----
+
+Equivalent Gradle task: `./gradlew :tck-adapter:officialTck`. The harness
+spawns the `tck-adapter` executable once per test, writes a JSON request to
+stdin, and compares the ASG JSON printed to stdout against the expected
+output. See xref:contributing/tck-workflow.adoc[TCK workflow] for the
+contributor loop.
+
+== Syntax coverage
+
+Coverage as of version {artifact-version}:
+
+* Sections and paragraphs
+* Ordered, unordered, description, and callout lists with nesting and continuation
+* Tables: `|===`, `cols` alignment/widths, colspans, header rows
+* Admonitions
+* Sidebar, example, quote, and open containers
+* Listing, literal, pass, stem, and verse verbatim blocks
+* Block macros and breaks
+* `include::` / `ifdef::` / `ifndef::` / `ifeval::` directives
+* Document header with author line
+* Block metadata: `[#id.role%option]`, `.Title`
+* Rich inlines: strong/emphasis/code/mark/subscript/superscript spans, links,
+  autolinks, xref shorthand and macro forms, attribute references, generic
+  inline macros
+
+Document processing adds include resolution, conditional evaluation,
+attribute substitution, cross-reference indexing, table-of-contents
+generation and insertion (`:toc:` auto/preamble/macro), callout pairing,
+footnotes, bibliography, and validation. See
+xref:reference/parser-api.adoc[Parser API and the ASG model] for how these
+constructs appear in the ASG.
+
+== What this does not claim
+
+This project aims to implement the AsciiDoc language in a way that is
+compatible with the official AsciiDoc Language Specification and its
+{url-tck}[Technology Compatibility Kit (TCK)]. Compatibility is a work in
+progress and should not be interpreted as official certification.
+
+The TCK itself is still growing alongside the specification; passing all
+currently published tests is a snapshot, not a completeness claim. As the
+TCK publishes more tests, the numbers above change — they live in a single
+place (the site's Antora attributes) and are updated at every TCK re-sync.

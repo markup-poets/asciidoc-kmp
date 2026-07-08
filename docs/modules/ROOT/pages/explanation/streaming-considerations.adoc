@@ -1,6 +1,8 @@
-= Streaming Considerations for AsciiDoc Parser
-:toc:
-:toclevels: 3
+= Streaming Considerations
+
+NOTE: Design discussion — under consideration, not implemented. This page
+records the trade-off analysis for streaming input support; the parser
+currently uses the eager model described below.
 
 == Current Memory Model
 
@@ -16,13 +18,13 @@ The current parser implementation uses eager evaluation with multiple O(n) memor
 |`AsciidocParser.parse(lines: List<String>)`
 |Full document split into List before processing
 
-|`BlockParser.parseParagraph()`
+|Paragraph parsing
 |`lines.joinToString(" ")` creates new concatenated string
 
-|`BlockParser.parseCodeBlock()`
+|Code block parsing
 |`lines.joinToString("\n")` creates new concatenated string
 
-|AST structure
+|Document tree
 |Complete tree with all nodes materialized in memory
 |===
 
@@ -33,7 +35,7 @@ For a document of size N:
 * Input string: N bytes
 * Line list: ~N bytes (plus object overhead per line)
 * Intermediate concatenations: variable, up to N per block
-* Final AST: proportional to N (node objects + content strings)
+* Final document tree: proportional to N (node objects + content strings)
 
 *Practical estimate*: 2-3x document size in heap memory.
 
@@ -48,18 +50,18 @@ AsciiDoc's syntax has several characteristics that make pure streaming difficult
 Delimited blocks like code blocks use matching delimiters:
 
 [source,asciidoc]
-----
+-----
 ----
 code content here
 may span many lines
 ----
-----
+-----
 
 The parser must buffer content until the closing delimiter is found. If the delimiter is missing, the entire remainder of the document becomes block content.
 
 === Sections Contain Children
 
-Section nodes in the AST contain their child elements:
+Section nodes in the document tree contain their child elements:
 
 [source,kotlin]
 ----
@@ -87,7 +89,7 @@ The version is {version}.
 Forward references require either:
 
 * Two-pass processing (collect attributes, then substitute)
-* Deferred substitution markers in the AST
+* Deferred substitution markers in the document tree
 
 === Multi-line Element Aggregation
 
@@ -102,7 +104,7 @@ until an empty line appears.
 Next paragraph starts here.
 ----
 
-The parser must buffer lines and join them before creating the Paragraph node.
+The parser must buffer lines and join them before creating the paragraph node.
 
 == Possible Streaming Approaches
 
@@ -128,7 +130,7 @@ interface AsciidocParser {
 
 *Limitations*:
 
-* AST is still fully materialized
+* Document tree is still fully materialized
 * Only helps with input memory, not output memory
 * Internal buffering still required for multi-line elements
 
@@ -136,7 +138,7 @@ interface AsciidocParser {
 
 === Option 2: SAX-Style Event Streaming with Flow
 
-Emit parsing events instead of building AST:
+Emit parsing events instead of building the document tree:
 
 [source,kotlin]
 ----
@@ -195,7 +197,7 @@ sealed class ChunkResult {
 *Benefits*:
 
 * No coroutines dependency
-* Preserves AST structure within chunks
+* Preserves tree structure within chunks
 * Natural boundary for large documents (books, manuals)
 * Simpler than full SAX-style events
 
@@ -235,7 +237,7 @@ actual fun readLinesLazily(path: String): Sequence<String> =
 
 * Introduces file I/O into the library (currently pure transformation)
 * Platform-specific code to maintain
-* Doesn't address AST memory, only input memory
+* Doesn't address tree memory, only input memory
 
 == Recommendation
 
@@ -313,7 +315,7 @@ Consider SAX-style streaming only if:
 
 == Open Questions
 
-1. What are the actual document sizes users will process?
-2. Is the zero-dependency goal strict, or can kotlinx.coroutines be considered?
-3. Are there use cases for incremental/progressive rendering?
-4. Should the library handle file I/O, or remain a pure transformation library?
+. What are the actual document sizes users will process?
+. Is the zero-dependency goal strict, or can kotlinx.coroutines be considered?
+. Are there use cases for incremental/progressive rendering?
+. Should the library handle file I/O, or remain a pure transformation library?
