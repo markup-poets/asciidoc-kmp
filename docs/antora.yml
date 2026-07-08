@@ -1,0 +1,24 @@
+name: asciidoc-kmp
+title: AsciiDoc Converter
+version: ~
+nav:
+  - modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    artifact-version: '0.1.0'
+    maven-group: 'org.markup-poet'
+    # TCK status — the ONLY place these numbers live; pages reference the attributes
+    tck-commit: '3490153d3eb2ef5984497428b75364f49749dfc7'
+    tck-commit-short: '3490153d'
+    tck-passing: '13'
+    tck-total: '13'
+    java-min: '11'
+    android-min-api: '24'
+    node-min: '20'
+    url-repo: 'https://github.com/markup-poets/asciidoc-kmp'
+    url-tck: 'https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck'
+    url-spec: 'https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang'
+    url-maven-central: 'https://central.sonatype.com/namespace/org.markup-poet'
+    url-dsl-poet: 'https://markup-poets.github.io/markup-poets/'
+    url-dsl-poet-repo: 'https://github.com/markup-poets/markup-poets'

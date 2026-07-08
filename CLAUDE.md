@@ -18,7 +18,7 @@ Markup Poet is a Kotlin Multiplatform AsciiDoc converter targeting JVM, Android 
 - `cli-app` — AsciiDoc → Graphviz DOT export CLI
 - `asg-graphviz-export` — ASG → DOT conversion library
 - `antora-resolution`, `antora-assembler` — multi-file document assembly
-- `plugin-api`, `plugin-engine`, `plugin-integration` — WASM extension plugins (Chasm runtime; see docs/PLUGINS.md); example plugin in `examples/plugins/shout-rust/`
+- `plugin-api`, `plugin-engine`, `plugin-integration` — WASM extension plugins (Chasm runtime; see docs/modules/ROOT/pages/how-to/write-a-wasm-plugin.adoc and reference/plugin-abi.adoc); example plugin in `examples/plugins/shout-rust/`
 
 ## Build Commands
 

@@ -1,0 +1,71 @@
+= Assemble multi-file documents
+
+This page shows how to resolve an Antora-style multi-file document — includes and resource coordinates such as `partial$intro.adoc` — into a single flat AsciiDoc file.
+
+NOTE: This documentation site is itself an Antora component; the assembly modules described here are dogfooded on the very structure you are reading.
+
+== Prerequisites
+
+* A document tree with an index file whose `include::[]` directives reference the other files, either by relative path or by Antora resource coordinate.
+* For library use, the two assembly modules:
+
+[source,kotlin,subs="attributes+"]
+----
+dependencies {
+    implementation("{maven-group}:antora-resolution:{artifact-version}")
+    implementation("{maven-group}:antora-assembler:{artifact-version}")
+}
+----
+
+== Assemble with the wrapper script
+
+From the project root:
+
+[source,bash]
+----
+./assemble-article.sh my-article/index.adoc my-article/assembled.adoc
+----
+
+The script builds `:antora-assembler` and writes the fully resolved document to the output path.
+
+== Assemble programmatically
+
+The pipeline has two layers. `antora-resolution` turns coordinates into file paths; `antora-assembler` walks the include graph and merges content.
+
+Key types:
+
+* `ResourceCoordinate.parse(...)` (`org.markup.poet.antora`) — parses `type$path`, `module:type$path`, and `component:module:type$path` forms (`partial$`, `example$`, `page$`, `image$`, `attachment$`), falling back to a relative path.
+* `AntoraResolver` / `DefaultAntoraResolver` — resolves a coordinate or include path against a `ResolutionContext`.
+* `DocumentAssembler` / `DefaultDocumentAssembler` (`org.markup.poet.antora.assembler`) — parses the index file, resolves every include recursively, and merges the content.
+* `AssemblerConfig` — index file, output file, component root, and safety knobs.
+
+[source,kotlin]
+----
+val fileSystem = DefaultFileSystemAccess()
+val assembler = DefaultDocumentAssembler(
+    parser = DefaultAsciidocParser(),
+    resolver = DefaultAntoraResolver(fileSystem),
+    fileSystem = fileSystem
+)
+
+val result = assembler.assemble(
+    AssemblerConfig(
+        indexFile = "my-article/index.adoc",
+        outputFile = "my-article/assembled.adoc",
+        componentRoot = "my-article",
+        maxDepth = 50,                       // include nesting limit
+        failOnMissingIncludes = true,
+        failOnCircularDependencies = true
+    )
+)
+
+if (!result.success) {
+    result.errors.forEach { println("${it.errorType}: ${it.message}") }
+}
+----
+
+`AssemblerResult` reports the output path, the set of included files, and any errors (`INCLUDE_NOT_FOUND`, `CIRCULAR_DEPENDENCY`, `MAX_DEPTH_EXCEEDED`, ...) and warnings.
+
+== Feed the result onward
+
+The assembled file is ordinary AsciiDoc: render it with `html-cli`, export its ASG to DOT, or process it with any other tool in the pipeline.

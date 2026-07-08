@@ -1,0 +1,129 @@
+= Parser API and the ASG model
+
+include::partial$compatibility-note.adoc[]
+
+== Parsing
+
+`DefaultAsciidocParser` (`org.markup.poet.asciidoc.parser`) is the parser facade:
+
+[source,kotlin]
+----
+val result: ParseResult = DefaultAsciidocParser().parse(source)
+val document: AsgDocument = result.document
+----
+
+[cols="1,3"]
+|===
+|`ParseResult` field |Meaning
+
+|`document`
+|The parsed `AsgDocument` (attributes, optional header, blocks)
+
+|`errors`
+|`List<ParseError>` — normally empty; the ASG core is lenient and degrades malformed input to plain content. A `FATAL` error is reported only if parsing throws, together with a minimal empty document.
+
+|`warnings`
+|`List<ParseWarning>` — normally empty for the same reason
+|===
+
+== The ASG model
+
+The document model (`org.markup.poet.asciidoc.asg`) is the Abstract Semantic
+Graph mirroring the official AsciiDoc schema (asciidoc-lang `asg/schema.json`).
+All nodes implement `AsgNode` and fall into two sealed hierarchies, `Block` and
+`Inline`. The schema axes `name` / `variant` / `form` are *fields*, not class
+distinctions — new syntax mostly means parser work, not new node classes.
+
+[cols="1,2,2"]
+|===
+|Node |Axes (fields) |Notes
+
+|`LeafBlock`
+|`name`: paragraph, listing, literal, pass, stem, verse; `form`: paragraph, delimited, indented
+|Holds inline content; `delimiter` for delimited forms
+
+|`ParentBlock`
+|`name`: admonition, example, sidebar, open, quote; `variant` (e.g. admonition type)
+|Contains child blocks
+
+|`SectionBlock`
+|`level` (1 = `==`)
+|Heading inlines + nested content
+
+|`ListBlock` / `ListItem`
+|`variant`: ordered, unordered, callout; `marker`
+|Items carry `principal` inlines + attached blocks
+
+|`DListBlock` / `DListItem`
+|`marker`
+|Description lists; items have `terms` + `principal`
+
+|`BreakBlock`
+|`variant`: page, thematic
+|`'''` and `<<<`
+
+|`BlockMacro`
+|`name`: audio, video, image, toc
+|Built-in block macros only
+
+|`DiscreteHeading`
+|`level`
+|`[discrete]` heading; opens no section
+
+|`InlineText`
+|—
+|Plain text; multi-line runs keep `\n` inside `value`
+
+|`InlineSpan`
+|`variant`: strong, emphasis, code, mark, subscript, superscript; `form`: constrained, unconstrained
+|Location includes the delimiters
+
+|`InlineRef`
+|`variant`: link, xref
+|`target` + nested inlines
+|===
+
+Block metadata (`[style,pos,key=value]`, `[#id.role%option]`, `.Title`) is
+carried by `BlockMetadata`; the block style is `positional.firstOrNull()`.
+
+== Location semantics
+
+`Location(start, end)` uses `Position(line, col)`:
+
+* Lines and columns are *1-based*; column 0 is legal and used for empty lines.
+* Both boundaries are *inclusive*, as pinned by the official TCK fixtures:
+  `+*s*+` yields span location `+[{1,1},{1,3}]+` and inner text location
+  `+[{1,2},{1,2}]+`.
+
+== Extension nodes (not in the official schema)
+
+`AsgProcessingNodes.kt` defines nodes outside the official ASG schema. The
+parser core emits four kinds for the corresponding source constructs; the rest
+are injected and consumed by `document-processing` and extension plugins.
+
+[cols="1,2,1"]
+|===
+|Node |Construct |Emitted by
+
+|`IncludeBlock` |`include::path[]` (unresolved) |parser core
+|`ConditionalBlock` |`ifdef::`/`ifndef::`/`ifeval::` regions |parser core
+|`CustomBlockMacro` |`name::target[attrs]` with a non-built-in name; extension seam for `blockMacro` plugins |parser core
+|`TableBlock` / `TableRow` / `TableCell` / `TableColumn` |`\|===` tables (the schema defines no table node yet) |parser core
+|`CommentBlock` |`////` or `//` comments |processing
+|`BibliographyEntryBlock` |`[[[id]]]` bibliography entries |processing
+|`RawBlock` / `InlineRaw` |Pre-rendered output spliced in by plugins |processing / plugins
+|`InlineAttributeRef` |Unresolved `+{name}+` attribute reference awaiting substitution |processing
+|`InlineCallout` |`<1>` markers in verbatim content |processing
+|`InlineFootnote` |Footnote references |processing
+|`InlineCitation` |`<<citation-id>>` citations |processing
+|===
+
+The TCK serialization path refuses *all* of these nodes: no TCK fixture
+contains such constructs, and the serializer fails loudly if one ever appears.
+
+== Official ASG JSON
+
+The `asciidoc-asg` module serializes an `AsgDocument` to the official ASG JSON
+interchange format (and deserializes it back); the `tck-adapter` executable
+uses it to answer the official harness. See
+xref:reference/tck-and-syntax-coverage.adoc[TCK status and syntax coverage].

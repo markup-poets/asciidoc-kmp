@@ -1,0 +1,72 @@
+= Contributing
+
+Contributions are welcome — bug reports, parser improvements, new syntax
+coverage, documentation. This page covers the local workflow; the
+xref:contributing/tck-workflow.adoc[TCK workflow] page explains the
+conformance harness in depth, and
+xref:contributing/release-process.adoc[Release process] covers publishing.
+
+The project lives at {url-repo}[markup-poets/asciidoc-kmp] and is licensed
+under the
+https://www.apache.org/licenses/LICENSE-2.0[Apache License, Version 2.0].
+All participation is governed by the
+{url-repo}/blob/main/CODE_OF_CONDUCT.md[Code of Conduct].
+
+== Toolchain
+
+* JDK — any recent JDK to run Gradle; the Java toolchain is pinned to *17*
+  via `jvmToolchain(17)` in every module, so compilation is reproducible
+  regardless of your local default.
+* Node.js — the official TCK harness requires Node *{node-min}+*. You only
+  need it to run the conformance gate, not to build.
+
+== Build and test commands
+
+[source,bash]
+----
+./gradlew build                          # Full build, all targets
+./gradlew :asciidoc-parser:jvmTest       # Parser JVM tests
+./gradlew :tck-quality-testing:jvmTest   # Fixture-replay inner loop (fast)
+./gradlew :tck-adapter:officialTck       # Official TCK harness (conformance gate)
+./run-official-tck.sh                    # Same as officialTck, run directly
+----
+
+The recommended inner loop while working on the parser is
+`:tck-quality-testing:jvmTest` — it replays the synced TCK fixtures in-process
+and fails fast. Before opening a pull request, run the official harness
+(`:tck-adapter:officialTck` or `./run-official-tck.sh`); it spawns the real
+Node.js TCK runner and is the source of truth for conformance.
+
+== Testing conventions
+
+Tests use `kotlin-test` for unit and fixture tests, plus
+https://kotest.io/[Kotest] property-based testing: parser invariants are
+checked with `checkAll` over generated inputs, typically 100+ iterations.
+When you fix a parsing bug, prefer adding both a concrete regression case and,
+where the invariant generalizes, a property test that would have caught it.
+
+== The golden rule
+
+[IMPORTANT]
+====
+The official TCK harness is the conformance gate: *parser changes must never
+reduce the official TCK pass count.* Run `./run-official-tck.sh` before and
+after your change; if the pass count drops, the change is not mergeable as-is.
+CI enforces this on every pull request.
+====
+
+This rule is what lets the project state its compatibility status honestly —
+see the xref:contributing/tck-workflow.adoc[TCK workflow] page for how the
+numbers are tracked and reported.
+
+== Pull request workflow
+
+. Fork or branch — work happens on feature branches; `main` is protected.
+. Keep changes focused; separate refactoring from behavior changes where
+  practical.
+. Make sure `./gradlew build` and the relevant test commands above pass, and
+  the official TCK pass count has not dropped.
+. Open a pull request against `main` describing what changed and why. If the
+  change affects TCK results or syncs a new TCK commit, say so explicitly and
+  update the documentation attributes as described in the
+  xref:contributing/tck-workflow.adoc[TCK workflow].

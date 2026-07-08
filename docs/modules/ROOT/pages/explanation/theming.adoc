@@ -1,0 +1,90 @@
+= Theming architecture
+
+The theming system styles the HTML that `html-renderer` produces. Its central
+commitment is a strict separation between *document structure* (the ASG) and
+*visual presentation* (CSS and class names), so output can be completely
+restyled without touching the renderer.
+
+This page covers the design. For practical recipes see
+xref:how-to/customize-theming.adoc[Customize themes and CSS]; for the
+configuration types (`RenderConfig`, `CssOptions`, `OutputOptions`) see
+xref:reference/rendering-api.adoc[Rendering configuration].
+
+== Design principles
+
+Separation of concerns::
+ASG nodes carry semantic content only. Themes decide CSS class names and
+stylesheets. The renderer orchestrates the two without knowing anything about
+styling — it asks the theme which classes a heading gets, and emits them.
+
+Pluggability::
+A theme is any class implementing the `Theme` interface, passed to the
+renderer via `RenderConfig`. There is no hardcoded styling in renderer logic
+and no registry to modify — bring your own class.
+
+Flexibility in layers::
+Most customization should not require writing a theme. Built-in themes cover
+common cases; CSS variables tune them; custom CSS extends or overrides them;
+and only when all of that is insufficient do you implement `Theme` yourself.
+
+== Component relationships
+
+[mermaid]
+....
+graph TD
+    R["HtmlRenderer\n(orchestrates rendering,\nasks Theme for CSS classes)"] -->|uses| T["Theme interface\nheadingClasses(level), paragraphClasses(),\ncodeBlockClasses(), getCss(), ..."]
+    T -->|implemented by| B["Built-in themes\nDefaultTheme, DarkTheme,\nKotlinTheme, MinimalTheme"]
+    T -->|implemented by| C["Custom themes\n(user-defined)"]
+    R -->|uses| P["CssProvider\nmerges variable overrides,\ntheme CSS, custom CSS"]
+    P -->|reads| T
+....
+
+The `CssProvider` assembles the final stylesheet in a fixed merge order:
+CSS variable overrides (a `:root` block) first, then the theme's own CSS from
+`getCss()`, then any custom CSS. Later sources win, so custom CSS can
+override theme rules while the variable definitions remain available to both.
+
+== Built-in themes and why there are four
+
+* *DefaultTheme* — clean, minimal, light styling; the safe default for most
+  documents.
+* *DarkTheme* — dark background with contrast ratios chosen for low-light
+  reading and code-heavy documents.
+* *KotlinTheme* — a branded theme (dark background, red accents)
+  demonstrating that a theme can carry a full design identity.
+* *MinimalTheme* — a nearly empty CSS footprint; the intended starting point
+  when you want the class-name structure but your own styling.
+
+The set is deliberately small: two general-purpose looks, one proof that
+branding fits the model, and one escape hatch. Anything beyond that belongs
+in user code, which the interface makes cheap.
+
+== The CSS variable convention
+
+All built-in themes expose their design tokens as CSS variables named
+
+----
+--mp-{category}-{property}
+----
+
+where the categories are `color`, `font`, `spacing`, `border`, and
+`line-height` — for example `--mp-color-primary`, `--mp-font-family`,
+`--mp-spacing-unit`, `--mp-border-radius`. Because the convention is uniform
+across themes, an override map written for one theme keeps working when you
+switch to another, and simple customization never requires writing CSS rules
+at all.
+
+== Performance and compatibility notes
+
+CSS work is bounded per render: a theme generates its CSS once per render,
+custom CSS files are read once per render, and the merged string lives in
+memory only for the render's duration. For high-volume rendering, reuse
+`RenderConfig` instances, cache custom CSS content, and consider
+`CssMode.EXTERNAL` to avoid duplicating inline CSS across many documents.
+
+The system is backward compatible by construction: the default configuration
+produces the same output as before theming existed, and every feature —
+variable overrides, custom CSS, CSS modes — is opt-in via configuration.
+Platform file access (for `customCssPath`) goes through `expect`/`actual`
+declarations, so theming behaves identically on all Kotlin Multiplatform
+targets.

@@ -1,0 +1,80 @@
+= Export the ASG to Graphviz DOT
+
+This page shows how to export the Abstract Semantic Graph of a parsed document as a Graphviz DOT file and render it as an image — useful for debugging what the parser actually produced.
+
+== Prerequisites
+
+* A checkout of the repository (the exporter runs via Gradle), or the `asg-graphviz-export` library as a dependency.
+* Graphviz, to render the DOT output:
+
+[source,bash]
+----
+# macOS
+brew install graphviz
+
+# Ubuntu/Debian
+sudo apt-get install graphviz
+----
+
+On Windows, download from https://graphviz.org/download/.
+
+== Export with the wrapper script
+
+From the project root:
+
+[source,bash]
+----
+./asciidoc2dot.sh document.adoc
+----
+
+The output defaults to `document.dot` next to the input. Pass a second argument for a custom output path:
+
+[source,bash]
+----
+./asciidoc2dot.sh document.adoc graph.dot
+----
+
+== Export with Gradle directly
+
+[source,bash]
+----
+./gradlew :cli-app:jvmRun --args="document.adoc output.dot"
+----
+
+The CLI parses the file, exports the ASG as DOT, and reports parsing errors and warnings on the way.
+
+== Render the graph
+
+[source,bash]
+----
+dot -Tpng output.dot -o output.png
+dot -Tsvg output.dot -o output.svg
+----
+
+`-Tpdf` works too, and `xdot output.dot` gives an interactive view if you have xdot installed.
+
+== Reading the graph
+
+Nodes are color- and shape-coded by ASG node kind, so the document structure is visible at a glance:
+
+* *Document* — blue double octagon (root)
+* *Section* — green box
+* *Paragraph* — yellow box
+* *List* — coral folder
+* *Code block* — gray box
+* *Text* — white ellipse
+* *Strong / Emphasis* — gold / lavender ellipse
+* *Link / Image* — cyan / steel blue ellipse
+
+== Use the export as a library
+
+The DOT export is a plain Kotlin Multiplatform module:
+
+[source,kotlin,subs="attributes+"]
+----
+dependencies {
+    implementation("{maven-group}:asg-graphviz-export:{artifact-version}")
+}
+----
+
+Parse a document with `DefaultAsciidocParser` and feed the resulting ASG to the exporter to obtain the DOT string in your own tooling.

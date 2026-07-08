@@ -1,0 +1,62 @@
+= Markup Poet AsciiDoc Converter
+
+A lightweight AsciiDoc converter library built with Kotlin Multiplatform. The core parser has zero external dependencies and runs on JVM, Android, iOS, Linux, and macOS.
+
+include::partial$compatibility-note.adoc[]
+
+== Pipeline
+
+The library is a clean three-stage pipeline — *Parse -> Process -> Render* — with a single document model end to end: the ASG (Abstract Semantic Graph), which mirrors the official AsciiDoc schema. See xref:explanation/architecture.adoc[the architecture explanation] for how the stages fit together.
+
+== Quick start
+
+Parse an AsciiDoc string and render it to HTML:
+
+[source,kotlin]
+----
+import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
+import org.markup.poet.asciidoc.render.*
+
+val document = DefaultAsciidocParser().parse(asciidocSource).document
+
+val builder = DefaultHtmlBuilder(DefaultHtmlEscaper())
+val inlineRenderer = DefaultInlineRenderer(builder)
+val renderer = DefaultHtmlRenderer(DefaultBlockRenderer(builder, inlineRenderer), inlineRenderer)
+
+renderer.render(document).onSuccess { html -> println(html) }
+----
+
+For a step-by-step walkthrough including dependencies and theming, follow the xref:tutorials/getting-started.adoc[getting started tutorial].
+
+== Features
+
+* *Broad syntax coverage* — sections, lists, tables, admonitions, includes, conditionals, cross-references, footnotes, and rich inline formatting; see xref:reference/tck-and-syntax-coverage.adoc[TCK status and syntax coverage] ({tck-passing}/{tck-total} published TCK tests passing)
+* *WASM plugins* — custom blocks, block macros, inline macros, and converter plugins via sandboxed WebAssembly; see xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin]
+* *Pluggable theming* — built-in themes, CSS variable overrides, and custom themes; see xref:how-to/customize-theming.adoc[Customize themes and CSS]
+* *CLI tools* — AsciiDoc to HTML conversion from the command line, on the JVM or as a native binary; see xref:tutorials/using-the-cli.adoc[the CLI tutorial]
+* *Platforms* — JVM (Java {java-min}+), Android (API 24+), iOS (x64, ARM64, Simulator ARM64), Linux (x64), macOS (ARM64)
+
+== Coordinates
+
+Artifacts are published to {url-maven-central}[Maven Central] under the `{maven-group}` group:
+
+[source,kotlin,subs="attributes+"]
+----
+dependencies {
+    implementation("{maven-group}:asciidoc-parser:{artifact-version}")     // parser + ASG model (zero deps)
+    implementation("{maven-group}:document-processing:{artifact-version}") // includes, conditionals, TOC, xrefs
+    implementation("{maven-group}:html-renderer:{artifact-version}")       // HTML output with theming
+}
+----
+
+See xref:reference/modules.adoc[Modules and coordinates] for the full module list.
+
+This converter is one member of the Markup Poet family; the {url-dsl-poet}[DSL poet documentation] covers the Kotlin DSL side of the project.
+
+== Where to go next
+
+* *Tutorials* — learn by doing: xref:tutorials/getting-started.adoc[use the library] or xref:tutorials/using-the-cli.adoc[convert a document with the CLI]
+* *How-to guides* — solve a specific task: xref:how-to/customize-theming.adoc[theming], xref:how-to/write-a-wasm-plugin.adoc[plugins], xref:how-to/build-native-cli.adoc[native binaries], xref:how-to/assemble-multi-file-documents.adoc[multi-file assembly]
+* *Reference* — exact APIs and options: xref:reference/parser-api.adoc[parser API], xref:reference/rendering-api.adoc[rendering configuration], xref:reference/plugin-abi.adoc[plugin ABI]
+* *Explanation* — the reasoning behind the design: xref:explanation/architecture.adoc[architecture], xref:explanation/wasm-plugins.adoc[why WASM plugins], xref:explanation/theming.adoc[theming]
+* *Contributing* — xref:contributing/index.adoc[how to contribute], including the xref:contributing/tck-workflow.adoc[TCK workflow]; source at {url-repo}[GitHub]

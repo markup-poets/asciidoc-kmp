@@ -1,0 +1,91 @@
+= TCK workflow
+
+include::partial$compatibility-note.adoc[]
+
+The official Technology Compatibility Kit is the project's conformance gate.
+This page explains how the harness works, the rules the adapter must obey,
+and what to update when results change. The golden rule from
+xref:contributing/index.adoc[Contributing] applies throughout: parser changes
+must never reduce the official TCK pass count.
+
+== How the harness works
+
+The official TCK (synced into `tck-quality-testing/official-tck/repository/`,
+which is gitignored) is a Node.js test runner. For every published test it:
+
+. spawns the `tck-adapter` CLI as a child process,
+. writes a JSON request of the form `{"contents", "path", "type"}` to the
+  adapter's stdin — `contents` is the AsciiDoc source under test,
+. reads the ASG JSON the adapter prints to stdout, and
+. compares it *structurally* against the expected ASG fixture.
+
+The adapter parses the input with `asciidoc-parser` and serializes the result
+through `asciidoc-asg`, so a TCK run exercises exactly the code paths library
+users get.
+
+== Hard rules for the adapter and serializer
+
+These were learned from the harness and the fixtures; violating any of them
+produces confusing failures:
+
+* *stdout is sacred.* stdout must contain ONLY the ASG JSON. All logging,
+  debugging, and diagnostics go to stderr — a single stray print corrupts the
+  comparison.
+* *Locations are 1-based with end-inclusive columns.* An element spanning
+  columns 1-5 ends at column 5, not 6.
+* *Location escape hatch.* If the output contains no `location` keys at all,
+  the harness strips locations from the expected fixture before comparing.
+  This is the escape hatch while position tracking is incomplete; toggle full
+  location emission with `TCK_ADAPTER_LOCATIONS=true`.
+* *Multi-line plain text is ONE text node* with `\n` characters in its
+  `value` — not one node per line.
+* *Lists use `variant` + `marker`*; items are `listItem` nodes whose content
+  lives under `principal`.
+* *Never string-compare fixtures.* Key order varies between fixtures; any
+  tooling you write around expected output must compare structurally.
+
+When the specification prose is ambiguous, the synced fixtures under
+`tck-quality-testing/official-tck/repository/tests/` are the ground truth.
+
+== Commands
+
+[source,bash,subs="attributes+"]
+----
+./run-official-tck.sh              # Run the official harness (Node {node-min}+)
+./scripts/sync-official-tck.sh     # Sync the TCK repo to upstream HEAD
+./generate-tck-report.sh           # Generate the conformance report
+----
+
+`./run-official-tck.sh` is equivalent to `./gradlew :tck-adapter:officialTck`.
+For a fast in-process inner loop while iterating, use
+`./gradlew :tck-quality-testing:jvmTest`, which replays the same fixtures
+without spawning the Node harness — but always finish with the official run.
+
+== When results change
+
+The TCK grows alongside the specification, so pass counts and the synced
+commit change over time. The documentation reports these numbers exclusively
+through Antora attributes in `docs/antora.yml` — the single source of truth
+for the docs:
+
+[source,yaml,subs="attributes+"]
+----
+tck-commit: '{tck-commit}'
+tck-commit-short: '{tck-commit-short}'
+tck-passing: '{tck-passing}'
+tck-total: '{tck-total}'
+----
+
+Whenever you sync a new TCK commit or a change moves the pass count, update
+all four attributes in the same pull request. Never hardcode TCK numbers in a
+page — reference the attributes, so the whole site stays consistent from one
+edit.
+
+== Reporting results honestly
+
+Passing all currently published tests is a snapshot against a specific TCK
+commit, not a completeness claim, and never a certification. When writing
+documentation or release notes, say the project "aims for compatibility" with
+the specification and report the numbers via the attributes above; the
+shared compatibility note partial (`partial$compatibility-note.adoc`) exists
+so pages phrase this consistently.

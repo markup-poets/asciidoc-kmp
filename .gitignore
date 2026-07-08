@@ -120,3 +120,4 @@ amplifytools.xcconfig
 
 # Rust build output
 examples/plugins/*/target/
+docs/.cache/

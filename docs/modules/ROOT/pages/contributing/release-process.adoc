@@ -1,0 +1,69 @@
+= Release process
+
+Releases are tag-driven: pushing a git tag to {url-repo}[the repository]
+triggers the publish workflow, which builds all targets and publishes the
+artifacts to {url-maven-central}[Maven Central] under the `{maven-group}`
+group.
+
+[CAUTION]
+====
+The publish workflow (`.github/workflows/publish.yml`) triggers on *any*
+pushed tag — the pattern is `'**'`, not just `v*`. Do not push tags to the
+repository unless you intend to publish a release.
+====
+
+== Before tagging
+
+. Verify the version. `VERSION_NAME` in `gradle.properties` must match the
+  release you are about to tag (currently `{artifact-version}`):
++
+[source,properties,subs="attributes+"]
+----
+VERSION_NAME={artifact-version}
+----
+. Update `CHANGELOG.md` with an entry for the release.
+. Make sure `main` is green: full build, tests, and the official TCK run
+  (see xref:contributing/tck-workflow.adoc[TCK workflow]).
+. Optionally dry-run the publication locally:
++
+[source,bash]
+----
+./gradlew publishToMavenLocal
+----
+
+== Tag and push
+
+[source,bash]
+----
+git tag vX.Y.Z
+git push origin vX.Y.Z
+----
+
+Pushing the tag starts the `release` workflow.
+
+== What the workflow does
+
+The job runs on `macOS-latest` — required so the Apple targets (iOS x64,
+iOS ARM64, iOS Simulator ARM64, macOS ARM64) can be built and published
+alongside JVM, Android, and Linux.
+
+. Checks out the tagged commit and sets up a JDK (module compilation is still
+  pinned to the Java 17 toolchain regardless of the runner JDK).
+. Validates that `signAllPublications=true` is set in `gradle.properties` and
+  fails the release if it is not — unsigned artifacts are rejected by Maven
+  Central, so this is checked up front.
+. Runs `./gradlew publish`, signing with an in-memory GPG key supplied from
+  repository secrets (`GPG_PRIVATE_KEY`, `SIGNING_PASSWORD`) and
+  authenticating to Maven Central with `MAVEN_CENTRAL_USERNAME` /
+  `MAVEN_CENTRAL_PASSWORD`. No keyring ever touches the runner's disk.
+
+When the workflow finishes, verify the new version appears at
+{url-maven-central}[Maven Central] (propagation can take a little while).
+
+== After the release
+
+. Bump `VERSION_NAME` in `gradle.properties` to the next development version
+  on `main`.
+. Update the `artifact-version` attribute in `docs/antora.yml` so the
+  documentation references the released version.
+. Start a fresh `CHANGELOG.md` section for unreleased changes.

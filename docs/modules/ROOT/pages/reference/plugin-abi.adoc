@@ -1,0 +1,124 @@
+= Plugin ABI v1
+
+A Markup Poet plugin is a WebAssembly module executed by the Chasm runtime.
+*No imports are allowed* — modules requiring WASI or host functions are
+rejected at load; a plugin is pure compute over JSON envelopes (no filesystem,
+no network, no clock). This page is the normative ABI; for a walkthrough see
+xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin].
+
+== Required exports
+
+[cols="1,2,2"]
+|===
+|Export |Signature |Purpose
+
+|`memory` |linear memory |Shared data buffer
+|`plugin_alloc` |`(i32 size) -> i32 ptr` |Host asks the plugin to reserve memory
+|`plugin_dealloc` |`(i32 ptr, i32 size)` |Host returns memory to the plugin
+|`plugin_info` |`() -> i32 ptr` |Returns the descriptor payload
+|`process` |`(i32 ptr, i32 len) -> i32 ptr` |Handles one invocation; `0` = internal failure
+|`on_load` |`()` |Optional init hook
+|`on_unload` |`()` |Optional shutdown hook
+|===
+
+== Payload protocol
+
+Every payload crossing the boundary is a *4-byte little-endian length prefix*
+followed by *UTF-8 JSON*. Payloads are capped at *1 MB* (*64 KB* for the
+descriptor); `PluginEngine(PluginLimits(...))` customizes the caps. The host
+writes an invocation via `plugin_alloc` + memory writes, calls
+`process(ptr, len)`, reads the length-prefixed response at the returned
+pointer, then returns both buffers via `plugin_dealloc`. A plugin whose
+invocation fails is *poisoned* and refuses further calls.
+
+== Descriptor (`plugin_info`)
+
+[source,json]
+----
+{
+  "abiVersion": 1,
+  "id": "shout-plugin",
+  "name": "Shout",
+  "version": "0.1.0",
+  "description": "Uppercases the content of [shout] blocks",
+  "capabilities": [ { "type": "block", "name": "shout" } ],
+  "metadata": {}
+}
+----
+
+Capability `type` is one of `block`, `blockMacro`, `inlineMacro`, `converter`.
+
+== Invocation (host -> plugin)
+
+[source,json]
+----
+{
+  "abiVersion": 1,
+  "extensionPoint": "block",
+  "name": "shout",
+  "attributes": { "1": "shout" },
+  "content": "raw block body or macro target",
+  "documentAttributes": { "toc": "" },
+  "location": { "line": 12, "column": 1 }
+}
+----
+
+* `attributes` carries the construct's own attributes: positional attributes
+  keyed by their 1-based index plus the named attributes.
+* For `blockMacro` and `inlineMacro`, the macro target is additionally
+  available as `attributes["target"]`, and `content` is the target.
+* For `converter`, `content` is the claimed node serialized as official ASG
+  node JSON (see below).
+
+== Response (plugin -> host)
+
+[source,json]
+----
+{
+  "ok": true,
+  "replacement": { "contentType": "html", "value": "<div class=\"shout\">…</div>" },
+  "warnings": []
+}
+----
+
+[cols="1,3"]
+|===
+|`contentType` |Host behavior
+
+|`asciidoc`
+|The host re-parses `value` and splices the resulting blocks (attribute substitution and macro expansion still apply)
+
+|`html`
+|Spliced as a raw passthrough block
+
+|`asg`
+|Official ASG node JSON: `nodes` holds an array of nodes (a single node object is also accepted); the host falls back to parsing `value` as JSON when `nodes` is absent. Block context requires blocks, inline context inlines — a mismatch or malformed node JSON is treated like `ok: false`
+|===
+
+`ok: false` + `error`: the host leaves the original construct untouched and
+surfaces the error as a processing warning.
+
+== Converter invocations
+
+A `converter` capability plugs into HTML rendering, not document processing.
+The host registers it as a custom renderer under its capability name
+(block style, e.g. `gallery`, or ASG node kind, e.g. `ListBlock` — style
+wins). The invocation's `content` is the claimed node as official ASG node
+JSON (the node-level encoding of `asciidoc-asg`'s
+`AsgDocumentJsonSerializer`), and `documentAttributes` carries the resolved
+document attributes.
+
+The response *must* be `{ "contentType": "html", "value": "…" }`; the value
+is emitted verbatim in the node's place. Any failure — `ok: false`, another
+content type, or a node with no official ASG form — renders as nothing plus a
+rendering warning.
+
+== Host refusal rules
+
+The host refuses to load a plugin when:
+
+* `abiVersion != 1`
+* the plugin `id` duplicates an already-loaded plugin
+* a `(type, name)` capability claim duplicates an existing one
+* the module requires imports (WASI or host functions)
+* a payload exceeds the configured cap
