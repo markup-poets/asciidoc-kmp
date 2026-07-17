@@ -44,8 +44,8 @@ kotlin {
             // JSON serialization for fixture loading
             implementation(libs.kotlinx.serialization.json)
 
-            // Multiplatform time and date
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+            // Multiplatform file I/O — one implementation for every target
+            implementation(libs.kotlinx.io.core)
         }
         
         jvmMain {
@@ -80,10 +80,15 @@ tasks.named<Test>("jvmTest") {
     workingDir = rootDir
 }
 
-tasks.named<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>("linuxX64Test") {
+// Every native target, not just Linux: native binaries have no classpath, so
+// ResourceLoader.native.kt resolves fixtures under
+// $TCK_ROOT/tck-quality-testing/src/*/resources. This used to configure
+// linuxX64Test alone, which is why the simulator found no fixtures.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>().configureEach {
     // Same repo-root-relative path convention as jvmTest above.
     workingDir = rootDir.absolutePath
-    // Native binaries have no classpath; ResourceLoader.linux.kt resolves
-    // fixture resources under $TCK_ROOT/tck-quality-testing/src/*/resources.
     environment("TCK_ROOT", rootDir.absolutePath)
+    // simctl only forwards variables to the simulated process when they carry
+    // this prefix, so the Apple simulator targets need it spelled out too.
+    environment("SIMCTL_CHILD_TCK_ROOT", rootDir.absolutePath)
 }
