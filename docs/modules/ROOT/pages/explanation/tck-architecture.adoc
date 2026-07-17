@@ -1,0 +1,211 @@
+= TCK architecture and data flow
+
+The {url-tck}[official Eclipse AsciiDoc TCK] is the conformance gate for this project: it decides whether the parser is spec-compliant. This page explains how the pieces fit together and why they are arranged this way.
+
+For the day-to-day contributor loop, see xref:contributing/tck-workflow.adoc[TCK workflow]; for the on-disk fixture format, see xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format].
+
+== The shape of the system
+
+The TCK repository is *upstream* — owned by the Eclipse Foundation, cloned into the build, and never edited here. Everything else exists to feed the project's own parser with those fixtures and compare what comes back.
+
+[mermaid]
+....
+graph TB
+    subgraph External
+        REPO[Eclipse Foundation<br/>TCK repository]
+    end
+
+    subgraph "TCK system"
+        SYNC[Sync<br/>sync-official-tck.sh]
+        LOADER[Fixture loader]
+        RUNNER[Test runner]
+        PARSER[DefaultAsciidocParser]
+        SERIAL[AstJsonSerializer]
+        COMPARE[JsonComparator]
+        AGGR[Result aggregator]
+        REPORT[Report generator]
+    end
+
+    subgraph Storage
+        LOCAL[Local clone<br/>official-tck/repository]
+        CONF[Conformance report]
+    end
+
+    REPO -->|git clone/pull| SYNC
+    SYNC -->|store| LOCAL
+    LOCAL -->|load| LOADER
+    LOADER -->|fixtures| RUNNER
+    RUNNER -->|input| PARSER
+    PARSER -->|ASG| SERIAL
+    SERIAL -->|JSON| COMPARE
+    COMPARE -->|verdict| RUNNER
+    RUNNER -->|results| AGGR
+    AGGR -->|statistics| REPORT
+    REPORT -->|generate| CONF
+....
+
+The local clone lives at `tck-quality-testing/official-tck/repository` and is gitignored. `scripts/sync-official-tck.sh` is the single source of truth for syncing it, cloning from `{url-tck}`.
+
+== Two harnesses, one gate
+
+This is the distinction that causes the most confusion, so it is worth stating plainly:
+
+[cols="1,3"]
+|===
+|Harness |Role
+
+|*Official TCK harness* (`./run-official-tck.sh`, `./gradlew :tck-adapter:officialTck`)
+|**The source of truth.** The official Node.js harness drives `tck-adapter` as a subprocess and does its own comparison. A parser change must never reduce its pass count.
+
+|*Fixture-replay harness* (`./gradlew :tck-quality-testing:jvmTest`)
+|The fast inner loop. Kotlin-side replay of fixtures for quick feedback while developing. Convenient, but not the gate.
+|===
+
+The official harness spawns the adapter once per test, writes a `{"contents", "path", "type"}` JSON request to stdin, and compares the ASG JSON printed to stdout. This is why *stdout must carry only the ASG JSON* — all logging goes to stderr, or the harness sees corrupt output.
+
+== Test execution
+
+For each fixture: parse, serialize, compare.
+
+[mermaid]
+....
+flowchart LR
+    FIXTURE[Fixture] --> INPUT[AsciiDoc input]
+    INPUT --> PARSER[Parser]
+    PARSER --> AST[ASG]
+    AST --> MODE{Inline or block?}
+    MODE -->|inline| INLINE[Array of inlines]
+    MODE -->|block| BLOCK[Full document]
+    INLINE --> JSON[JSON]
+    BLOCK --> JSON
+    FIXTURE --> EXPECTED[Expected JSON]
+    JSON --> COMP[Semantic comparator]
+    EXPECTED --> COMP
+    COMP --> RESULT{Match?}
+    RESULT -->|yes| PASS[Passed]
+    RESULT -->|no| FAIL[Failed]
+    PARSER -.->|exception| ERROR[Error]
+....
+
+=== Serializer modes
+
+The serializer has two modes, because the fixtures have two shapes — some expect a whole `document` node, others a bare array of inline nodes:
+
+[source,kotlin]
+----
+enum class Mode {
+    INLINE_ONLY,      // inline tests: an array of inline elements
+    FULL_DOCUMENT     // block tests: the full document structure
+}
+----
+
+Mode is selected from the fixture: an id containing `/inline/`, or metadata `type == "inline"`, means `INLINE_ONLY`; otherwise `FULL_DOCUMENT`.
+
+=== Result model
+
+[source,kotlin]
+----
+data class TestExecutionResult(
+    val fixtureId: String,      // e.g. "inline/no-markup/single-word"
+    val status: TestStatus,     // PASSED, FAILED, ERROR, PENDING, SKIPPED
+    val platform: String,
+    val durationMs: Long,
+    val category: TestCategory,
+    val source: String?,        // "official" or "custom"
+    val errorMessage: String?,
+    val actualOutput: String?,
+    val expectedOutput: String?,
+    val diff: String?,
+    val stackTrace: String?,
+)
+----
+
+`FAILED` means the parser produced the wrong output; `ERROR` means it threw. Keeping them distinct matters — a crash and a mismatch call for different fixes.
+
+== Comparison rules
+
+Three rules govern comparison, and each exists because of a real failure mode:
+
+* *Compare structurally, never by string.* Fixture key order varies between files, so string equality produces false failures.
+* *Locations are 1-based with end-inclusive columns.* The end position is the column of the *last character the node occupies*, not one past it. This is the most common source of off-by-one mismatches. `ColumnTrackingVerificationTest` pins the behavior.
+* *Locations are compared only if present.* If the adapter emits no `location` keys at all, the harness strips locations from both sides and compares the rest — an escape hatch for incomplete position tracking, toggled with `TCK_ADAPTER_LOCATIONS=true`.
+
+Whitespace inside a text `value` must match exactly, including `\n`: multi-line paragraph text is *one* node containing newlines, not one node per line.
+
+== Sync
+
+[mermaid]
+....
+flowchart TD
+    START([Start]) --> CHECK{Clone exists?}
+    CHECK -->|no| CLONE[git clone]
+    CHECK -->|yes| PULL[git pull]
+    CLONE --> VALIDATE[Validate structure]
+    PULL --> VALIDATE
+    VALIDATE --> VALID{Valid?}
+    VALID -->|no| ERROR([Sync failed])
+    VALID -->|yes| COUNT[Count test files]
+    COUNT --> VERSION[Update version metadata]
+    VERSION --> RESULT([Sync complete])
+....
+
+Sync is deliberately *not* automatic. Upstream moving under a build would make failures non-reproducible, so `scripts/sync-official-tck.sh` is run on purpose and the resulting commit is recorded.
+
+[source,kotlin]
+----
+data class SyncMetadata(
+    val specVersion: String,
+    val commitHash: String,     // the pinned upstream commit
+    val syncTimestamp: Long,
+    val testCount: Int,
+    val durationMs: Long,
+)
+----
+
+The synced commit is published as the `tck-commit` attribute in `docs/antora.yml`, which is the one place the TCK numbers live — currently commit `{tck-commit-short}`, {tck-passing} of {tck-total} passing.
+
+== Aggregation and reporting
+
+Results are aggregated in memory, grouped by platform, category, and source:
+
+[source,kotlin]
+----
+data class AggregatedResults(
+    val totalTests: Int,
+    val passed: Int,
+    val failed: Int,
+    val errors: Int,
+    val pending: Int,
+    val skipped: Int,
+    val byPlatform: Map<String, CategoryResults>,
+    val byCategory: Map<TestCategory, CategoryResults>,
+    val bySource: Map<String, CategoryResults>,
+    val failedTests: List<TestExecutionResult>,
+    val slowTests: List<TestExecutionResult>,
+)
+----
+
+The published conformance page is a separate, simpler path: CI runs the official harness, scrapes the pass/total from its output, and writes a single page into the docs site at `/tck/`. It is deployed with the site rather than on its own, because GitHub Pages replaces the whole site with each artifact and never merges them — two workflows deploying separately meant the last one to finish erased the other.
+
+CI publishes that page *even when the harness fails*. A conformance regression should publish its own bad news; gating on the pass count is `build.yml`'s job, not the report's.
+
+== Storage layout
+
+----
+tck-quality-testing/
+├── official-tck/
+│   └── repository/          # synced from Eclipse Foundation, gitignored
+│       └── tests/           # paired -input.adoc / -output.json fixtures
+├── fixtures/                # this project's own fixtures
+└── build/
+    └── reports/tests/jvmTest/index.html
+----
+
+The upstream fixtures under `repository/tests/` use the paired-file layout described in xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format]. The fixtures under `fixtures/` are this project's own, in a different single-file JSON shape — see `tck-quality-testing/fixtures/README.md`.
+
+== See also
+
+* xref:contributing/tck-workflow.adoc[TCK workflow] — the contributor loop
+* xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format]
+* xref:reference/tck-and-syntax-coverage.adoc[TCK status and syntax coverage]
+* xref:explanation/architecture.adoc[ASG-native pipeline architecture]
