@@ -1,11 +1,13 @@
 name: Docs
 
+# The Antora site and the TCK conformance report are one Pages deployment, not two.
+# GitHub Pages replaces the whole site with each artifact and never merges them, so
+# two workflows deploying separately meant the last one to finish erased the other.
+# The report is therefore built into the site as /tck/ and deployed once, here.
+
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
@@ -13,8 +15,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: docs-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -22,14 +24,73 @@ permissions:
   id-token: write
 
 jobs:
-  build-docs:
+  build-site:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # The TCK harness is skipped on pull requests, which only validate the Antora
+      # build and never deploy.
+      - name: Copy CI gradle.properties
+        if: github.event_name != 'pull_request'
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+
+      - name: Set up JDK 21
+        if: github.event_name != 'pull_request'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: 21
+
+      - name: Set up Node.js
+        if: github.event_name != 'pull_request'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Sync official TCK
+        if: github.event_name != 'pull_request'
+        run: ./scripts/sync-official-tck.sh
+
+      # A conformance regression must still publish its own bad news, so the harness
+      # is allowed to fail here. Gating on the pass count is build.yml's job.
+      - name: Run official TCK harness
+        id: tck
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          mkdir -p build/docs/tck
+          set -o pipefail
+          ./run-official-tck.sh 2>&1 | tee build/docs/tck/official-tck-output.txt
+
+      - name: Generate report page
+        if: github.event_name != 'pull_request'
+        run: |
+          TCK_COMMIT=$(git -C tck-quality-testing/official-tck/repository rev-parse --short HEAD)
+          PASS=$(grep -oP 'ℹ pass \K[0-9]+' build/docs/tck/official-tck-output.txt | head -1 || echo '?')
+          TOTAL=$(grep -oP 'ℹ tests \K[0-9]+' build/docs/tck/official-tck-output.txt | head -1 || echo '?')
+          cat > build/docs/tck/index.html <<EOF
+          <!doctype html>
+          <html lang="en"><head><meta charset="utf-8">
+          <title>Markup Poet — Official AsciiDoc TCK Conformance</title>
+          <style>body{font-family:sans-serif;max-width:48rem;margin:3rem auto;padding:0 1rem}
+          .score{font-size:3rem;font-weight:bold}</style></head><body>
+          <p><a href="../">← Documentation</a></p>
+          <h1>Official AsciiDoc TCK Conformance</h1>
+          <p class="score">${PASS} / ${TOTAL}</p>
+          <p>TCK commit: <code>${TCK_COMMIT}</code> · Generated: $(date -u +"%Y-%m-%d %H:%M UTC")</p>
+          <p>Run with the official Eclipse AsciiDoc TCK Node.js harness
+          (source locations included in the comparison).</p>
+          <h2>Raw harness output</h2>
+          <pre>$(sed 's/&/\&amp;/g; s/</\&lt;/g' build/docs/tck/official-tck-output.txt)</pre>
+          </body></html>
+          EOF
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
       - name: Build Antora image
         uses: docker/build-push-action@v7
         with:
@@ -38,6 +99,7 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - name: Build Antora site
         run: |
           docker run --rm \
@@ -47,14 +109,22 @@ jobs:
             markup-antora:local \
             --stacktrace \
             antora-playbook.yml
+
+      # After Antora, which writes (and cleans) its own output directory.
+      - name: Add TCK report to the site
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p docs/build/site/tck
+          cp -R build/docs/tck/. docs/build/site/tck/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: docs/build/site
 
-  deploy-docs:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: build-docs
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build-site
     runs-on: ubuntu-latest
     environment:
       name: github-pages
