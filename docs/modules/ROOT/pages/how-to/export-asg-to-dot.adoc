@@ -53,6 +53,16 @@ dot -Tsvg output.dot -o output.svg
 
 `-Tpdf` works too, and `xdot output.dot` gives an interactive view if you have xdot installed.
 
+== Try it on the bundled example
+
+The repository ships a sample document at {url-repo}/blob/main/cli-app/example.adoc[`cli-app/example.adoc`]:
+
+[source,bash]
+----
+./asciidoc2dot.sh cli-app/example.adoc
+dot -Tpng cli-app/example.dot -o example.png
+----
+
 == Reading the graph
 
 Nodes are color- and shape-coded by ASG node kind, so the document structure is visible at a glance:
@@ -78,3 +88,19 @@ dependencies {
 ----
 
 Parse a document with `DefaultAsciidocParser` and feed the resulting ASG to the exporter to obtain the DOT string in your own tooling.
+
+== Build a standalone JAR
+
+[source,bash]
+----
+./gradlew :cli-app:jvmJar     # lands in cli-app/build/libs/
+./gradlew :cli-app:jvmTest    # run the CLI's tests
+----
+
+== Troubleshooting
+
+*"Input file not found"* — the path is resolved relative to the current working directory, not the project root. Use an absolute path if a relative one is not resolving.
+
+*"Graphviz not installed"* — see <<Prerequisites>>; the export itself does not need Graphviz, only the rendering step does.
+
+*Parse errors reported, but a `.dot` file still appears* — this is deliberate. The CLI reports errors and warnings and still exports whatever ASG it recovered, so you can see how the parser interpreted the input. The console output names the problem.

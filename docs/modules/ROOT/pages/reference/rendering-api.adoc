@@ -102,6 +102,53 @@ interface CustomRenderer {
 }
 ----
 
+== Error handling
+
+`render()` returns `Result<String>` rather than throwing, so failures are values you handle:
+
+[source,kotlin]
+----
+renderer.render(document, config).fold(
+    onSuccess = { html -> writeOutput(html) },
+    onFailure = { error ->
+        when (error) {
+            is RenderException.InvalidConfiguration -> "bad setting ${error.setting}: ${error.reason}"
+            is RenderException.InvalidAst -> "bad node ${error.nodeName}: ${error.reason}"
+            is CssException.FileNotFound -> "no CSS at ${error.path}"
+            else -> "rendering failed: ${error.message}"
+        }
+    },
+)
+----
+
+Both hierarchies are sealed, so a `when` over them is exhaustive.
+
+[cols="1,2"]
+|===
+|Failure |Meaning
+
+|`RenderException.InvalidAst(nodeName, reason)`
+|the ASG is malformed at `nodeName`
+
+|`RenderException.InvalidConfiguration(setting, reason)`
+|`setting` holds a value the renderer cannot honor
+
+|`RenderException.ValidationFailure(html, errors)`
+|output was produced but failed validation; `html` is the offending output
+
+|`RenderException.RenderingFailure(reason)`
+|rendering failed for any other reason
+
+|`CssException.FileNotFound(path, reason)`
+|`customCssPath` does not resolve
+
+|`CssException.LoadingFailure(reason)`
+|CSS could not be read — I/O or permissions
+
+|`CssException.InvalidTheme(themeName)`
+|no theme by that name
+|===
+
 == CSS merge order
 
 When multiple CSS sources are configured, they are merged in this order:

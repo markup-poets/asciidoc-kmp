@@ -1,104 +1,10 @@
-# AsciiDoc to Graphviz CLI
+# cli-app
 
-A simple command-line tool to convert AsciiDoc files into Graphviz DOT format for ASG visualization.
-
-## Quick Start
+Command-line tool that converts an AsciiDoc file into Graphviz DOT, for visualizing the parsed Abstract Semantic Graph.
 
 ```bash
-# Using the wrapper script from project root
 ./asciidoc2dot.sh document.adoc
-
-# Or with Gradle
-./gradlew :cli-app:jvmRun --args="document.adoc"
+dot -Tpng document.dot -o document.png
 ```
 
-## Usage
-
-### Using Gradle
-
-```bash
-./gradlew :cli-app:jvmRun --args="path/to/input.adoc [output.dot]"
-```
-
-### Examples
-
-Convert an AsciiDoc file (output will be `document.dot`):
-```bash
-./gradlew :cli-app:jvmRun --args="document.adoc"
-```
-
-Convert with custom output filename:
-```bash
-./gradlew :cli-app:jvmRun --args="document.adoc graph.dot"
-```
-
-Convert from project root:
-```bash
-./gradlew :cli-app:jvmRun --args="../minimal-asciidoc-converter-kmp.adoc"
-```
-
-## Visualizing the Output
-
-Once you have the DOT file, you can visualize it using Graphviz:
-
-```bash
-# Generate PNG image
-dot -Tpng output.dot -o output.png
-
-# Generate SVG
-dot -Tsvg output.dot -o output.svg
-
-# Generate PDF
-dot -Tpdf output.dot -o output.pdf
-
-# Interactive view (if you have xdot installed)
-xdot output.dot
-```
-
-## Installing Graphviz
-
-### macOS
-```bash
-brew install graphviz
-```
-
-### Ubuntu/Debian
-```bash
-sudo apt-get install graphviz
-```
-
-### Windows
-Download from: https://graphviz.org/download/
-
-## Features
-
-- Parses AsciiDoc files into an Abstract Semantic Graph (ASG)
-- Exports the ASG as Graphviz DOT format
-- Color-coded nodes by type (sections, paragraphs, lists, etc.)
-- Shows document structure and relationships
-- Reports parsing errors and warnings
-
-## Node Types
-
-The visualization uses different colors and shapes for different ASG node kinds:
-
-- **Document** (blue double octagon) - Root document node
-- **Section** (green box) - Section headers
-- **Paragraph** (yellow box) - Text paragraphs
-- **List** (coral folder) - Ordered/unordered lists
-- **Code Block** (gray box) - Code blocks
-- **Text** (white ellipse) - Plain text content
-- **Strong** (gold ellipse) - Bold text
-- **Emphasis** (lavender ellipse) - Italic text
-- **Link** (cyan ellipse) - Hyperlinks
-- **Image** (steel blue ellipse) - Images
-
-## Building a Standalone JAR
-
-To create a distributable JAR:
-
-```bash
-./gradlew :cli-app:jvmJar
-```
-
-The JAR will be in `cli-app/build/libs/`.
+**Full documentation:** [Export the ASG to Graphviz DOT](https://markup-poets.github.io/asciidoc-kmp/how-to/export-asg-to-dot.html) — usage, the node colour scheme, rendering, troubleshooting, and using `asg-graphviz-export` as a library.

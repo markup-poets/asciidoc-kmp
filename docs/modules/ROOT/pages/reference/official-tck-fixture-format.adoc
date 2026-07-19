@@ -1,0 +1,231 @@
+= Official TCK fixture format
+
+The {url-tck}[official Eclipse AsciiDoc TCK] stores each test case as a *pair of files*: the AsciiDoc source to parse, and the expected ASG as JSON.
+
+[cols="1,2"]
+|===
+|File |Contents
+
+|`+{test-name}-input.adoc+`
+|the AsciiDoc source, as raw markup with no metadata or headers
+
+|`+{test-name}-output.json+`
+|the expected ASG for that source
+|===
+
+This page is the reference for that format. For the contributor loop that runs these fixtures, see xref:contributing/tck-workflow.adoc[TCK workflow].
+
+== Directory layout
+
+The directory path *is* the test category, and the file name carries the test name:
+
+----
+tests/
+├── block/
+│   ├── paragraph/
+│   │   ├── single-line-input.adoc
+│   │   ├── single-line-output.json
+│   │   ├── multiple-lines-input.adoc
+│   │   └── multiple-lines-output.json
+│   └── section/
+│       └── ...
+└── inline/
+    └── span/
+        └── strong/
+            ├── constrained-single-char-input.adoc
+            └── constrained-single-char-output.json
+----
+
+So `tests/block/paragraph/single-line-input.adoc` is test `single-line` in category `block/paragraph`.
+
+Categories in use include `block/` (`paragraph`, `section`, `list`, `listing`, `header`, `document`, `sidebar`) and `inline/` (`no-markup`, and `span/` with `strong`, `emphasis`, `monospace`).
+
+== Node structure
+
+The ASG is a recursive node tree. A node's `name` and `type` are always present; everything else depends on what the node is.
+
+[source,json]
+----
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A paragraph that consists of a single line.",
+          "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 43 }]
+        }
+      ],
+      "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 43 }]
+    }
+  ],
+  "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 43 }]
+}
+----
+
+=== Fields
+
+[cols="1,1,1,3"]
+|===
+|Field |Type |Required |Description
+
+|`name`
+|string
+|yes
+|node name — `document`, `paragraph`, `section`, `list`, `listing`, `sidebar`, `span`, `text`, ...
+
+|`type`
+|string
+|yes
+|node type — `block`, `inline`, or `string`
+
+|`blocks`
+|array
+|no
+|child block nodes, for block containers
+
+|`inlines`
+|array
+|no
+|child inline nodes, for blocks with inline content
+
+|`value`
+|string
+|no
+|the text, for `type: "string"` nodes
+
+|`variant`
+|string
+|no
+|for inline spans: `strong`, `emphasis`, `monospace`, `mark`, `subscript`, `superscript`
+
+|`form`
+|string
+|no
+|for inline spans: `constrained` (`+*bold*+`) or `unconstrained` (`+**bold**+`)
+
+|`location`
+|array
+|no
+|source position — see <<Locations>>
+
+|`attributes`
+|object
+|no
+|node-specific attributes
+|===
+
+The `name`/`variant`/`form` axes are fields rather than distinct node classes, which is why new syntax usually means parser work rather than new node types. See xref:explanation/architecture.adoc[ASG-native pipeline architecture].
+
+== Locations
+
+Every node may carry a two-element `location` array — start and end position, in that order:
+
+[source,json]
+----
+"location": [
+  { "line": 1, "col": 1 },
+  { "line": 1, "col": 43 }
+]
+----
+
+Lines and columns are *1-based*, and **the end column is inclusive** — it is the last column the node occupies, not one past it. This is the single most common source of off-by-one mismatches against the harness.
+
+If the adapter's output contains no `location` keys at all, the harness compares with locations stripped. That escape hatch is toggled with `TCK_ADAPTER_LOCATIONS=true`.
+
+== Inline fixtures return an array
+
+Not every fixture is rooted at a `document` node. Some inline tests expect a bare *array* of inline nodes:
+
+.`constrained-single-char-input.adoc`
+[source,asciidoc]
+----
+*s*
+----
+
+.`constrained-single-char-output.json`
+[source,json]
+----
+[
+  {
+    "name": "span",
+    "type": "inline",
+    "variant": "strong",
+    "form": "constrained",
+    "inlines": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "s",
+        "location": [{ "line": 1, "col": 2 }, { "line": 1, "col": 2 }]
+      }
+    ],
+    "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 3 }]
+  }
+]
+----
+
+== Multi-line text is one node
+
+A paragraph that wraps across source lines is *one* text node whose `value` contains the newline — not one node per line:
+
+[source,json]
+----
+{
+  "name": "text",
+  "type": "string",
+  "value": "This paragraph has multiple lines that wrap after reaching the 72\ncharacter limit set by the text editor.",
+  "location": [{ "line": 1, "col": 1 }, { "line": 2, "col": 39 }]
+}
+----
+
+== Test discovery
+
+To enumerate the fixtures: scan `tests/` recursively for `+*-input.adoc+`, strip the `-input.adoc` suffix for the test name, take the directory path as the category, and pair with the sibling `+*-output.json+`.
+
+== Kotlin model
+
+`OfficialAstNode` (in `org.markup.poet.tck.fixtures`) maps directly onto this JSON:
+
+[source,kotlin]
+----
+@Serializable
+data class OfficialAstNode(
+    val name: String,
+    val type: String,
+    val blocks: List<OfficialAstNode>? = null,
+    val inlines: List<OfficialAstNode>? = null,
+    val value: String? = null,
+    val variant: String? = null,
+    val form: String? = null,
+    val location: List<SourcePosition>? = null,
+    val attributes: Map<String, String>? = null,
+)
+----
+
+[source,kotlin]
+----
+val json = Json { ignoreUnknownKeys = true }
+val ast = json.decodeFromString<OfficialAstNode>(jsonString)
+----
+
+== Comparing against a fixture
+
+Fixture key order varies, so *compare structurally, never by string equality*. When matching output against a fixture:
+
+* node structure must match exactly — same nesting, same names and types
+* whitespace inside `value` must match exactly, including `\n`
+* optional fields may be omitted when not applicable
+* locations are compared only when the output has them at all (see <<Locations>>)
+
+== See also
+
+* xref:reference/tck-and-syntax-coverage.adoc[TCK status and syntax coverage]
+* xref:contributing/tck-workflow.adoc[TCK workflow] — the contributor loop
+* xref:explanation/tck-architecture.adoc[TCK architecture and data flow]
+* {url-spec}[AsciiDoc Language Specification]
