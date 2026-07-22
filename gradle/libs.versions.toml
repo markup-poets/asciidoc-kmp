@@ -1,7 +1,7 @@
 [versions]
 agp = "9.3.0"
 kotlin = "2.4.10"
-shadow = "9.5.1"
+shadow = "9.6.1"
 android-minSdk = "24"
 android-compileSdk = "36"
 vanniktechMavenPublish = "0.37.0"
