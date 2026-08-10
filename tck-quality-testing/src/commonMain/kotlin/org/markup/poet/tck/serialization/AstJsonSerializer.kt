@@ -52,7 +52,7 @@ import org.markup.poet.asciidoc.asg.plainText
  * as `{"name": "unknown"}` / empty-text placeholders, and parent containers
  * other than admonitions are spliced into their parent.
  *
- * See: tck-quality-testing/docs/official-tck-format.md
+ * See: docs/modules/ROOT/pages/reference/official-tck-fixture-format.adoc
  */
 class AstJsonSerializer {
 

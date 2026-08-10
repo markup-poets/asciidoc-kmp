@@ -53,13 +53,18 @@ When the specification prose is ambiguous, the synced fixtures under
 ----
 ./run-official-tck.sh              # Run the official harness (Node {node-min}+)
 ./scripts/sync-official-tck.sh     # Sync the TCK repo to upstream HEAD
-./generate-tck-report.sh           # Generate the conformance report
+./generate-tck-report.sh           # Render a conformance report locally
 ----
 
 `./run-official-tck.sh` is equivalent to `./gradlew :tck-adapter:officialTck`.
 For a fast in-process inner loop while iterating, use
 `./gradlew :tck-quality-testing:jvmTest`, which replays the same fixtures
 without spawning the Node harness — but always finish with the official run.
+
+NOTE: `generate-tck-report.sh` is a *local* convenience — it dogfoods the
+project's own `html-cli` to render the report. CI does not call it; the Docs
+workflow generates the published `/tck/` page itself from the harness output.
+So changing that script changes what you see locally, not what ships.
 
 == When results change
 
@@ -81,6 +86,32 @@ all four attributes in the same pull request. Never hardcode TCK numbers in a
 page — reference the attributes, so the whole site stays consistent from one
 edit.
 
+== Adding a project fixture
+
+The upstream TCK fixtures are read-only — they are synced from Eclipse and
+must never be edited here. This project's *own* fixtures live under
+`tck-quality-testing/fixtures/` and use a different, single-file shape:
+
+[source,json]
+----
+{
+  "id": "block-paragraph-simple",
+  "category": "BLOCK_PARAGRAPH",
+  "description": "Simple paragraph with plain text",
+  "input": "This is a simple paragraph.",
+  "expectedOutput": "<p>This is a simple paragraph.</p>",
+  "metadata": {
+    "spec_reference": "AsciiDoc Language Documentation - Paragraphs",
+    "difficulty": "basic"
+  }
+}
+----
+
+Drop the file into the matching `fixtures/` subdirectory and load it with
+`FixtureLoader`. Do not confuse this with the upstream paired-file format
+(`+*-input.adoc+` / `+*-output.json+`) documented in
+xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format].
+
 == Reporting results honestly
 
 Passing all currently published tests is a snapshot against a specific TCK
@@ -89,3 +120,9 @@ documentation or release notes, say the project "aims for compatibility" with
 the specification and report the numbers via the attributes above; the
 shared compatibility note partial (`partial$compatibility-note.adoc`) exists
 so pages phrase this consistently.
+
+== See also
+
+* xref:explanation/tck-architecture.adoc[TCK architecture and data flow] — how the pieces fit together
+* xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format] — the upstream fixture layout
+* xref:reference/tck-and-syntax-coverage.adoc[TCK status and syntax coverage]

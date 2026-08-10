@@ -1,24 +1,25 @@
 package org.markup.poet.tck.fixtures
 
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.pointed
 import kotlinx.cinterop.toKString
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
 import org.markup.poet.tck.platformFileExists
 import org.markup.poet.tck.platformReadFile
-import platform.posix.DT_REG
-import platform.posix.closedir
 import platform.posix.getenv
-import platform.posix.opendir
-import platform.posix.readdir
 
 /**
- * Linux implementation of ResourceLoader.
+ * Native implementation of ResourceLoader, shared by every native target.
  *
  * Native test binaries have no classpath, so resources are read straight from
  * the module's source tree. The repository root is taken from the `TCK_ROOT`
- * environment variable (set by the `linuxX64Test` Gradle task); if unset,
- * paths resolve against the current working directory, which the test task
- * also pins to the repository root.
+ * environment variable (set by the native test tasks); if unset, paths resolve
+ * against the current working directory, which those tasks also pin to the
+ * repository root.
+ *
+ * Directory listing goes through kotlinx-io rather than per-target `opendir`
+ * bindings, which is what lets Linux and Apple share one implementation instead
+ * of each carrying its own — and iOS carrying a stub that returned null.
  */
 internal actual object ResourceLoader {
 
@@ -42,20 +43,15 @@ internal actual object ResourceLoader {
         return null
     }
 
-    @OptIn(ExperimentalForeignApi::class)
     actual fun listResources(path: String): List<String> {
         val names = mutableSetOf<String>()
         for (rootDir in resourceRoots) {
-            val dir = opendir("$rootDir/$path") ?: continue
-            try {
-                while (true) {
-                    val entry = readdir(dir) ?: break
-                    if (entry.pointed.d_type.toInt() == DT_REG) {
-                        names.add(entry.pointed.d_name.toKString())
-                    }
+            val directory = Path("$rootDir/$path")
+            if (SystemFileSystem.metadataOrNull(directory)?.isDirectory != true) continue
+            SystemFileSystem.list(directory).forEach { entry ->
+                if (SystemFileSystem.metadataOrNull(entry)?.isRegularFile == true) {
+                    names.add(entry.name)
                 }
-            } finally {
-                closedir(dir)
             }
         }
         return names.toList()

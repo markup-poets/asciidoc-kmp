@@ -9,6 +9,7 @@ kotest = "6.2.2"
 kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
+kotlinx-io = "0.9.1"
 jgit = "7.7.0.202606012155-r"
 chasm = "1.4.7"
 
@@ -20,6 +21,7 @@ kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest"
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
 jgit = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 chasm = { module = "io.github.charlietap.chasm:chasm", version.ref = "chasm" }
 

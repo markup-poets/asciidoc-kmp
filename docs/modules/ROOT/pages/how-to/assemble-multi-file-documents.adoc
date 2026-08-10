@@ -28,6 +28,49 @@ From the project root:
 
 The script builds `:antora-assembler` and writes the fully resolved document to the output path.
 
+== Assemble from the command line
+
+For more control than the wrapper script gives, invoke the CLI directly. Build the JAR first:
+
+[source,bash]
+----
+./gradlew :antora-assembler:jvmJar     # lands in antora-assembler/build/libs/
+----
+
+[source,bash]
+----
+java -cp antora-assembler/build/libs/antora-assembler-jvm-<version>.jar \
+  org.markup.poet.antora.assembler.cli.MainKt \
+  docs/modules/ROOT/pages/index.adoc output.adoc --component-root docs
+----
+
+[cols="1,2"]
+|===
+|Option |Effect
+
+|`--component-root <path>`
+|the Antora component root (default: the current directory)
+
+|`--max-depth <n>`
+|maximum include recursion depth (default: 50)
+
+|`--no-preserve-comments`
+|drop comments instead of preserving them
+
+|`--allow-missing`
+|continue when an include is missing, instead of failing
+
+|`--allow-circular`
+|continue when a circular dependency is found, instead of failing
+
+|`-h`, `--help`
+|show usage
+|===
+
+The two `--allow-*` flags exist because a partial assembly is sometimes more useful than none — when diagnosing a broken tree, for instance. They default to failing, so a broken document never passes silently.
+
+Exit code is `0` on success and `1` when assembly failed.
+
 == Assemble programmatically
 
 The pipeline has two layers. `antora-resolution` turns coordinates into file paths; `antora-assembler` walks the include graph and merges content.

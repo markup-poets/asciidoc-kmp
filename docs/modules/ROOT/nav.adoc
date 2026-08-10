@@ -17,12 +17,14 @@
 * xref:reference/rendering-api.adoc[Rendering configuration]
 * xref:reference/plugin-abi.adoc[Plugin ABI v1]
 * xref:reference/tck-and-syntax-coverage.adoc[TCK status and syntax coverage]
+* xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format]
 
 .Explanation
 * xref:explanation/architecture.adoc[ASG-native pipeline architecture]
 * xref:explanation/wasm-plugins.adoc[Why WASM plugins]
 * xref:explanation/theming.adoc[Theming architecture]
 * xref:explanation/streaming-considerations.adoc[Streaming considerations]
+* xref:explanation/tck-architecture.adoc[TCK architecture and data flow]
 
 .Contributing
 * xref:contributing/index.adoc[Contributing]
