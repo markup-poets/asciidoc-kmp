@@ -2,6 +2,7 @@ package org.markup.poet.asciidoc.processing
 
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
+import org.markup.poet.asciidoc.asg.Header
 import org.markup.poet.asciidoc.asg.IncludeBlock
 import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.asg.LeafBlock
@@ -9,6 +10,7 @@ import org.markup.poet.asciidoc.asg.LeafBlockForm
 import org.markup.poet.asciidoc.asg.LeafBlockName
 import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.Position
+import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.parser.AsciidocParser
 import org.markup.poet.asciidoc.parser.ParseResult
 import kotlin.test.Test
@@ -410,5 +412,94 @@ Line 3"""
         assertTrue(result.includedFiles.contains("file1.adoc"))
         assertTrue(result.includedFiles.contains("file2.adoc"))
         assertEquals(2, result.document.blocks.size, "Should have two paragraphs")
+    }
+
+    @Test
+    fun `should apply leveloffset to included section levels`() {
+        // Arrange
+        val parser = object : MockParser() {
+            override fun blocksFor(source: String): List<Block> = listOf(
+                SectionBlock(
+                    title = listOf(InlineText("Included Section", loc(1))),
+                    level = 1,
+                    blocks = listOf(paragraph("body", 2)),
+                    location = loc(1),
+                )
+            )
+        }
+        val fileReader = MockFileReader(mapOf("included.adoc" to "== Included Section\n\nbody"))
+        val resolver = DefaultIncludeResolver(parser)
+
+        val document = AsgDocument(
+            blocks = listOf(
+                IncludeBlock(path = "included.adoc", attributes = mapOf("leveloffset" to "+2"), location = loc(1))
+            )
+        )
+        val config = IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader)
+
+        // Act
+        val result = resolver.resolve(document, config)
+
+        // Assert
+        assertEquals(0, result.errors.size, "Should have no errors")
+        val section = result.document.blocks.single() as SectionBlock
+        assertEquals(3, section.level, "level 1 + offset +2 should be level 3")
+    }
+
+    @Test
+    fun `should demote the included document's title into a section at the offset level`() {
+        // Arrange
+        val parser = object : MockParser() {
+            override fun parse(source: String): ParseResult = ParseResult(
+                document = AsgDocument(
+                    header = Header(title = listOf(InlineText("Chapter Title", loc(1)))),
+                    blocks = listOf(paragraph("Chapter body", 2)),
+                ),
+                errors = emptyList(),
+                warnings = emptyList(),
+            )
+        }
+        val fileReader = MockFileReader(mapOf("chapter.adoc" to "= Chapter Title\n\nChapter body"))
+        val resolver = DefaultIncludeResolver(parser)
+
+        val document = AsgDocument(
+            blocks = listOf(
+                IncludeBlock(path = "chapter.adoc", attributes = mapOf("leveloffset" to "+1"), location = loc(1))
+            )
+        )
+        val config = IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader)
+
+        // Act
+        val result = resolver.resolve(document, config)
+
+        // Assert
+        assertEquals(0, result.errors.size, "Should have no errors")
+        val section = result.document.blocks.single() as SectionBlock
+        assertEquals(1, section.level, "document title (level 0) + offset +1 should be level 1")
+        assertEquals("Chapter Title", (section.title.single() as InlineText).value)
+        val body = section.blocks.single() as LeafBlock
+        assertEquals("Chapter body", (body.inlines.single() as InlineText).value)
+    }
+
+    @Test
+    fun `should not alter levels when no leveloffset is specified`() {
+        // Arrange
+        val parser = object : MockParser() {
+            override fun blocksFor(source: String): List<Block> = listOf(
+                SectionBlock(title = listOf(InlineText("Section", loc(1))), level = 1, blocks = emptyList(), location = loc(1))
+            )
+        }
+        val fileReader = MockFileReader(mapOf("included.adoc" to "== Section"))
+        val resolver = DefaultIncludeResolver(parser)
+
+        val document = AsgDocument(blocks = listOf(IncludeBlock(path = "included.adoc", location = loc(1))))
+        val config = IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader)
+
+        // Act
+        val result = resolver.resolve(document, config)
+
+        // Assert
+        val section = result.document.blocks.single() as SectionBlock
+        assertEquals(1, section.level, "level should be unchanged without leveloffset")
     }
 }
