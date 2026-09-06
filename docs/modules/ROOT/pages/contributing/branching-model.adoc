@@ -1,0 +1,64 @@
+= Branching model
+
+The project follows https://nvie.com/posts/a-successful-git-branching-model/[Git Flow].
+This page is the concrete, project-specific version of that model — read it before
+opening your first pull request.
+
+== The branches
+
+[cols="1,3"]
+|===
+|Branch |Purpose
+
+|`main`
+|Always reflects the last *released* state. Every commit on `main` is either a merged
+`release/*` or `hotfix/*` branch, and is tagged. Nothing is merged directly into `main`
+outside those two flows. This is also the branch the published documentation site
+deploys from (`.github/workflows/docs.yml`).
+
+|`develop`
+|The integration branch. This is where day-to-day work lands — it is also the
+repository's *default branch* on GitHub, so a fresh clone or fork starts here.
+
+|`feature/*`
+|One branch per change, cut from `develop`. Opened as a pull request back into
+`develop`. This is almost certainly the branch type you want.
+
+|`release/*`
+|Cut from `develop` when preparing a release: version bump (`gradle.properties`),
+`CHANGELOG.md` entry, final stabilization fixes only — no new features. Merged into
+*both* `main` (then tagged) and back into `develop`, so the version bump and changelog
+entry aren't lost on the integration branch.
+
+|`hotfix/*`
+|Cut from `main` for an urgent fix to an already-released version, when it can't wait
+for the next regular release out of `develop`. Merged into *both* `main` (then tagged)
+and `develop`, same as a release branch.
+|===
+
+== Where does my pull request go?
+
+* Fixing a bug, adding syntax coverage, writing docs, anything that isn't an active
+  incident on a released version — branch from `develop`, open the PR against
+  `develop`. This is the common case.
+* An urgent fix to something already released, that can't wait — branch from `main` as
+  `hotfix/x.y.z`, open the PR against `main`. Flag it as a hotfix in the PR description
+  so it's merged back into `develop` too, not just `main`.
+
+Both `main` and `develop` are protected: the same required checks apply either way
+(`build-job`, `official-tck`), branches must be up to date before merging, and force
+pushes/deletions are disabled.
+
+== Releases
+
+See xref:contributing/release-process.adoc[Release process] for the full mechanics —
+in short, a `release/*` branch off `develop` is where the version bump and changelog
+entry happen, and it's merged to `main` (tagged, which triggers the publish workflow)
+and back to `develop`.
+
+== Dependabot
+
+Dependency-update pull requests target `develop` (`.github/dependabot.yml`
+`target-branch`), same as any other feature work — they go through the same review and
+CI gate, and ride along in the next regular release rather than going straight to
+`main`.
