@@ -1,9 +1,10 @@
 = Release process
 
-Releases are tag-driven: pushing a git tag to {url-repo}[the repository]
-triggers the publish workflow, which builds all targets and publishes the
-artifacts to {url-maven-central}[Maven Central] under the `{maven-group}`
-group.
+The project follows xref:contributing/branching-model.adoc[Git Flow]: releases are
+prepared on a `release/*` branch cut from `develop`, then merged into `main` and
+tagged. Releases are tag-driven on `main`: pushing a git tag to {url-repo}[the
+repository] triggers the publish workflow, which builds all targets and publishes the
+artifacts to {url-maven-central}[Maven Central] under the `{maven-group}` group.
 
 [CAUTION]
 ====
@@ -11,6 +12,18 @@ The publish workflow (`.github/workflows/publish.yml`) triggers on *any*
 pushed tag — the pattern is `'**'`, not just `v*`. Do not push tags to the
 repository unless you intend to publish a release.
 ====
+
+== Cut the release branch
+
+[source,bash]
+----
+git checkout develop
+git pull
+git checkout -b release/X.Y.Z
+----
+
+Only version bump, changelog, and last-mile stabilization fixes belong on a release
+branch — no new features. Anything more than that should go through `develop` first.
 
 == Before tagging
 
@@ -22,7 +35,8 @@ repository unless you intend to publish a release.
 VERSION_NAME={artifact-version}
 ----
 . Update `CHANGELOG.md` with an entry for the release.
-. Make sure `main` is green: full build, tests, and the official TCK run
+. Open the `release/X.Y.Z` branch as a pull request against `main`; make sure it's
+  green: full build, tests, and the official TCK run
   (see xref:contributing/tck-workflow.adoc[TCK workflow]).
 . Optionally dry-run the publication locally:
 +
@@ -30,11 +44,14 @@ VERSION_NAME={artifact-version}
 ----
 ./gradlew publishToMavenLocal
 ----
+. Merge the `release/X.Y.Z` pull request into `main`.
 
 == Tag and push
 
 [source,bash]
 ----
+git checkout main
+git pull
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ----
@@ -62,8 +79,29 @@ When the workflow finishes, verify the new version appears at
 
 == After the release
 
-. Bump `VERSION_NAME` in `gradle.properties` to the next development version
-  on `main`.
-. Update the `artifact-version` attribute in `docs/antora.yml` so the
-  documentation references the released version.
+. Merge `release/X.Y.Z` back into `develop` too (the same branch, opened as a second
+  pull request against `develop`), so the version-bump commit and changelog entry
+  aren't lost on the integration branch. Delete the `release/X.Y.Z` branch once both
+  merges have landed.
+. On `develop`, bump `VERSION_NAME` in `gradle.properties` to the next development
+  version.
+. Update the `artifact-version` attribute in `docs/antora.yml` so the published
+  documentation references the version that was just released (it lags one release
+  behind `VERSION_NAME` on `develop` by design — the docs site only redeploys from
+  `main`).
 . Start a fresh `CHANGELOG.md` section for unreleased changes.
+
+== Hotfixes
+
+An urgent fix to an already-released version follows the same shape, off `main`
+instead of `develop`:
+
+[source,bash]
+----
+git checkout main
+git pull
+git checkout -b hotfix/X.Y.Z
+----
+
+Same steps as above (version bump, changelog, PR to `main`, tag, publish), and the
+same "merge back into `develop` too" step afterward.
