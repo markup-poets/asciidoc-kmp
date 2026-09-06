@@ -4,6 +4,7 @@ import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.IncludeBlock
 import org.markup.poet.asciidoc.asg.InlineText
 import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.parser.DefaultAsciidocParser
 import java.nio.file.Files
 import kotlin.test.Test
@@ -71,6 +72,57 @@ class DirectiveEndToEndJvmTest {
 
             assertTrue(result.errors.isEmpty(), "unexpected errors: ${result.errors}")
             assertEquals(listOf("line three"), paragraphTexts(result.document.blocks))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `include directive with leveloffset shifts included section levels`() {
+        val dir = Files.createTempDirectory("mp-include-leveloffset-e2e").toFile()
+        try {
+            dir.resolve("part.adoc").writeText("= Part Title\n\n== Part Section\n\nbody")
+            val parsed = parser.parse("== Group\n\ninclude::part.adoc[leveloffset=+2]")
+
+            val resolver = DefaultIncludeResolver(parser)
+            val result = resolver.resolve(
+                parsed.document,
+                IncludeConfig(maxDepth = 10, basePath = dir.absolutePath, fileReader = JvmFileReader()),
+            )
+
+            assertTrue(result.errors.isEmpty(), "unexpected errors: ${result.errors}")
+            val group = assertIs<SectionBlock>(result.document.blocks.single())
+            assertEquals(1, group.level, "the surrounding == Group section is untouched")
+            val partTitleSection = assertIs<SectionBlock>(group.blocks.single())
+            assertEquals(2, partTitleSection.level, "document title (level 0) + offset +2 = level 2")
+            val partSection = assertIs<SectionBlock>(partTitleSection.blocks.single())
+            assertEquals(3, partSection.level, "Part Section (level 1) + offset +2 = level 3")
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `nested includes compound their leveloffsets`() {
+        val dir = Files.createTempDirectory("mp-include-nested-leveloffset-e2e").toFile()
+        try {
+            // Mirrors the documented Asciidoctor example: two +1 includes around a level-2
+            // heading compound to level 4 (discuss.asciidoctor.org "Nesting inclusions with
+            // level offsets").
+            dir.resolve("grandchild.adoc").writeText("=== Grandchild Section\n\nbody")
+            dir.resolve("child.adoc").writeText("include::grandchild.adoc[]")
+            dir.resolve("parent.adoc").writeText("include::child.adoc[leveloffset=+1]")
+            val parsed = parser.parse("include::parent.adoc[leveloffset=+1]")
+
+            val resolver = DefaultIncludeResolver(parser)
+            val result = resolver.resolve(
+                parsed.document,
+                IncludeConfig(maxDepth = 10, basePath = dir.absolutePath, fileReader = JvmFileReader()),
+            )
+
+            assertTrue(result.errors.isEmpty(), "unexpected errors: ${result.errors}")
+            val section = assertIs<SectionBlock>(result.document.blocks.single())
+            assertEquals(4, section.level, "level 2 base + two nested +1 offsets = level 4")
         } finally {
             dir.deleteRecursively()
         }
