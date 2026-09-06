@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-09-06
+
+### Fixed
+
+- **`include::` now honors the `leveloffset` attribute**, and an included
+  document's own title is folded into a section instead of being silently
+  dropped (#97). The parser already captured `leveloffset` correctly;
+  `DefaultIncludeResolver` never read it. Relative offsets (`+N`/`-N`)
+  compound correctly through nested includes; the bare absolute form is
+  treated as relative for now (documented limitation, not full Asciidoctor
+  "absolute levels aren't context-aware" semantics).
+- Docs migrated to Antora, GitHub Pages deploy clobbering fixed, and a native
+  (iOS/Linux) TCK fixture-loading issue fixed (#86).
+
+### Changed
+
+- Toolchain/dependency bumps: Kotlin 2.4.10, Gradle wrapper 9.7.1, AGP/KMP
+  library plugin 9.3.1, Kotest 6.2.4, `com.gradleup.shadow` 9.6.1,
+  `io.github.charlietap.chasm` 1.4.8, `org.eclipse.jgit` 7.7.1, and CI-only
+  `actions/setup-java`/`actions/setup-node` bumps.
+
 ## [0.1.1] - 2026-07-07
 
 Hotfix: browser support via Kotlin/Wasm.
