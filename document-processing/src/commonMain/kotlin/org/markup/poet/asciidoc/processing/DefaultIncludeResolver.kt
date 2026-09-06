@@ -4,6 +4,7 @@ import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.Block
 import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.DListBlock
+import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.IncludeBlock
 import org.markup.poet.asciidoc.asg.ListBlock
 import org.markup.poet.asciidoc.asg.ParentBlock
@@ -156,7 +157,10 @@ class DefaultIncludeResolver(
                 // Get the directory of the included file for resolving nested includes
                 val includedFilePath = getDirectoryPath(resolvedPath)
 
-                // Recursively resolve includes in the parsed content
+                // Recursively resolve includes in the parsed content. Nested includes resolve
+                // (and, per below, get their own leveloffset applied) before this include's own
+                // offset is applied to the result, so relative offsets compound correctly through
+                // a chain of includes.
                 val processedBlocks = resolveInBlocks(
                     blocks = parseResult.document.blocks,
                     config = config,
@@ -170,9 +174,68 @@ class DefaultIncludeResolver(
                 // Remove from visited set to allow the same file to be included in different branches
                 visitedFiles.remove(resolvedPath)
 
-                return processedBlocks
+                // Apply leveloffset (if any) to the fully-resolved included content, and fold the
+                // included document's own title (if any) into a section at the offset level instead
+                // of silently discarding it.
+                val offset = parseLevelOffset(directive.attributes)
+                val shiftedBlocks = applyLevelOffset(processedBlocks, offset)
+                val header = parseResult.document.header
+
+                return if (header != null) {
+                    listOf(
+                        SectionBlock(
+                            title = header.title,
+                            level = offset.coerceAtLeast(0),
+                            blocks = shiftedBlocks,
+                            location = header.location,
+                        )
+                    )
+                } else {
+                    shiftedBlocks
+                }
             }
         }
+    }
+
+    /**
+     * Parses the `leveloffset` include attribute, e.g. `include::x.adoc[leveloffset=+1]`.
+     * Both the relative form (`+N`/`-N`) and the bare absolute form (`N`) parse to the same
+     * signed offset here and are applied identically (additive) -- this does not implement
+     * Asciidoctor's true "absolute levels are not context-aware" semantics for nested includes
+     * (where an absolute value would override rather than compound); that would need the offset
+     * to be threaded top-down instead of applied bottom-up at each include's own splice point.
+     * Absolute leveloffset is documented upstream as awkward/discouraged with nested includes
+     * anyway, so this covers the common, well-defined relative case fully.
+     */
+    private fun parseLevelOffset(attributes: Map<String, String>): Int =
+        attributes["leveloffset"]?.trim()?.toIntOrNull() ?: 0
+
+    /**
+     * Shifts every section/discrete-heading level in [blocks] by [offset], recursing into every
+     * block type that can nest content. Mirrors [processBlock]'s own recursive-copy structure.
+     * Levels are floored at 0 (a heading can't go negative); no ceiling is applied here -- an
+     * offset that pushes a level out of the document's valid range is left for validation to flag,
+     * matching how rendering already degrades gracefully for out-of-range levels.
+     */
+    private fun applyLevelOffset(blocks: List<Block>, offset: Int): List<Block> {
+        if (offset == 0) return blocks
+        return blocks.map { shiftBlockLevel(it, offset) }
+    }
+
+    private fun shiftBlockLevel(block: Block, offset: Int): Block = when (block) {
+        is SectionBlock -> block.copy(
+            level = (block.level + offset).coerceAtLeast(0),
+            blocks = applyLevelOffset(block.blocks, offset),
+        )
+        is DiscreteHeading -> block.copy(level = (block.level + offset).coerceAtLeast(0))
+        is ParentBlock -> block.copy(blocks = applyLevelOffset(block.blocks, offset))
+        is ConditionalBlock -> block.copy(
+            blocks = applyLevelOffset(block.blocks, offset),
+            elseBlocks = applyLevelOffset(block.elseBlocks, offset),
+        )
+        is ListBlock -> block.copy(items = block.items.map { it.copy(blocks = applyLevelOffset(it.blocks, offset)) })
+        is DListBlock -> block.copy(items = block.items.map { it.copy(blocks = applyLevelOffset(it.blocks, offset)) })
+        else -> block
     }
 
     /**
