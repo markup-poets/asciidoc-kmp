@@ -6,7 +6,7 @@ nav:
 
 asciidoc:
   attributes:
-    artifact-version: '0.1.0'
+    artifact-version: '0.1.2'
     maven-group: 'org.markup-poet'
     # TCK status — the ONLY place these numbers live; pages reference the attributes
     tck-commit: '3490153d3eb2ef5984497428b75364f49749dfc7'
