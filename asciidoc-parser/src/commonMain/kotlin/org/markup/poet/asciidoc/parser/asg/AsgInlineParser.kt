@@ -166,7 +166,7 @@ class AsgInlineParser(
                     consume(link)
                     continue
                 }
-                val macro = tryParseInlineMacro(text, i, to, map)
+                val macro = if (!inCode) tryParseInlineMacro(text, i, to, map) else null
                 if (macro != null) {
                     consume(macro)
                     continue
