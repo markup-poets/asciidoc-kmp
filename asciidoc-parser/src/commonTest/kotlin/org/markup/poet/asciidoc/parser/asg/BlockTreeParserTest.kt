@@ -560,6 +560,18 @@ class BlockTreeParserTest {
     }
 
     @Test
+    fun inlineMacroDoesNotFireInsideCodeSpans() {
+        // A literal syntax example quoted in backticks (e.g. documenting include:: usage)
+        // must stay literal text, not become a live InlineMacro that later processing
+        // tries to expand/resolve as if it were a real directive.
+        val inlines = parser.parseInline("see `include::foo.adoc[]` for the syntax")
+        val span = assertIs<InlineSpan>(inlines.filterIsInstance<InlineSpan>().single())
+        assertEquals(SpanVariant.CODE, span.variant)
+        assertEquals("include::foo.adoc[]", assertIs<InlineText>(span.inlines.single()).value)
+        assertTrue(inlines.filterIsInstance<InlineMacro>().isEmpty())
+    }
+
+    @Test
     fun tripleAngleBracketIsNotAnXref() {
         val inlines = parser.parseInline("a <<<b>> c")
         assertTrue(inlines.filterIsInstance<InlineRef>().isEmpty())

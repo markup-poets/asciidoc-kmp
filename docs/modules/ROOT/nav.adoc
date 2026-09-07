@@ -28,5 +28,6 @@
 
 .Contributing
 * xref:contributing/index.adoc[Contributing]
+* xref:contributing/branching-model.adoc[Branching model]
 * xref:contributing/tck-workflow.adoc[TCK workflow]
 * xref:contributing/release-process.adoc[Release process]

@@ -407,6 +407,41 @@ class InlineRendererTest {
         assertTrue(html.contains("&lt;/script&gt;"))
     }
 
+    @Test
+    fun `natural cross-reference resolves to the target heading's real id`() {
+        // <<Extensibility And More>> -- the "natural" xref form, matching by title text rather
+        // than by id -- must resolve to whatever id that heading actually renders with, not be
+        // used verbatim as the href (markup-poets/asciidoc-kmp#99).
+        val contextWithIndex = RenderContext(
+            config,
+            xrefIndex = XrefIndex(
+                knownIds = setOf("extensibility-and-more"),
+                titleToId = mapOf("Extensibility And More" to "extensibility-and-more"),
+            ),
+        )
+        val ref = InlineRef(variant = RefVariant.XREF, target = "Extensibility And More", inlines = emptyList())
+
+        val html = renderer.render(ref, contextWithIndex)
+
+        assertEquals("<a href=\"#extensibility-and-more\">Extensibility And More</a>", html)
+    }
+
+    @Test
+    fun `cross-reference to a real id is left unchanged even with a populated xref index`() {
+        val contextWithIndex = RenderContext(
+            config,
+            xrefIndex = XrefIndex(
+                knownIds = setOf("extensibility-and-more"),
+                titleToId = mapOf("Extensibility And More" to "extensibility-and-more"),
+            ),
+        )
+        val ref = InlineRef(variant = RefVariant.XREF, target = "extensibility-and-more", inlines = emptyList())
+
+        val html = renderer.render(ref, contextWithIndex)
+
+        assertEquals("<a href=\"#extensibility-and-more\">extensibility-and-more</a>", html)
+    }
+
     // ========== Macro Invocation Tests ==========
 
     @Test

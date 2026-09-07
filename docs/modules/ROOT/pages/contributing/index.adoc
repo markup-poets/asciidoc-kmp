@@ -61,12 +61,17 @@ numbers are tracked and reported.
 
 == Pull request workflow
 
-. Fork or branch — work happens on feature branches; `main` is protected.
+The project follows Git Flow — see
+xref:contributing/branching-model.adoc[Branching model] for the full picture.
+The short version:
+
+. Fork or branch from `develop` (not `main`) — `feature/*` is the common
+  case; both `develop` and `main` are protected.
 . Keep changes focused; separate refactoring from behavior changes where
   practical.
 . Make sure `./gradlew build` and the relevant test commands above pass, and
   the official TCK pass count has not dropped.
-. Open a pull request against `main` describing what changed and why. If the
-  change affects TCK results or syncs a new TCK commit, say so explicitly and
-  update the documentation attributes as described in the
+. Open a pull request against `develop` describing what changed and why. If
+  the change affects TCK results or syncs a new TCK commit, say so explicitly
+  and update the documentation attributes as described in the
   xref:contributing/tck-workflow.adoc[TCK workflow].
