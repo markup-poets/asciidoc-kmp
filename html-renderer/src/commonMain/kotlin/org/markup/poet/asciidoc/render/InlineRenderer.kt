@@ -116,7 +116,12 @@ class DefaultInlineRenderer(
                 "<a href=\"$escapedUrl\">$text</a>"
             }
             RefVariant.XREF -> {
-                val escapedId = builder.escapeAttribute(ref.target)
+                // Natural xrefs (<<Some Title>>) target a heading's title text, not its id --
+                // resolve to the id that heading actually renders with (see buildXrefIndex).
+                // An explicit-id target (<<some-id>>) is already a real id and passes through
+                // unchanged; a target matching neither stays as-is, same as before this existed.
+                val resolvedId = context.resolveXrefTarget(ref.target)
+                val escapedId = builder.escapeAttribute(resolvedId)
                 val text = if (ref.inlines.isEmpty()) {
                     builder.escape(ref.target)
                 } else {

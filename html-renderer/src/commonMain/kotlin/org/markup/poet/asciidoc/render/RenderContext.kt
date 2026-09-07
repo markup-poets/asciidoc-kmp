@@ -13,9 +13,13 @@ import org.markup.poet.asciidoc.asg.AsgNode
  * the rendering pipeline to maintain consistent state.
  *
  * @param config The rendering configuration containing theme and output options
+ * @param xrefIndex Precomputed title-text -> id lookup for natural cross-references (see
+ *   [buildXrefIndex]); defaults to empty for callers (mainly tests) that construct a
+ *   `RenderContext` directly rather than through [DefaultHtmlRenderer].
  */
 class RenderContext(
-    val config: RenderConfig
+    val config: RenderConfig,
+    private val xrefIndex: XrefIndex = XrefIndex.EMPTY,
 ) {
     /**
      * The theme to use for CSS class generation.
@@ -24,10 +28,11 @@ class RenderContext(
     val theme: Theme = config.theme
 
     /**
-     * Map tracking generated IDs and their occurrence counts.
-     * Used to ensure unique IDs by appending suffixes when collisions occur.
+     * Generates unique heading IDs during the real render pass. Deliberately a *separate*
+     * [IdGenerator] instance from the one [buildXrefIndex] uses for its pre-pass simulation --
+     * see that function's doc comment for why the two must never share state.
      */
-    private val idMap = mutableMapOf<String, Int>()
+    private val idGenerator = IdGenerator()
 
     /**
      * List of warning messages collected during rendering.
@@ -65,25 +70,18 @@ class RenderContext(
      * @param text The text to convert to an ID (typically heading text)
      * @return A unique HTML ID string
      */
-    fun generateId(text: String): String {
-        // Convert to lowercase and replace non-alphanumeric characters with hyphens
-        val base = text
-            .lowercase()
-            .replace(Regex("[^a-z0-9]+"), "-")
-            .trim('-')
+    fun generateId(text: String): String = idGenerator.next(text)
 
-        // Handle empty base case (e.g., text with only special characters)
-        val normalizedBase = if (base.isEmpty()) "section" else base
-
-        // Get the current count for this base ID
-        val count = idMap[normalizedBase] ?: 0
-
-        // Increment the count for next time
-        idMap[normalizedBase] = count + 1
-
-        // Return base ID for first occurrence, or base-N for subsequent occurrences
-        return if (count == 0) normalizedBase else "$normalizedBase-$count"
-    }
+    /**
+     * Resolves an xref target for rendering: a target that's already a real id (explicit or
+     * generated -- checked against [xrefIndex]'s [XrefIndex.knownIds]) is left as-is; otherwise,
+     * if it matches a heading's plain title text ("natural" cross-reference form), the id that
+     * heading actually renders with is substituted. A target matching neither is returned
+     * unchanged, same as before this resolution existed -- an honestly-unresolved xref stays
+     * visibly broken rather than being guessed at.
+     */
+    fun resolveXrefTarget(target: String): String =
+        if (target in xrefIndex.knownIds) target else xrefIndex.titleToId[target] ?: target
 
     /**
      * Registers a heading for table of contents generation and validates hierarchy.
@@ -221,4 +219,30 @@ class RenderContext(
      * @return An immutable list of warning messages
      */
     fun getWarnings(): List<String> = warnings.toList()
+}
+
+/**
+ * The id-generation algorithm formerly inlined in [RenderContext.generateId], extracted so it
+ * can run as two independent instances: the real one [RenderContext] owns during rendering, and
+ * a throwaway one [buildXrefIndex] uses to simulate the same sequence of ids ahead of time.
+ *
+ * Converts [text] to lowercase, replaces non-alphanumeric runs with a hyphen, trims leading/
+ * trailing hyphens, and appends a numeric suffix (`-1`, `-2`, ...) on repeat occurrences of the
+ * same base id so every id this generator hands out is unique.
+ */
+class IdGenerator {
+    private val idMap = mutableMapOf<String, Int>()
+
+    fun next(text: String): String {
+        val base = text
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), "-")
+            .trim('-')
+        val normalizedBase = base.ifEmpty { "section" }
+
+        val count = idMap[normalizedBase] ?: 0
+        idMap[normalizedBase] = count + 1
+
+        return if (count == 0) normalizedBase else "$normalizedBase-$count"
+    }
 }
