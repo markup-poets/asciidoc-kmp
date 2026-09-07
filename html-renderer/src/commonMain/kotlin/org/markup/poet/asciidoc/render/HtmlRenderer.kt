@@ -129,7 +129,7 @@ class DefaultHtmlRenderer(
 
         return try {
             // Create rendering context
-            val context = RenderContext(config)
+            val context = RenderContext(config, xrefIndex = buildXrefIndex(document))
 
             // Create visitor and render document body
             val visitor = AstVisitor(blockRenderer, inlineRenderer, context)
