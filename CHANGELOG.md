@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-07
+
+### Fixed
+
+- **Inline macro-shaped text inside code spans is no longer expanded as a
+  live macro** (#98). Text like `` `include::foo.adoc[]` `` quoted in
+  backticks as a literal syntax example now stays literal, matching how
+  Asciidoctor recognizes block macros only as the sole content of a line.
+- **Natural cross-references (`<<Section Title>>`) now resolve to the
+  target heading's real generated anchor id** instead of the raw,
+  unnormalized title text (#99), matching Asciidoctor's title-text-to-id
+  ref resolution. A pre-pass (`buildXrefIndex`) walks the document once
+  before rendering to build the title -> id lookup, using its own
+  independent id generator so the real render pass's heading-id counters
+  are unaffected.
+
 ## [0.1.2] - 2026-09-06
 
 ### Fixed
