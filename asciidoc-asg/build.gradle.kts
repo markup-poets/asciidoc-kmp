@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "org.markup-poet"
-version = "0.1.1"
+version = providers.gradleProperty("VERSION_NAME").get()
 
 kotlin {
     jvmToolchain(17)
