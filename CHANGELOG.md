@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depth/cycle guards as block-level includes. Verbatim content is never parsed
   as AsciiDoc; on a read error the directive line is kept verbatim and a
   processing error is recorded.
+- **wasmJs browser tests work with Kotlin >= 2.4.20** (#110). The compiler's
+  generated wasm loader now uses `import.meta.resolve`, which is only legal in
+  ES modules, so the Karma bundle died with "Cannot use 'import.meta' outside
+  a module" before any test ran. A shared `karma.config.d` snippet in the three
+  wasmJs-browser modules now includes the bundled scripts as ES modules and
+  pins webpack's `publicPath` to the Karma-served output directory (the "auto"
+  default resolves via `document.currentScript`, which is null in module
+  scripts, 404-ing the .wasm asset).
+
 ### Removed
 
 - **Dropped the `iosX64` (Intel-Mac iOS simulator) target** from all published
