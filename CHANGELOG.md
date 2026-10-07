@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`include::` directives inside verbatim blocks (listings, literal blocks)
+  are now resolved** (#119). Includes are preprocessor-level in AsciiDoc, so
+  `include::Snippet.kt[lines=1..20]` between `----` fences — the canonical way
+  to pull source snippets into a listing — now splices in the raw,
+  line-filtered file content during include resolution, with the same
+  depth/cycle guards as block-level includes. Verbatim content is never parsed
+  as AsciiDoc; on a read error the directive line is kept verbatim and a
+  processing error is recorded.
+
 ## [0.1.3] - 2026-09-07
 
 ### Fixed

@@ -502,4 +502,132 @@ Line 3"""
         val section = result.document.blocks.single() as SectionBlock
         assertEquals(1, section.level, "level should be unchanged without leveloffset")
     }
+
+    // -----------------------------------------------------------------------
+    // Includes inside verbatim blocks (#119)
+    // -----------------------------------------------------------------------
+
+    private fun listing(text: String, line: Int = 1) = LeafBlock(
+        name = LeafBlockName.LISTING,
+        form = LeafBlockForm.DELIMITED,
+        inlines = listOf(InlineText(text, loc(line))),
+        location = loc(line)
+    )
+
+    private fun listingText(block: Block): String =
+        ((block as LeafBlock).inlines.single() as InlineText).value
+
+    @Test
+    fun `should expand include directive inside a listing block`() {
+        val fileReader = MockFileReader(mapOf("Tokenizer.kt" to "fun a() {}\nfun b() {}"))
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val document = AsgDocument(
+            blocks = listOf(listing("// intro\ninclude::Tokenizer.kt[]\n// outro"))
+        )
+        val result = resolver.resolve(document, IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader))
+
+        assertEquals(0, result.errors.size, "Should have no errors")
+        assertEquals("// intro\nfun a() {}\nfun b() {}\n// outro", listingText(result.document.blocks.single()))
+        assertTrue(result.includedFiles.contains("Tokenizer.kt"), "Included file should be tracked")
+    }
+
+    @Test
+    fun `should apply lines filter to include inside a listing block`() {
+        val fileReader = MockFileReader(mapOf("docs/Tokenizer.kt" to "line1\nline2\nline3\nline4"))
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val document = AsgDocument(blocks = listOf(listing("include::Tokenizer.kt[lines=2..3]")))
+        val result = resolver.resolve(document, IncludeConfig(maxDepth = 10, basePath = "docs", fileReader = fileReader))
+
+        assertEquals(0, result.errors.size, "Should have no errors")
+        assertEquals("line2\nline3", listingText(result.document.blocks.single()))
+    }
+
+    @Test
+    fun `should expand include inside a literal block`() {
+        val fileReader = MockFileReader(mapOf("out.txt" to "raw output"))
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val literal = LeafBlock(
+            name = LeafBlockName.LITERAL,
+            form = LeafBlockForm.DELIMITED,
+            inlines = listOf(InlineText("include::out.txt[]", loc(1))),
+            location = loc(1)
+        )
+        val result = resolver.resolve(
+            AsgDocument(blocks = listOf(literal)),
+            IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader)
+        )
+
+        assertEquals("raw output", listingText(result.document.blocks.single()))
+    }
+
+    @Test
+    fun `should not parse included verbatim content as asciidoc`() {
+        // A heading-looking line must stay literal text inside the listing.
+        val fileReader = MockFileReader(mapOf("doc.adoc" to "== Not A Section"))
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val document = AsgDocument(blocks = listOf(listing("include::doc.adoc[]")))
+        val result = resolver.resolve(document, IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader))
+
+        assertEquals("== Not A Section", listingText(result.document.blocks.single()))
+    }
+
+    @Test
+    fun `should keep directive line and report error for missing file in listing`() {
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val document = AsgDocument(blocks = listOf(listing("include::missing.kt[]")))
+        val result = resolver.resolve(document, IncludeConfig(maxDepth = 10, basePath = "", fileReader = MockFileReader()))
+
+        assertEquals(1, result.errors.size, "Should report the read failure")
+        assertEquals(ProcessingErrorType.INCLUDE_NOT_FOUND, result.errors.single().errorType)
+        assertEquals("include::missing.kt[]", listingText(result.document.blocks.single()))
+    }
+
+    @Test
+    fun `should detect circular include inside a listing block`() {
+        // self.txt includes itself; the nested occurrence must stop with an error.
+        val fileReader = MockFileReader(mapOf("self.txt" to "include::self.txt[]"))
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val document = AsgDocument(blocks = listOf(listing("include::self.txt[]")))
+        val result = resolver.resolve(document, IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader))
+
+        assertEquals(1, result.errors.size, "Should report the circular dependency")
+        assertEquals(ProcessingErrorType.INCLUDE_CIRCULAR_DEPENDENCY, result.errors.single().errorType)
+    }
+
+    @Test
+    fun `should expand include inside listing nested in a section`() {
+        val fileReader = MockFileReader(mapOf("snippet.kt" to "val x = 1"))
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val section = SectionBlock(
+            title = listOf(InlineText("Code", loc(1))),
+            level = 1,
+            blocks = listOf(listing("include::snippet.kt[]", line = 3)),
+            location = loc(1)
+        )
+        val result = resolver.resolve(
+            AsgDocument(blocks = listOf(section)),
+            IncludeConfig(maxDepth = 10, basePath = "", fileReader = fileReader)
+        )
+
+        val resolvedSection = result.document.blocks.single() as SectionBlock
+        assertEquals("val x = 1", listingText(resolvedSection.blocks.single()))
+    }
+
+    @Test
+    fun `should leave include-looking text in paragraphs untouched`() {
+        val resolver = DefaultIncludeResolver(MockParser())
+
+        val document = AsgDocument(blocks = listOf(paragraph("use include::foo.adoc[] to embed files")))
+        val result = resolver.resolve(document, IncludeConfig(maxDepth = 10, basePath = "", fileReader = MockFileReader()))
+
+        assertEquals(0, result.errors.size, "Paragraph text must not trigger include resolution")
+        assertEquals("use include::foo.adoc[] to embed files", listingText(result.document.blocks.single()))
+    }
 }
