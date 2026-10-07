@@ -6,7 +6,11 @@ import org.markup.poet.asciidoc.asg.ConditionalBlock
 import org.markup.poet.asciidoc.asg.DListBlock
 import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.IncludeBlock
+import org.markup.poet.asciidoc.asg.InlineText
+import org.markup.poet.asciidoc.asg.LeafBlock
+import org.markup.poet.asciidoc.asg.LeafBlockName
 import org.markup.poet.asciidoc.asg.ListBlock
+import org.markup.poet.asciidoc.asg.Location
 import org.markup.poet.asciidoc.asg.ParentBlock
 import org.markup.poet.asciidoc.asg.SectionBlock
 import org.markup.poet.asciidoc.parser.AsciidocParser
@@ -18,6 +22,12 @@ import org.markup.poet.asciidoc.parser.AsciidocParser
 class DefaultIncludeResolver(
     private val parser: AsciidocParser
 ) : IncludeResolver {
+
+    private companion object {
+        /** Same shapes `BlockTreeParser` accepts for block-level directives. */
+        val verbatimIncludeRegex = Regex("""^include::([^\[\s]+)\[(.*)\]$""")
+        val verbatimLineRangeRegex = Regex("""^(\d+)\.\.(\d+)$""")
+    }
 
     override fun resolve(document: AsgDocument, config: IncludeConfig): IncludeResult {
         val errors = mutableListOf<ProcessingError>()
@@ -85,8 +95,131 @@ class DefaultIncludeResolver(
             is DListBlock -> listOf(
                 block.copy(items = block.items.map { it.copy(blocks = recurse(it.blocks)) })
             )
+            is LeafBlock -> listOf(
+                if (block.name == LeafBlockName.LISTING || block.name == LeafBlockName.LITERAL) {
+                    expandIncludesInVerbatim(block, config, currentDepth, visitedFiles, errors, includedFiles, currentPath)
+                } else {
+                    block
+                }
+            )
             else -> listOf(block)
         }
+    }
+
+    /**
+     * Include directives are preprocessor-level in AsciiDoc, so they also work
+     * inside verbatim blocks -- the canonical way to pull a source snippet into
+     * a listing (`include::Tokenizer.kt[lines=1..20]` between `----` fences).
+     * The parser keeps verbatim content as plain inline text (the official ASG
+     * has no structural node inside verbatim content), so such directives
+     * arrive here as literal `include::` lines rather than [IncludeBlock]s.
+     *
+     * Each directive line is replaced by the raw, line-filtered file content --
+     * no AsciiDoc parsing, this is verbatim context -- recursing into the
+     * included text with the same depth/cycle guards as block-level includes.
+     * On any error the directive line is kept verbatim (silently dropping text
+     * from a listing would corrupt the example) and the error is recorded.
+     */
+    private fun expandIncludesInVerbatim(
+        block: LeafBlock,
+        config: IncludeConfig,
+        currentDepth: Int,
+        visitedFiles: MutableSet<String>,
+        errors: MutableList<ProcessingError>,
+        includedFiles: MutableSet<String>,
+        currentPath: String
+    ): LeafBlock {
+        if (block.inlines.none { it is InlineText && it.value.contains("include::") }) return block
+        val inlines = block.inlines.map { inline ->
+            if (inline is InlineText && inline.value.contains("include::")) {
+                inline.copy(
+                    value = expandIncludeLines(
+                        inline.value, config, currentDepth, visitedFiles, errors, includedFiles,
+                        currentPath, block.location
+                    )
+                )
+            } else {
+                inline
+            }
+        }
+        return block.copy(inlines = inlines)
+    }
+
+    private fun expandIncludeLines(
+        text: String,
+        config: IncludeConfig,
+        currentDepth: Int,
+        visitedFiles: MutableSet<String>,
+        errors: MutableList<ProcessingError>,
+        includedFiles: MutableSet<String>,
+        currentPath: String,
+        location: Location?
+    ): String = text.lines().joinToString("\n") { line ->
+        val match = verbatimIncludeRegex.matchEntire(line) ?: return@joinToString line
+
+        if (currentDepth >= config.maxDepth) {
+            errors.add(
+                ProcessingError(
+                    message = "Include depth exceeded maximum of ${config.maxDepth}",
+                    location = location,
+                    errorType = ProcessingErrorType.INCLUDE_MAX_DEPTH_EXCEEDED
+                )
+            )
+            return@joinToString line
+        }
+
+        val resolvedPath = resolvePath(match.groupValues[1], currentPath)
+        if (visitedFiles.contains(resolvedPath)) {
+            errors.add(
+                ProcessingError(
+                    message = "Circular include dependency detected: $resolvedPath",
+                    location = location,
+                    errorType = ProcessingErrorType.INCLUDE_CIRCULAR_DEPENDENCY
+                )
+            )
+            return@joinToString line
+        }
+
+        when (val fileResult = config.fileReader.readFile(resolvedPath)) {
+            is FileReadResult.Error -> {
+                errors.add(
+                    ProcessingError(
+                        message = "Failed to read include file '$resolvedPath': ${fileResult.message}",
+                        location = location,
+                        errorType = ProcessingErrorType.INCLUDE_NOT_FOUND
+                    )
+                )
+                line
+            }
+            is FileReadResult.Success -> {
+                visitedFiles.add(resolvedPath)
+                includedFiles.add(resolvedPath)
+                val attributes = parseVerbatimIncludeAttributes(match.groupValues[2])
+                val content = parseLineRangeSpec(attributes["lines"])
+                    ?.let { filterLineRange(fileResult.content, it) }
+                    ?: fileResult.content
+                val expanded = expandIncludeLines(
+                    content, config, currentDepth + 1, visitedFiles, errors, includedFiles,
+                    getDirectoryPath(resolvedPath), location
+                )
+                visitedFiles.remove(resolvedPath)
+                expanded
+            }
+        }
+    }
+
+    /** Named attributes of a verbatim include's attrlist (`lines=1..20`, ...); positional entries are ignored. */
+    private fun parseVerbatimIncludeAttributes(attrlist: String): Map<String, String> =
+        attrlist.split(',').mapNotNull { part ->
+            val idx = part.indexOf('=')
+            if (idx <= 0) null else part.substring(0, idx).trim() to part.substring(idx + 1).trim()
+        }.toMap()
+
+    /** Same `lines=N..M` / `lines=N` forms the parser accepts for [IncludeBlock.lineRange]. */
+    private fun parseLineRangeSpec(spec: String?): IntRange? = spec?.trim()?.let {
+        verbatimLineRangeRegex.matchEntire(it)
+            ?.let { m -> m.groupValues[1].toInt()..m.groupValues[2].toInt() }
+            ?: it.toIntOrNull()?.let { n -> n..n }
     }
 
     private fun resolveIncludeDirective(
