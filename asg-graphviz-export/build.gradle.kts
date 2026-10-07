@@ -27,7 +27,6 @@ kotlin {
             }
         }
     }
-    iosX64()
     iosArm64()
     iosSimulatorArm64()
     linuxX64()
@@ -44,7 +43,6 @@ kotlin {
         }
 
         macosArm64Main.get().dependsOn(appleMain)
-        iosX64Main.get().dependsOn(appleMain)
         iosArm64Main.get().dependsOn(appleMain)
         iosSimulatorArm64Main.get().dependsOn(appleMain)
 

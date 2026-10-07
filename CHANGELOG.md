@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depth/cycle guards as block-level includes. Verbatim content is never parsed
   as AsciiDoc; on a read error the directive line is kept verbatim and a
   processing error is recorded.
+### Removed
+
+- **Dropped the `iosX64` (Intel-Mac iOS simulator) target** from all published
+  modules. Apple-silicon simulators (`iosSimulatorArm64`) and device builds
+  (`iosArm64`) remain. Chasm 2.x no longer ships an `ios_x64` variant, which
+  blocked the WASM plugin engine's dependency update; the target is obsolete on
+  current toolchains anyway.
 
 ## [0.1.3] - 2026-09-07
 
