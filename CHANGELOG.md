@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Published Gradle module metadata no longer records stale artifact file
+  names** (#117). Every module hardcoded `version = "0.1.1"` while the
+  publication coordinates came from `VERSION_NAME`, so the `.module` files on
+  Maven Central named `…-0.1.1.jar` for later releases. The project version
+  now comes from `VERSION_NAME` in all 13 modules. Already-published metadata
+  cannot be amended; the fix applies from the next release.
+
 - **`include::` directives inside verbatim blocks (listings, literal blocks)
   are now resolved** (#119). Includes are preprocessor-level in AsciiDoc, so
   `include::Snippet.kt[lines=1..20]` between `----` fences — the canonical way
