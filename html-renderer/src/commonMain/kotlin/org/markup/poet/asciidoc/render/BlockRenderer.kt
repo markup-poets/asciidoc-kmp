@@ -125,11 +125,12 @@ class DefaultBlockRenderer(
     private fun renderSection(section: SectionBlock, context: RenderContext): String {
         // ASG level 1 == `==`, which renders as <h2>.
         val level = (section.level + 1).coerceIn(1, 6)
-        val titleText = plainText(section.title)
+        val titleText = headingText(section.title)
         val id = section.metadata?.id ?: context.generateId(titleText)
+        val number = context.nextSectionNumber(section.level)
 
         // Register heading for TOC and hierarchy validation
-        context.registerHeading(level, id, titleText)
+        context.registerHeading(level, id, if (number != null) "$number $titleText" else titleText)
 
         val headingClasses = withRoles(context.theme.headingClasses(level), section.metadata)
 
@@ -139,7 +140,7 @@ class DefaultBlockRenderer(
         headingAttrs.putAll(handlerAttrs)
 
         // Rendered before build {} — the shared builder is not re-entrant.
-        val title = renderInlineContent(section.title, context)
+        val title = (number?.let { "$it " } ?: "") + renderInlineContent(section.title, context)
         val heading = builder.build {
             openTag("h$level", headingAttrs)
             text(title)
@@ -165,7 +166,7 @@ class DefaultBlockRenderer(
      */
     private fun renderDiscreteHeading(heading: DiscreteHeading, context: RenderContext): String {
         val level = (heading.level + 1).coerceIn(1, 6)
-        val id = heading.metadata?.id ?: context.generateId(plainText(heading.title))
+        val id = heading.metadata?.id ?: context.generateId(headingText(heading.title))
         val classes = withRoles("${context.theme.headingClasses(level)} discrete", heading.metadata)
 
         val title = renderInlineContent(heading.title, context)
@@ -192,9 +193,23 @@ class DefaultBlockRenderer(
             LeafBlockName.LISTING,
             LeafBlockName.LITERAL,
             LeafBlockName.STEM -> renderVerbatim(block, style, context)
-            LeafBlockName.PASS -> plainText(block.inlines)
+            LeafBlockName.PASS -> if (style in stemStyles) renderStemBlock(block, style, context) else plainText(block.inlines)
             LeafBlockName.VERSE -> renderVerse(block, context)
         }
+    }
+
+    /**
+     * Renders a `[stem]` / `[asciimath]` / `[latexmath]` passthrough block as a
+     * `stemblock` holding the formula in the display delimiters MathJax
+     * expects. `[stem]` follows the document's `:stem:` notation.
+     */
+    private fun renderStemBlock(block: LeafBlock, style: String?, context: RenderContext): String {
+        val latex = style == "latexmath" ||
+            (style == "stem" && context.documentAttributes["stem"] in setOf("latexmath", "latex", "tex"))
+        val formula = builder.escape(plainText(block.inlines))
+        val delimited = if (latex) "\\[$formula\\]" else "\\\$$formula\\\$"
+        val title = renderBlockTitle(block.metadata, context)
+        return "<div class=\"${withRoles("stemblock", block.metadata)}\">$title<div class=\"content\">\n$delimited\n</div></div>"
     }
 
     /**
@@ -370,6 +385,18 @@ class DefaultBlockRenderer(
         val title = renderBlockTitle(block.metadata, context)
         val children = block.blocks.joinToString("\n") { render(it, context) }
 
+        // [%collapsible] example blocks are disclosure widgets; %open starts expanded.
+        val options = block.metadata?.options.orEmpty()
+        if (block.name == ParentBlockName.EXAMPLE && "collapsible" in options) {
+            val summary = block.metadata?.title?.let { renderInlineContent(it, context) } ?: "Details"
+            val idAttr = block.metadata?.id?.let { " id=\"${builder.escapeAttribute(it)}\"" } ?: ""
+            val roles = block.metadata?.roles.orEmpty()
+            val classAttr = if (roles.isEmpty()) "" else " class=\"${builder.escapeAttribute(roles.joinToString(" "))}\""
+            val open = if ("open" in options) " open" else ""
+            return "<details$idAttr$classAttr$open>\n<summary class=\"title\">$summary</summary>\n" +
+                "<div class=\"content\">\n$children\n</div>\n</details>"
+        }
+
         return builder.build {
             openTag("div", attrs)
             text(title)
@@ -507,9 +534,23 @@ class DefaultBlockRenderer(
             row.cells.mapIndexed { index, cell -> renderInlineContent(cell.inlines, context) to cellAttributes(table, row, index) }
         }
 
+        // Column widths from `cols` only matter when they differ.
+        val widths = table.columns.map { it.width }
+        val colgroup = if (widths.size > 1 && widths.distinct().size > 1 && widths.all { it > 0 }) {
+            val total = widths.sum().toDouble()
+            widths.joinToString("", prefix = "\n<colgroup>", postfix = "</colgroup>") { width ->
+                val percent = kotlin.math.round(width * 10000 / total) / 100
+                val text = if (percent == percent.toLong().toDouble()) percent.toLong().toString() else percent.toString()
+                "<col style=\"width: $text%\">"
+            }
+        } else {
+            ""
+        }
+
         return builder.build {
             text(title)
             openTag("table", attrs)
+            text(colgroup)
             if (header != null) {
                 text("\n")
                 openTag("thead")
@@ -573,17 +614,48 @@ class DefaultBlockRenderer(
         val target = block.target ?: ""
         return when (block.name) {
             BlockMacroName.IMAGE -> renderImageBlock(block, target, context)
-            BlockMacroName.TOC -> "<div id=\"toc\" class=\"toc\"></div>"
+            BlockMacroName.TOC -> TOC_PLACEHOLDER
             BlockMacroName.AUDIO -> {
                 val src = builder.escapeAttribute(target)
                 "<div class=\"audioblock\"><audio controls src=\"$src\"></audio></div>"
             }
-            BlockMacroName.VIDEO -> {
-                val src = builder.escapeAttribute(target)
-                "<div class=\"videoblock\"><video controls src=\"$src\"></video></div>"
-            }
+            BlockMacroName.VIDEO -> renderVideoBlock(block, target, context)
         }
     }
+
+    /**
+     * Renders `video::target[...]`. A first positional attribute of `youtube`
+     * or `vimeo` makes the target a video id on that service, embedded as an
+     * `<iframe>` (`list=` selects a YouTube playlist); anything else is a
+     * media file played by a `<video>` element.
+     */
+    private fun renderVideoBlock(block: BlockMacro, target: String, context: RenderContext): String {
+        val metadata = block.metadata
+        val service = metadata?.positional?.firstOrNull()
+        val title = renderBlockTitle(metadata, context)
+        val classes = builder.escapeAttribute(withRoles("videoblock", metadata))
+        val idAttr = metadata?.id?.let { " id=\"${builder.escapeAttribute(it)}\"" } ?: ""
+        val size = listOfNotNull(
+            metadata?.named?.get("width")?.toIntOrNull()?.let { " width=\"$it\"" },
+            metadata?.named?.get("height")?.toIntOrNull()?.let { " height=\"$it\"" },
+        ).joinToString("")
+        val player = when (service) {
+            "youtube" -> {
+                val list = metadata?.named?.get("list")?.takeIf { videoIdRegex.matches(it) }?.let { "&amp;list=$it" } ?: ""
+                val id = if (videoIdRegex.matches(target)) target else ""
+                "<iframe$size src=\"https://www.youtube.com/embed/$id?rel=0$list\" frameborder=\"0\" allowfullscreen></iframe>"
+            }
+            "vimeo" -> {
+                val id = if (videoIdRegex.matches(target)) target else ""
+                "<iframe$size src=\"https://player.vimeo.com/video/$id\" frameborder=\"0\" allowfullscreen></iframe>"
+            }
+            else -> "<video$size controls src=\"${builder.escapeAttribute(target)}\"></video>"
+        }
+        return "<div class=\"$classes\"$idAttr>$title<div class=\"content\">$player</div></div>"
+    }
+
+    private val videoIdRegex = Regex("[A-Za-z0-9_-]+")
+    private val stemStyles = setOf("stem", "asciimath", "latexmath")
 
     /**
      * Renders an `image::target[alt]` block macro as an `imageblock` `<div>`

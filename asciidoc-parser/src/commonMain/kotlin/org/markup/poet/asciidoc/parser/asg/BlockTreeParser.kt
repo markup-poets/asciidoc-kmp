@@ -123,8 +123,8 @@ class BlockTreeParser {
         /** A `N+` column-span spec at the end of the text preceding a `|` boundary. */
         val tableCellSpanSpecRegex = Regex("""(?:^|\s)(\d+)\+$""")
 
-        /** One item of a `cols` attribute: `[repeat*][alignment][width]`. */
-        val tableColsItemRegex = Regex("""^(?:(\d+)\*)?([<^>])?(\d+)?$""")
+        /** One item of a `cols` attribute: `[repeat*][alignment][width][%][style]`. */
+        val tableColsItemRegex = Regex("""^(?:(\d+)\*)?([<^>])?(\d+)?%?[a-z]?$""")
 
         /**
          * The author line directly below the document title: 2+ capitalized

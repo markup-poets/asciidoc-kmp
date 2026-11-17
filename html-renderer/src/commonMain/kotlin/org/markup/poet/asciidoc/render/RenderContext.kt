@@ -20,6 +20,8 @@ import org.markup.poet.asciidoc.asg.AsgNode
 class RenderContext(
     val config: RenderConfig,
     private val xrefIndex: XrefIndex = XrefIndex.EMPTY,
+    /** The document attributes (`:icons:`, `:stem:`, `:sectnums:`, ...) that steer rendering. */
+    val documentAttributes: Map<String, String> = emptyMap(),
 ) {
     /**
      * The theme to use for CSS class generation.
@@ -51,6 +53,47 @@ class RenderContext(
      * Each entry contains (level, id, text).
      */
     private val headings = mutableListOf<Triple<Int, String, String>>()
+
+    /** A footnote collected during rendering; [html] is its already-rendered text. */
+    data class Footnote(val number: Int, val id: String?, val html: String)
+
+    private val footnotes = mutableListOf<Footnote>()
+
+    /**
+     * Registers a footnote and returns its number. A named footnote
+     * (`footnote:id[text]`) referenced again with empty text (`footnote:id[]`)
+     * reuses the number of its first occurrence.
+     */
+    fun registerFootnote(id: String?, html: String): Int {
+        if (id != null) {
+            footnotes.firstOrNull { it.id == id }?.let { existing ->
+                if (html.isEmpty() || existing.html == html) return existing.number
+            }
+        }
+        val footnote = Footnote(footnotes.size + 1, id, html)
+        footnotes += footnote
+        return footnote.number
+    }
+
+    /** The footnotes registered so far, in order of first appearance. */
+    fun getFootnotes(): List<Footnote> = footnotes.toList()
+
+    private val sectionCounters = IntArray(6)
+
+    /**
+     * The number prefix (`1.`, `1.2.`) for the next section at ASG [level]
+     * (1 == `==`), or null when `:sectnums:` is not set or the level is deeper
+     * than `:sectnumlevels:` (default 3).
+     */
+    fun nextSectionNumber(level: Int): String? {
+        if ("sectnums" !in documentAttributes && "numbered" !in documentAttributes) return null
+        if (level !in 1..sectionCounters.size) return null
+        sectionCounters[level - 1]++
+        for (deeper in level until sectionCounters.size) sectionCounters[deeper] = 0
+        val maxLevel = documentAttributes["sectnumlevels"]?.toIntOrNull() ?: 3
+        if (level > maxLevel) return null
+        return sectionCounters.take(level).joinToString(".") + "."
+    }
 
     /**
      * Generates a unique HTML ID from the given text.

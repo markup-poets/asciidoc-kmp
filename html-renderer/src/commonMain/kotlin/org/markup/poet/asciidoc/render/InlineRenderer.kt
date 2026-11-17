@@ -160,6 +160,14 @@ class DefaultInlineRenderer(
                 val text = builder.escape(macro.positional.firstOrNull() ?: macro.target)
                 "<a href=\"#$escapedId\">$text</a>"
             }
+            "icon" -> renderIcon(macro, context)
+            "stem", "asciimath", "latexmath" -> renderMath(macro, context)
+            "footnote" -> {
+                val text = builder.escape(macro.positional.firstOrNull().orEmpty())
+                val number = context.registerFootnote(macro.target.ifEmpty { null }, text)
+                "<sup class=\"footnote\">[<a class=\"footnote\" href=\"#_footnotedef_$number\" " +
+                    "title=\"View footnote.\">$number</a>]</sup>"
+            }
             else -> {
                 context.logWarning("Unexpanded macro: ${macro.name}")
                 val escapedName = builder.escape("${macro.name}[]")
@@ -167,6 +175,40 @@ class DefaultInlineRenderer(
             }
         }
     }
+
+    /**
+     * Renders `icon:name[]`. With `:icons: font` the icon is a Font Awesome
+     * `<i>` (`set=brands` selects the brands family); otherwise it falls back
+     * to the bracketed icon name as text.
+     */
+    private fun renderIcon(macro: InlineMacro, context: RenderContext): String {
+        val name = macro.target
+        if (context.documentAttributes["icons"] != "font" || !iconNameRegex.matches(name)) {
+            return "<span class=\"icon\">[${builder.escape(name)}&#93;</span>"
+        }
+        val family = when (macro.named["set"]) {
+            "brands", "fab" -> "fa-brands"
+            "regular", "far" -> "fa-regular"
+            else -> "fa"
+        }
+        val titleAttr = macro.named["title"]?.let { " title=\"${builder.escapeAttribute(it)}\"" } ?: ""
+        return "<span class=\"icon\"><i class=\"$family fa-$name\"$titleAttr></i></span>"
+    }
+
+    /**
+     * Renders an inline formula with the delimiters MathJax expects:
+     * `\$...\$` for AsciiMath and `\(...\)` for LaTeX. `stem:` follows the
+     * document's `:stem:` notation (AsciiMath unless set to `latexmath`).
+     */
+    private fun renderMath(macro: InlineMacro, context: RenderContext): String {
+        val latex = macro.name == "latexmath" ||
+            (macro.name == "stem" && context.documentAttributes["stem"] in latexNotations)
+        val formula = builder.escape(macro.positional.firstOrNull().orEmpty())
+        return if (latex) "\\($formula\\)" else "\\\$$formula\\\$"
+    }
+
+    private val iconNameRegex = Regex("[A-Za-z0-9-]+")
+    private val latexNotations = setOf("latexmath", "latex", "tex")
 
     /**
      * Renders an unresolved attribute reference as its literal `{name}` text.

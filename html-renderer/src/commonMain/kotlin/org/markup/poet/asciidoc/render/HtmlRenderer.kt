@@ -129,11 +129,11 @@ class DefaultHtmlRenderer(
 
         return try {
             // Create rendering context
-            val context = RenderContext(config, xrefIndex = buildXrefIndex(document))
+            val context = RenderContext(config, xrefIndex = buildXrefIndex(document), documentAttributes = document.attributes)
 
             // Create visitor and render document body
             val visitor = AstVisitor(blockRenderer, inlineRenderer, context)
-            val bodyHtml = visitor.visit(document)
+            val bodyHtml = fillTocMacro(visitor.visit(document), context) + renderFootnotes(context)
 
             // Wrap in document structure or return fragment
             val html = if (config.outputOptions.standalone) {
@@ -153,6 +153,50 @@ class DefaultHtmlRenderer(
         } catch (e: Exception) {
             Result.failure(RenderException.RenderingFailure("Unexpected error during rendering: ${e.message}"))
         }
+    }
+
+    /**
+     * Fills the `toc::[]` placeholder left by the block renderer. The TOC can
+     * only be generated once every heading has been rendered, hence the
+     * post-pass. The macro is only live under `:toc: macro`; otherwise the
+     * empty placeholder stays. A document processor that already replaced the
+     * macro with a TOC list leaves no placeholder, so nothing happens then.
+     */
+    private fun fillTocMacro(bodyHtml: String, context: RenderContext): String {
+        if (context.documentAttributes["toc"] != "macro" || TOC_PLACEHOLDER !in bodyHtml) return bodyHtml
+        val toc = context.generateToc(escaper)
+        if (toc.isEmpty()) return bodyHtml
+        return bodyHtml.replace(TOC_PLACEHOLDER, "<div id=\"toc\" class=\"toc\">\n$toc\n</div>")
+    }
+
+    /** The footnotes collected during rendering as a trailing `#footnotes` block. */
+    private fun renderFootnotes(context: RenderContext): String {
+        val footnotes = context.getFootnotes()
+        if (footnotes.isEmpty()) return ""
+        return footnotes.joinToString("\n", prefix = "\n<div id=\"footnotes\">\n<hr>\n", postfix = "\n</div>") {
+            "<div class=\"footnote\" id=\"_footnotedef_${it.number}\">${it.number}. ${it.html}</div>"
+        }
+    }
+
+    /**
+     * The document title and author line as a `<header>`, the way a standalone
+     * page shows them. Empty when the document has no title or sets `:notitle:`.
+     */
+    private fun renderDocumentHeader(document: AsgDocument, context: RenderContext): String {
+        val titleInlines = document.header?.title ?: return ""
+        if (titleInlines.isEmpty() || "notitle" in document.attributes) return ""
+        val title = titleInlines.joinToString("") { inlineRenderer.render(it, context) }
+        val details = buildString {
+            document.attributes["author"]?.takeIf { it.isNotBlank() }?.let {
+                append("<span id=\"author\" class=\"author\">${escaper.escapeHtml(it)}</span>")
+            }
+            document.attributes["email"]?.takeIf { it.isNotBlank() }?.let {
+                if (isNotEmpty()) append("<br>")
+                append("<span id=\"email\" class=\"email\"><a href=\"mailto:${escaper.escapeAttribute(it)}\">${escaper.escapeHtml(it)}</a></span>")
+            }
+        }
+        val detailsHtml = if (details.isEmpty()) "" else "\n<div class=\"details\">$details</div>"
+        return "<header id=\"header\">\n<h1>$title</h1>$detailsHtml\n</header>\n"
     }
 
     /**
@@ -298,10 +342,21 @@ class DefaultHtmlRenderer(
             }
         }
 
+        // Web resources the document opted into, as other AsciiDoc converters do:
+        // `:icons: font` loads Font Awesome, `:stem:` loads MathJax.
+        if (document.attributes["icons"] == "font") {
+            builder.append("  <link rel=\"stylesheet\" href=\"$FONT_AWESOME_CSS\">\n")
+        }
+        if ("stem" in document.attributes) {
+            builder.append("  <script>$MATHJAX_CONFIG</script>\n")
+            builder.append("  <script async src=\"$MATHJAX_SCRIPT\"></script>\n")
+        }
+
         builder.append("</head>\n")
 
         // BODY section
         builder.append("<body>\n")
+        builder.append(renderDocumentHeader(document, context))
 
         // Include table of contents if requested
         if (options.includeToc) {
@@ -321,6 +376,18 @@ class DefaultHtmlRenderer(
         return builder.toString()
     }
 }
+
+/** What the block renderer emits for `toc::[]`; filled in by [DefaultHtmlRenderer]. */
+internal const val TOC_PLACEHOLDER = "<div id=\"toc\" class=\"toc\"></div>"
+
+private const val FONT_AWESOME_CSS = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+private const val MATHJAX_SCRIPT = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
+
+/** MathJax 3: LaTeX in `\\(..\\)` / `\\[..\\]`, AsciiMath in `\\$..\\$` (the delimiters the renderers emit). */
+private const val MATHJAX_CONFIG =
+    "MathJax = {loader: {load: ['input/asciimath']}, " +
+        "tex: {inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']]}, " +
+        "asciimath: {delimiters: [['\\\\\$', '\\\\\$']]}};"
 
 /**
  * Exception types for rendering errors.
