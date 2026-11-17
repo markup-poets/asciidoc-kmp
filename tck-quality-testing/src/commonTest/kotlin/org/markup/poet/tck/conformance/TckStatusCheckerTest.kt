@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 
-class CertificationCheckerTest {
+class TckStatusCheckerTest {
     
     private fun createPassingResults(): AggregatedResults {
         val results = (1..100).map { i ->
@@ -67,7 +67,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should mark as ready when all tests pass`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createPassingResults()
         
         val status = checker.checkStatus(results)
@@ -79,7 +79,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should mark as not ready when tests fail`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createFailingResults()
         
         val status = checker.checkStatus(results)
@@ -91,7 +91,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should identify critical issue for failing official tests`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createFailingResults()
         
         val status = checker.checkStatus(results)
@@ -105,7 +105,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should identify high severity issue for low pass rate`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createFailingResults()
         
         val status = checker.checkStatus(results)
@@ -116,7 +116,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should identify medium severity issue for many pending tests`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         
         // Create results with >10% pending
         val results = (1..80).map { i ->
@@ -139,7 +139,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should calculate progress correctly`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createMixedResults()
         
         val status = checker.checkStatus(results)
@@ -151,7 +151,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should generate recommendations for failing tests`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createFailingResults()
         
         val status = checker.checkStatus(results)
@@ -162,7 +162,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should generate recommendations for pending tests`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val results = createMixedResults()
         
         val status = checker.checkStatus(results)
@@ -171,18 +171,18 @@ class CertificationCheckerTest {
     }
     
     @Test
-    fun `should recommend certification when ready`() {
-        val checker = DefaultCertificationChecker()
+    fun `should report all tests passing when ready`() {
+        val checker = DefaultTckStatusChecker()
         val results = createPassingResults()
         
         val status = checker.checkStatus(results)
         
-        assertTrue(status.recommendations.any { it.contains("ready") || it.contains("certification") })
+        assertTrue(status.recommendations.any { it.contains("pass") })
     }
     
     @Test
-    fun `should return certification requirements`() {
-        val checker = DefaultCertificationChecker()
+    fun `should return TCK status requirements`() {
+        val checker = DefaultTckStatusChecker()
         
         val requirements = checker.getRequirements()
         
@@ -194,7 +194,7 @@ class CertificationCheckerTest {
     
     @Test
     fun `should identify platform-specific issues`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         
         // Create results with one platform failing
         val results = (1..50).map { i ->

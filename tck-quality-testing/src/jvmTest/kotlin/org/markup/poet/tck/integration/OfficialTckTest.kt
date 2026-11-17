@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
  * This will:
  * 1. Sync the official TCK repository
  * 2. Run your parser against official test data
- * 3. Show real certification results
+ * 3. Show real TCK results
  */
 class OfficialTckTest {
     
@@ -148,9 +148,9 @@ class OfficialTckTest {
                 }
             }
             
-            // Show certification status
-            val certStatus = TckIntegration.checkCertification(context, results)
-            println("\n🏆 Certification Status:")
+            // Show TCK status
+            val certStatus = TckIntegration.checkTckStatus(context, results)
+            println("\n🏆 TCK Status:")
             println("   Ready: ${certStatus.isReady}")
             println("   Progress: ${String.format("%.1f%%", certStatus.overallProgress)}")
             
@@ -168,7 +168,7 @@ class OfficialTckTest {
     @Test
     fun `should generate official conformance report`() = runBlocking {
         println("\n" + "=".repeat(60))
-        println("Generating Official Conformance Report")
+        println("Generating Official TCK Results Report")
         println("=".repeat(60))
         
         val context = TckIntegration.initialize()
@@ -186,9 +186,9 @@ class OfficialTckTest {
         val results = TckIntegration.runTests(context)
 
         // Generate report
-        val report = TckIntegration.generateReport(context, results)
+        val report = TckIntegration.generateReport(context, results, System.getProperty("markup.poet.version") ?: "unknown")
         
-        println("\n📄 Conformance Report:")
+        println("\n📄 TCK Results Report:")
         println("   Generated at: ${report.metadata.generatedAt}")
         println("   Spec version: ${report.metadata.specVersion}")
         println("   TCK commit: ${report.metadata.tckCommitHash}")
@@ -203,13 +203,13 @@ class OfficialTckTest {
         println("   Official tests pass rate: ${String.format("%.1f%%", report.summary.officialTestsPassRate * 100)}")
         println("   Custom tests pass rate: ${String.format("%.1f%%", report.summary.customTestsPassRate * 100)}")
         
-        println("\n🏆 Certification:")
-        println("   Ready: ${report.certificationStatus.isReady}")
-        println("   Progress: ${String.format("%.1f%%", report.certificationStatus.overallProgress)}")
+        println("\n📋 TCK status:")
+        println("   Ready: ${report.tckStatus.isReady}")
+        println("   Progress: ${String.format("%.1f%%", report.tckStatus.overallProgress)}")
         
-        if (report.certificationStatus.recommendations.isNotEmpty()) {
+        if (report.tckStatus.recommendations.isNotEmpty()) {
             println("\n💡 Recommendations:")
-            report.certificationStatus.recommendations.take(5).forEach { rec ->
+            report.tckStatus.recommendations.take(5).forEach { rec ->
                 println("   - $rec")
             }
         }
@@ -222,7 +222,7 @@ class OfficialTckTest {
     @Test
     fun `should generate official conformance report in asciidoc`() = runBlocking {
         println("\n" + "=".repeat(60))
-        println("Generating Official Conformance Report (AsciiDoc)")
+        println("Generating Official TCK Results Report (AsciiDoc)")
         println("=".repeat(60))
         
         val context = TckIntegration.initialize()
@@ -240,7 +240,7 @@ class OfficialTckTest {
         val results = TckIntegration.runTests(context)
 
         // Generate report model
-        val report = TckIntegration.generateReport(context, results)
+        val report = TckIntegration.generateReport(context, results, System.getProperty("markup.poet.version") ?: "unknown")
         
         // Generate AsciiDoc
         val adocReporter = DefaultAsciidocReporter()

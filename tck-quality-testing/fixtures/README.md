@@ -1,6 +1,8 @@
 # Test Fixtures
 
-This directory contains test fixtures for the TCK (Technology Compatibility Kit).
+This directory contains the project's own fixtures for the fixture-replay quality suite.
+They are not part of the official AsciiDoc TCK, which is synced separately into
+`official-tck/repository/`.
 
 ## Directory Structure
 
@@ -9,7 +11,7 @@ This directory contains test fixtures for the TCK (Technology Compatibility Kit)
 - `attributes/` - Document attributes and substitutions
 - `macros/` - Macro processing
 - `malformed/` - Malformed AsciiDoc for error recovery testing
-- `conformance/` - AsciiDoc specification conformance tests
+- `conformance/` - Project-written tests of behavior described by the AsciiDoc specification
 - `platform/` - Platform-specific tests (file I/O, encoding, path resolution)
 
 ## Fixture File Format

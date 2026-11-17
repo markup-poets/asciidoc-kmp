@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script to generate TCK Conformance Report and publish to HTML
-# Used by GitHub Actions
+# Generate the TCK results report and render it to HTML.
+# Local convenience only: CI builds the published /tck/ page itself (docs.yml).
 
 set -e
 

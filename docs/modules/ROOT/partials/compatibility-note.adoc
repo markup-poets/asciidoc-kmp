@@ -1,4 +1,4 @@
 [NOTE]
 ====
-This project *aims for compatibility* with the official {url-spec}[AsciiDoc Language Specification], tracked via its {url-tck}[Technology Compatibility Kit (TCK)]: {tck-passing} of {tck-total} published TCK tests pass against commit `{tck-commit-short}` using the official Node.js harness. This is a snapshot, not a certification or a completeness claim — the TCK itself is still growing alongside the specification.
+This project *aims to be compatible* with the official {url-spec}[AsciiDoc Language Specification], tracked via its {url-tck}[Technology Compatibility Kit (TCK)]: {tck-passing} of {tck-total} published TCK tests pass ({tck-failing} failing, {tck-skipped} skipped) against TCK `{tck-version}` using the official Node.js harness. This is a snapshot, not a certification or a completeness claim (no official certification program exists yet) — the TCK itself is still growing alongside the specification.
 ====

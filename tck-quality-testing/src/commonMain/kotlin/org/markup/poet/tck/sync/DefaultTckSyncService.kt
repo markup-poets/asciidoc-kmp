@@ -315,12 +315,11 @@ class DefaultTckSyncService(
     
     /**
      * Extract spec version from repository.
-     * This is a placeholder - actual implementation would read from a version file.
+     * The AsciiDoc Language Specification has no released version yet, so there is
+     * nothing to read; the TCK commit hash is what identifies the tested version.
      */
     private fun extractSpecVersion(repositoryPath: String): String {
-        // Try to read version from package.json or similar
-        // For now, return a default
-        return "1.0.0"
+        return "unreleased"
     }
     
     /**

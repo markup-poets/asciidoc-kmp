@@ -2,7 +2,7 @@ package org.markup.poet.tck
 
 import org.markup.poet.tck.config.ConfigLoader
 import org.markup.poet.tck.config.TckConfig
-import org.markup.poet.tck.conformance.CertificationChecker
+import org.markup.poet.tck.conformance.TckStatusChecker
 import org.markup.poet.tck.conformance.ReportGenerator
 import org.markup.poet.tck.execution.ResultAggregator
 import org.markup.poet.tck.execution.TestRunner
@@ -78,9 +78,9 @@ interface TckContext {
     val reportGenerator: ReportGenerator
     
     /**
-     * Certification checker for checking certification readiness.
+     * Checker for the TCK status.
      */
-    val certificationChecker: CertificationChecker
+    val tckStatusChecker: TckStatusChecker
     
     /**
      * Reload configuration from file.

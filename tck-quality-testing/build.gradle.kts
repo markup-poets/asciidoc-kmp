@@ -77,6 +77,8 @@ tasks.named<Test>("jvmTest") {
     // All TckConfig default paths ("tck-quality-testing/...") are repo-root-relative;
     // running from the module dir used to create a nested tck-quality-testing/tck-quality-testing/.
     workingDir = rootDir
+    // Lets generated TCK reports state the real library version.
+    systemProperty("markup.poet.version", providers.gradleProperty("VERSION_NAME").get())
 }
 
 // Every native target, not just Linux: native binaries have no classpath, so

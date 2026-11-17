@@ -24,7 +24,7 @@ class TckIntegrationTest {
         assertNotNull(context.testRunner)
         assertNotNull(context.resultAggregator)
         assertNotNull(context.reportGenerator)
-        assertNotNull(context.certificationChecker)
+        assertNotNull(context.tckStatusChecker)
     }
     
     @Test
@@ -53,8 +53,8 @@ class TckIntegrationTest {
         val reportGenerator = context.reportGenerator
         assertNotNull(reportGenerator)
         
-        val certificationChecker = context.certificationChecker
-        assertNotNull(certificationChecker)
+        val tckStatusChecker = context.tckStatusChecker
+        assertNotNull(tckStatusChecker)
     }
     
     @Test
@@ -108,14 +108,14 @@ class TckIntegrationTest {
     }
     
     @Test
-    fun `should check certification status`() {
+    fun `should check TCK status`() {
         val context = TckIntegration.initialize()
         val results = TckIntegration.runTests(context)
         
-        val status = TckIntegration.checkCertification(context, results)
+        val status = TckIntegration.checkTckStatus(context, results)
         
         assertNotNull(status)
-        // Certification status depends on test results
+        // TCK status depends on test results
         // With placeholder parser/renderer, tests will be pending
         assertNotNull(status.blockingIssues)
     }
