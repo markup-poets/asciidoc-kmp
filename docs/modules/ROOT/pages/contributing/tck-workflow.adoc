@@ -101,6 +101,27 @@ out that pin. To move to a newer TCK:
 Never hardcode TCK numbers in a page — reference the attributes, so the whole
 site stays consistent from one edit.
 
+== Measuring performance
+
+[source,bash]
+----
+./gradlew :tck-quality-testing:perfReport
+----
+
+The task parses, and parses plus renders to HTML, a fixed corpus on the JVM:
+the official TCK inputs, a kitchen-sink document
+(`tck-quality-testing/perf/kitchen-sink.adoc`), and generated documents of 40,
+250, and 1000 sections. After warm-up it records the median and 95th
+percentile of 60 runs and the throughput in MB/s, and writes
+`perf-report.md` and `perf-report.json` to
+`tck-quality-testing/build/perf-report/`.
+
+The Docs workflow runs the same task and publishes the table on the `/tck/`
+page next to the TCK results. It is informational and never gates a build:
+shared CI runners are too noisy for thresholds. Use it to compare a change
+against its base on the same machine. The numbers are not comparable with
+other AsciiDoc processors measured on other machines.
+
 == Adding a project fixture
 
 The upstream TCK fixtures are read-only — they are synced from Eclipse and

@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Performance report** (#138): `./gradlew :tck-quality-testing:perfReport`
+  measures parse and parse + HTML render time (median, p95, MB/s) over the
+  official TCK inputs, a kitchen-sink document, and generated documents, and
+  writes Markdown and JSON reports. The Docs workflow publishes the table on
+  the `/tck/` page; it is informational and not a CI gate.
+
 ### Changed
 
 - **TCK results are now reported in the format suggested by the AsciiDoc
