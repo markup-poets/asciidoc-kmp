@@ -1,0 +1,20 @@
+// Single source for what the project skips or does not support when reporting
+// official TCK results. Update in the same pull request as the change that
+// adds or removes an entry; every entry needs a reason.
+
+== Skipped or unsupported TCK tests
+
+None. Every test published at the tested TCK commit is run through the
+official harness, with source locations included in the comparison; no test
+is skipped, filtered, or excluded.
+
+== Intentionally unsupported features
+
+No feature covered by the tested TCK commit is intentionally unsupported.
+
+One limitation applies to the TCK adapter only: constructs that the official
+ASG schema does not yet describe (include and conditional directives, tables,
+custom block macros, comments, callouts, footnotes) are parsed by the library
+but refused by the TCK serialization path, because there is no agreed ASG
+shape to emit for them. No published TCK test contains these constructs; when
+the schema and TCK cover one, it moves out of this list.

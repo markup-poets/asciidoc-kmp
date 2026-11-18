@@ -3,9 +3,9 @@ package org.markup.poet.tck
 import org.markup.poet.tck.config.ConfigLoader
 import org.markup.poet.tck.config.JsonConfigLoader
 import org.markup.poet.tck.config.TckConfig
-import org.markup.poet.tck.conformance.CertificationChecker
+import org.markup.poet.tck.conformance.TckStatusChecker
 import org.markup.poet.tck.conformance.ConformanceReport
-import org.markup.poet.tck.conformance.DefaultCertificationChecker
+import org.markup.poet.tck.conformance.DefaultTckStatusChecker
 import org.markup.poet.tck.conformance.DefaultReportGenerator
 import org.markup.poet.tck.conformance.ReportGenerator
 import org.markup.poet.tck.conformance.ReportMetadata
@@ -42,7 +42,7 @@ import org.markup.poet.tck.version.VersionTracker
  * - Syncing the official TCK repository
  * - Running tests (custom and/or official)
  * - Generating conformance reports
- * - Checking certification readiness
+ * - Checking TCK status
  * 
  * Example usage:
  * ```kotlin
@@ -61,9 +61,9 @@ import org.markup.poet.tck.version.VersionTracker
  * val report = TckIntegration.generateReport(context, results)
  * println("Report generated: ${report.metadata.generatedAt}")
  * 
- * // Check certification readiness
- * val status = TckIntegration.checkCertification(context, results)
- * println("Certification ready: ${status.isReady}")
+ * // Check TCK status
+ * val status = TckIntegration.checkTckStatus(context, results)
+ * println("All TCK tests passing: ${status.isReady}")
  * ```
  */
 object TckIntegration {
@@ -142,7 +142,7 @@ object TckIntegration {
      * - Include platform, category, and spec breakdowns
      * - List failed and pending tests
      * - Calculate pass rates
-     * - Include certification status
+     * - Include TCK status
      * 
      * @param context TCK context
      * @param results Aggregated test results
@@ -150,36 +150,37 @@ object TckIntegration {
      */
     fun generateReport(
         context: TckContext,
-        results: AggregatedResults
+        results: AggregatedResults,
+        libraryVersion: String = "unknown"
     ): ConformanceReport {
         val currentVersion = context.versionTracker.getCurrentVersion()
         val metadata = ReportMetadata(
             generatedAt = currentTimeMillis(),
             specVersion = currentVersion?.specVersion ?: "unknown",
             tckCommitHash = currentVersion?.commitHash ?: "unknown",
-            libraryVersion = "1.0.0", // TODO: Get from config or build info
+            libraryVersion = libraryVersion,
             platforms = listOf(getPlatformName())
         )
         return context.reportGenerator.generateReport(results, metadata)
     }
     
     /**
-     * Check certification readiness.
+     * Check TCK status.
      * 
      * This will:
      * - Check if all requirements are met
      * - Identify blocking issues
-     * - Calculate progress towards certification
+     * - Calculate progress toward passing all published TCK tests
      * - Generate recommendations
      * 
      * @param context TCK context
      * @param results Aggregated test results
-     * @return CertificationStatus with readiness assessment
+     * @return TckStatus with readiness assessment
      */
-    fun checkCertification(
+    fun checkTckStatus(
         context: TckContext,
         results: AggregatedResults
-    ) = context.certificationChecker.checkStatus(results)
+    ) = context.tckStatusChecker.checkStatus(results)
     
     /**
      * Complete workflow: sync, run tests, generate report.
@@ -188,7 +189,7 @@ object TckIntegration {
      * 1. Sync official TCK (if enabled)
      * 2. Run all tests
      * 3. Generate conformance report
-     * 4. Check certification readiness
+     * 4. Check TCK status
      * 
      * @param context TCK context
      * @return ConformanceReport with complete results
@@ -263,8 +264,8 @@ object TckIntegration {
         val resultAggregator = DefaultResultAggregator()
         
         // Create reporting components
-        val certificationChecker = DefaultCertificationChecker()
-        val reportGenerator = DefaultReportGenerator(certificationChecker)
+        val tckStatusChecker = DefaultTckStatusChecker()
+        val reportGenerator = DefaultReportGenerator(tckStatusChecker)
         
         return DefaultTckContext(
             config = config,
@@ -275,7 +276,7 @@ object TckIntegration {
             testRunner = testRunner,
             resultAggregator = resultAggregator,
             reportGenerator = reportGenerator,
-            certificationChecker = certificationChecker
+            tckStatusChecker = tckStatusChecker
         )
     }
     
@@ -488,7 +489,7 @@ internal class DefaultTckContext(
     override val testRunner: TestRunner,
     override val resultAggregator: ResultAggregator,
     override val reportGenerator: ReportGenerator,
-    override val certificationChecker: CertificationChecker
+    override val tckStatusChecker: TckStatusChecker
 ) : TckContext {
     
     override fun reloadConfig(configPath: String): TckContext {

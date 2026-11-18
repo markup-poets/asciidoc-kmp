@@ -4,28 +4,39 @@ include::partial$compatibility-note.adoc[]
 
 == Current TCK status
 
-Kept honest in CI on every pull request.
+Kept honest in CI on every pull request. The format follows what the AsciiDoc
+Working Group suggests reporting until an official format exists: the TCK
+version tested, passing and failing counts, and what is skipped or
+unsupported, with reasons.
 
 [cols="1,3"]
 |===
 |Fact |Value
 
 |TCK tested against
-|Commit `{tck-commit}` of the {url-tck}[official AsciiDoc TCK] (upstream HEAD at last sync)
+|{url-tck}[Official AsciiDoc TCK] `{tck-version}` (commit `{tck-commit}`), pinned in `tck-quality-testing/official-tck/tck-pin.txt`
 
-|Result
-|{tck-passing} of {tck-total} published tests passing via the official Node.js harness
+|Passing
+|{tck-passing} of {tck-total} published tests, via the official Node.js harness with source locations compared
+
+|Failing
+|{tck-failing}
+
+|Skipped
+|{tck-skipped}
 
 |Harness requirement
 |Node.js {node-min}+
 |===
+
+include::partial$tck-unsupported.adoc[]
 
 == Reproducing the result
 
 [source,bash]
 ----
 ./run-official-tck.sh              # run the official harness (source of truth)
-./scripts/sync-official-tck.sh     # re-sync the TCK repo to upstream HEAD
+./scripts/sync-official-tck.sh     # check out the pinned TCK commit
 ----
 
 Equivalent Gradle task: `./gradlew :tck-adapter:officialTck`. The harness
@@ -61,12 +72,18 @@ constructs appear in the ASG.
 
 == What this does not claim
 
-This project aims to implement the AsciiDoc language in a way that is
-compatible with the official AsciiDoc Language Specification and its
-{url-tck}[Technology Compatibility Kit (TCK)]. Compatibility is a work in
-progress and should not be interpreted as official certification.
+This project aims to be compatible with the official AsciiDoc Language
+Specification and its {url-tck}[Technology Compatibility Kit (TCK)].
+Compatibility is a work in progress and should not be interpreted as official
+certification. There is currently no official certification or compatibility
+program for AsciiDoc implementations; the specification and the TCK are
+themselves still in progress.
 
 The TCK itself is still growing alongside the specification; passing all
 currently published tests is a snapshot, not a completeness claim. As the
 TCK publishes more tests, the numbers above change — they live in a single
 place (the site's Antora attributes) and are updated at every TCK re-sync.
+
+AsciiDoc(R) is a trademark of the Eclipse Foundation, Inc. This project is
+independent: it is not affiliated with, endorsed by, or certified by the
+Eclipse Foundation or the AsciiDoc Working Group.

@@ -1,6 +1,6 @@
 = TCK architecture and data flow
 
-The {url-tck}[official Eclipse AsciiDoc TCK] is the conformance gate for this project: it decides whether the parser is spec-compliant. This page explains how the pieces fit together and why they are arranged this way.
+The {url-tck}[official Eclipse AsciiDoc TCK] is the compatibility gate for this project: it is how the parser's output is measured against the specification as far as the TCK covers it today. This page explains how the pieces fit together and why they are arranged this way.
 
 For the day-to-day contributor loop, see xref:contributing/tck-workflow.adoc[TCK workflow]; for the on-disk fixture format, see xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format].
 
@@ -149,7 +149,7 @@ flowchart TD
     VERSION --> RESULT([Sync complete])
 ....
 
-Sync is deliberately *not* automatic. Upstream moving under a build would make failures non-reproducible, so `scripts/sync-official-tck.sh` is run on purpose and the resulting commit is recorded.
+Sync is deliberately *not* automatic. Upstream moving under a build would make failures non-reproducible, so the tested commit is pinned in the tracked file `tck-quality-testing/official-tck/tck-pin.txt`. `scripts/sync-official-tck.sh` checks out that pin, locally and in CI; moving it to upstream HEAD is an explicit `--latest` run whose result is committed.
 
 [source,kotlin]
 ----
@@ -162,7 +162,7 @@ data class SyncMetadata(
 )
 ----
 
-The synced commit is published as the `tck-commit` attribute in `docs/antora.yml`, which is the one place the TCK numbers live — currently commit `{tck-commit-short}`, {tck-passing} of {tck-total} passing.
+The synced commit is published as the `tck-commit` attribute in `docs/antora.yml`, which is the one place the TCK numbers live — currently TCK `{tck-version}`, {tck-passing} of {tck-total} passing.
 
 == Aggregation and reporting
 

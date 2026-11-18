@@ -52,8 +52,9 @@ When the specification prose is ambiguous, the synced fixtures under
 [source,bash,subs="attributes+"]
 ----
 ./run-official-tck.sh              # Run the official harness (Node {node-min}+)
-./scripts/sync-official-tck.sh     # Sync the TCK repo to upstream HEAD
-./generate-tck-report.sh           # Render a conformance report locally
+./scripts/sync-official-tck.sh            # Check out the pinned TCK commit
+./scripts/sync-official-tck.sh --latest   # Move the pin to upstream HEAD
+./generate-tck-report.sh           # Render a TCK results report locally
 ----
 
 `./run-official-tck.sh` is equivalent to `./gradlew :tck-adapter:officialTck`.
@@ -77,14 +78,28 @@ for the docs:
 ----
 tck-commit: '{tck-commit}'
 tck-commit-short: '{tck-commit-short}'
+tck-version: '{tck-version}'
 tck-passing: '{tck-passing}'
+tck-failing: '{tck-failing}'
+tck-skipped: '{tck-skipped}'
 tck-total: '{tck-total}'
 ----
 
-Whenever you sync a new TCK commit or a change moves the pass count, update
-all four attributes in the same pull request. Never hardcode TCK numbers in a
-page — reference the attributes, so the whole site stays consistent from one
-edit.
+The tested commit itself is pinned in
+`tck-quality-testing/official-tck/tck-pin.txt`; CI and local runs both check
+out that pin. To move to a newer TCK:
+
+. Run `./scripts/sync-official-tck.sh --latest`, then `./run-official-tck.sh`.
+. Update the attributes above (`tck-version` is the output of
+  `git describe --tags` in the TCK clone).
+. Update the TCK lines in `README.md` and add a `CHANGELOG.md` entry — those
+  two files cannot reference Antora attributes.
+. If a test is skipped or cannot be supported yet, record it with its reason
+  in `docs/modules/ROOT/partials/tck-unsupported.adoc`.
+. Commit the pin, the attributes, and the lists in the same pull request.
+
+Never hardcode TCK numbers in a page — reference the attributes, so the whole
+site stays consistent from one edit.
 
 == Adding a project fixture
 
@@ -115,11 +130,34 @@ xref:reference/official-tck-fixture-format.adoc[Official TCK fixture format].
 == Reporting results honestly
 
 Passing all currently published tests is a snapshot against a specific TCK
-commit, not a completeness claim, and never a certification. When writing
-documentation or release notes, say the project "aims for compatibility" with
-the specification and report the numbers via the attributes above; the
-shared compatibility note partial (`partial$compatibility-note.adoc`) exists
-so pages phrase this consistently.
+commit, not a completeness claim, and never a certification. There is no
+official certification or compatibility program for AsciiDoc implementations
+yet — the AsciiDoc Working Group plans a self-certification process, and the
+specification and TCK are still in progress. When writing documentation or
+release notes, say the project "aims to be compatible with" the specification
+(the wording the Working Group suggested) and never "certified", "compliant",
+or "conformant". The shared compatibility note partial
+(`partial$compatibility-note.adoc`) exists so pages phrase this consistently.
+
+Until an official report format exists, every statement of results carries:
+
+* the TCK version tested (tag or commit hash)
+* the number of passing and failing tests
+* the tests skipped or not supported yet, each with its reason, and any
+  feature intentionally not supported (`partial$tck-unsupported.adoc`)
+
+"AsciiDoc" is a trademark of the Eclipse Foundation. Using it to describe
+what the project processes is fine; guidelines for naming and for claiming
+compatibility are being prepared, so check https://asciidoc.org and the
+Working Group announcements before changing how the project describes itself.
+
+== Feeding findings back upstream
+
+The Working Group welcomes feedback from implementers: TCK gaps, fixtures that
+contradict the specification, and ambiguous specification prose. When you hit
+one, note it in the pull request and report it in the
+https://chat.asciidoc.org[AsciiDoc chat] or as an issue on the
+https://gitlab.eclipse.org/eclipse/asciidoc-lang[specification / TCK repositories].
 
 == See also
 

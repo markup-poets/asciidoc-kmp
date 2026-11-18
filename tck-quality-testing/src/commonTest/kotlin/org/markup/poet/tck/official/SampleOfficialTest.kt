@@ -15,7 +15,7 @@ import kotlin.test.assertNotNull
  * 1. Initializing the TCK system
  * 2. Running official tests
  * 3. Generating conformance reports
- * 4. Checking certification readiness
+ * 4. Checking TCK status
  * 
  * **Note**: These tests will only pass when:
  * - Official TCK repository has been synced
@@ -124,27 +124,27 @@ class SampleOfficialTest {
         println("  Passed: ${report.summary.passed}")
         println("  Failed: ${report.summary.failed}")
         
-        // Certification status
-        println("\nCertification:")
-        println("  Ready: ${report.certificationStatus.isReady}")
-        println("  Progress: ${report.certificationStatus.overallProgress}")
-        println("  Blocking issues: ${report.certificationStatus.blockingIssues.size}")
+        // TCK status
+        println("\nTCK status:")
+        println("  Ready: ${report.tckStatus.isReady}")
+        println("  Progress: ${report.tckStatus.overallProgress}")
+        println("  Blocking issues: ${report.tckStatus.blockingIssues.size}")
     }
     
     /**
-     * Example: Check certification readiness.
+     * Example: Check TCK status.
      * 
-     * This demonstrates certification checking.
+     * This demonstrates TCK status checking.
      */
     @Test
-    fun `example - check certification readiness`() {
+    fun `example - check TCK status`() {
         val context = TckIntegration.initialize()
         val results = TckIntegration.runTests(context)
         
-        // Check certification status
-        val status = TckIntegration.checkCertification(context, results)
+        // Check TCK status
+        val status = TckIntegration.checkTckStatus(context, results)
         
-        println("Certification Status:")
+        println("TCK Status:")
         println("  Ready: ${status.isReady}")
         println("  Progress: ${status.overallProgress}%")
         
@@ -179,7 +179,7 @@ class SampleOfficialTest {
         //     println("Complete workflow executed")
         //     println("Total tests: ${report.summary.totalTests}")
         //     println("Pass rate: ${report.summary.passRate}")
-        //     println("Certification ready: ${report.certificationStatus.isReady}")
+        //     println("All TCK tests passing: ${report.tckStatus.isReady}")
         // }
         
         // For now, just demonstrate the API exists

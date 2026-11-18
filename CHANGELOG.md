@@ -6,7 +6,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **TCK results are now reported in the format suggested by the AsciiDoc
+  Working Group**: TCK version (tag-relative version and commit), passing and
+  failing counts, skipped or unsupported tests with reasons, and intentionally
+  unsupported features. Tested against TCK `0.1.0-25-gcdfada9` (commit
+  `cdfada9c`): 13 of 13 published tests pass, 0 fail, none skipped.
+- **The tested TCK commit is pinned** in
+  `tck-quality-testing/official-tck/tck-pin.txt`. CI and local runs check out
+  that pin instead of upstream HEAD; `./scripts/sync-official-tck.sh --latest`
+  moves it.
+- **Compatibility wording**: the project "aims to be compatible with" the
+  AsciiDoc Language Specification. All "certification" language was removed
+  from generated reports, since no official certification program exists.
+  Added an AsciiDoc trademark notice.
+
 ### Fixed
+
+- **Published Gradle module metadata no longer records stale artifact file
+  names** (#117). Every module hardcoded `version = "0.1.1"` while the
+  publication coordinates came from `VERSION_NAME`, so the `.module` files on
+  Maven Central named `…-0.1.1.jar` for later releases. The project version
+  now comes from `VERSION_NAME` in all 13 modules. Already-published metadata
+  cannot be amended; the fix applies from the next release.
+- **A typical "kitchen sink" document now renders without placeholders**
+  (#139). The HTML renderer gained: the document title and author line as a
+  page header; `toc::[]` filled in under `:toc: macro`; section numbers under
+  `:sectnums:`; `footnote:` macros with a footnote list; block titles on
+  `video::`; `[%collapsible]` example blocks as `<details>`; and `cols`
+  widths as a `<colgroup>`. `icon:`, `stem:` / `latexmath:` / `asciimath:`,
+  `[stem]` blocks and YouTube/Vimeo `video::` targets render as neutral
+  markup (icon name, formula source, a link to the video page): the core
+  renderer loads nothing from third parties, and icon fonts, math typesetting
+  and embedded players are left to extension plugins. The parser now applies
+  inline formatting to attribute values (`:x: *bold*`), honors `\]` inside
+  inline macro brackets, and accepts percentage widths in `cols`.
 
 - **`include::` directives inside verbatim blocks (listings, literal blocks)
   are now resolved** (#119). Includes are preprocessor-level in AsciiDoc, so

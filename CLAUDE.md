@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Markup Poet is a Kotlin Multiplatform AsciiDoc converter targeting JVM, Android (API 24+), iOS (x64, ARM64, Simulator ARM64), Linux (x64), and macOS (ARM64). The core parser has zero external dependencies. The project's goal is full compatibility with the official Eclipse AsciiDoc TCK, verified through the official Node.js harness.
+Markup Poet is a Kotlin Multiplatform AsciiDoc converter targeting JVM, Android (API 24+), iOS (x64, ARM64, Simulator ARM64), Linux (x64), and macOS (ARM64). The core parser has zero external dependencies. The project aims to be compatible with the official AsciiDoc Language Specification, measured with the official Eclipse AsciiDoc TCK through its Node.js harness. Compatibility is a work in progress and not a certification (no certification program exists yet) — never write "certified", "compliant", or "full compatibility" in docs or reports.
 
 ## Modules
 
@@ -28,7 +28,8 @@ Markup Poet is a Kotlin Multiplatform AsciiDoc converter targeting JVM, Android 
 ./gradlew :tck-quality-testing:jvmTest         # Fixture-replay inner loop (fast)
 ./gradlew :tck-adapter:officialTck             # OFFICIAL TCK harness run (source of truth)
 ./run-official-tck.sh                          # Same as officialTck, directly
-./scripts/sync-official-tck.sh                 # Sync official TCK repo to upstream HEAD
+./scripts/sync-official-tck.sh                 # Check out the pinned TCK commit (tck-pin.txt)
+./scripts/sync-official-tck.sh --latest        # Move the pin to upstream HEAD
 ```
 
 The official TCK harness requires Node.js >= 20. The Java toolchain is pinned to 17 via `jvmToolchain(17)` in every module.

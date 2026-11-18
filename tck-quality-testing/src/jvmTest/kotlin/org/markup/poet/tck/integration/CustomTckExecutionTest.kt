@@ -149,11 +149,11 @@ class CustomTckExecutionTest {
         println("   Library version: ${report.metadata.libraryVersion}")
         println("   Total tests: ${report.summary.totalTests}")
         println("   Pass rate: ${String.format("%.1f%%", report.summary.overallPassRate * 100)}")
-        println("   Certification ready: ${report.certificationStatus.isReady}")
+        println("   All TCK tests passing: ${report.tckStatus.isReady}")
         
-        if (!report.certificationStatus.isReady) {
-            println("\n   Blocking issues: ${report.certificationStatus.blockingIssues.size}")
-            report.certificationStatus.blockingIssues.take(3).forEach { issue ->
+        if (!report.tckStatus.isReady) {
+            println("\n   Blocking issues: ${report.tckStatus.blockingIssues.size}")
+            report.tckStatus.blockingIssues.take(3).forEach { issue ->
                 println("     - [${issue.severity}] ${issue.description}")
             }
         }

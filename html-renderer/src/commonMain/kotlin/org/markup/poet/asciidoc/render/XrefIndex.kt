@@ -1,5 +1,7 @@
 package org.markup.poet.asciidoc.render
 
+import org.markup.poet.asciidoc.asg.InlineMacro
+import org.markup.poet.asciidoc.asg.Inline
 import org.markup.poet.asciidoc.asg.AsgDocument
 import org.markup.poet.asciidoc.asg.DiscreteHeading
 import org.markup.poet.asciidoc.asg.SectionBlock
@@ -49,11 +51,19 @@ fun buildXrefIndex(document: AsgDocument): XrefIndex {
 
     visitBlocks(document.blocks) { block ->
         when (block) {
-            is SectionBlock -> register(block.metadata?.id, plainText(block.title))
-            is DiscreteHeading -> register(block.metadata?.id, plainText(block.title))
+            is SectionBlock -> register(block.metadata?.id, headingText(block.title))
+            is DiscreteHeading -> register(block.metadata?.id, headingText(block.title))
             else -> Unit
         }
     }
 
     return XrefIndex(knownIds, titleToId)
 }
+
+/**
+ * The text a heading contributes to its generated id, the TOC, and natural
+ * xrefs: the title's plain text without footnote macros (a footnote in a
+ * section title is an annotation, not part of the title).
+ */
+fun headingText(title: List<Inline>): String =
+    plainText(title.filterNot { it is InlineMacro && it.name == "footnote" }).trim()

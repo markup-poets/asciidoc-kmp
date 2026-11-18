@@ -7,11 +7,11 @@ import org.markup.poet.tck.execution.TestExecutionResult
  * Generates conformance reports from aggregated test results.
  * 
  * The ReportGenerator transforms raw test execution results into a
- * comprehensive conformance report suitable for certification submission.
+ * comprehensive conformance report in the format suggested for reporting TCK results.
  * 
  * **Usage:**
  * ```kotlin
- * val generator = DefaultReportGenerator(certificationChecker)
+ * val generator = DefaultReportGenerator(tckStatusChecker)
  * val report = generator.generateReport(aggregatedResults, metadata)
  * ```
  */
@@ -39,10 +39,10 @@ interface ReportGenerator {
  * - Spec section coverage
  * - Failed test details
  * - Pending test details
- * - Certification status
+ * - TCK status
  */
 class DefaultReportGenerator(
-    private val certificationChecker: CertificationChecker
+    private val tckStatusChecker: TckStatusChecker
 ) : ReportGenerator {
     
     override fun generateReport(
@@ -55,7 +55,7 @@ class DefaultReportGenerator(
         val specSectionResults = buildSpecSectionResults(results)
         val failedTests = buildFailedTestDetails(results)
         val pendingTests = buildPendingTestDetails(results)
-        val certificationStatus = certificationChecker.checkStatus(results)
+        val tckStatus = tckStatusChecker.checkStatus(results)
         
         return ConformanceReport(
             metadata = metadata,
@@ -65,7 +65,7 @@ class DefaultReportGenerator(
             specSectionResults = specSectionResults,
             failedTests = failedTests,
             pendingTests = pendingTests,
-            certificationStatus = certificationStatus
+            tckStatus = tckStatus
         )
     }
     
