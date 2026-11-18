@@ -18,7 +18,7 @@ class RevisionLineRenderingTest {
     }
 
     @Test
-    fun `shows number, date and remark in the header details`() {
+    fun `shows number date and remark in the header details`() {
         val html = render("= Title\nJane Doe\nv1.0, 2026-01-05: First <draft>\n\nbody")
         assertTrue(
             "<span id=\"author\" class=\"author\">Jane Doe</span><br>" +
