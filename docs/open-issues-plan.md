@@ -170,10 +170,17 @@ YouTube/Vimeo videos neutrally; the web conventions are plugins.
       Bundle size 303 KB → 481 KB (the plugin pass and JSON handling); the
       three plugin files are about 220 KB each and only downloaded when
       enabled. Tested in headless Chromium only.
-- [ ] The website that hosts the live demo has to deploy the `plugins/`
-      directory with the bundle and place the returned `head` markup; nothing
-      in this repository publishes the bundle.
-- [ ] The MathJax configuration has not been checked in a real browser.
+- [x] The website that hosts the live demo (separate repository) deploys the
+      `plugins/` directory with the bundle and places the returned `head`
+      markup; prepared on its `feat/demo-plugins` branch.
+- [x] MathJax configuration checked in Chromium with MathJax 3.2.2 through
+      the live demo. It found one defect: the TeX input's escape handling
+      turned the `\$` AsciiMath delimiters into literal `$` signs around
+      every AsciiMath formula. The configuration now sets
+      `processEscapes: false`.
+- [ ] The parser does not recognise the revision line (`v1.0, 2026`) under
+      the author line; it ends the header, so attribute entries after it are
+      not document attributes.
 - [ ] Plugin calls are one per construct; batching per paragraph would cut
       the cost for icon-heavy documents.
 - [ ] `converter` plugins still see top-level blocks only.

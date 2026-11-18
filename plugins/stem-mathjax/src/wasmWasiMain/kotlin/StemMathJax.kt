@@ -24,7 +24,7 @@ import org.markup.poet.plugin.sdk.htmlReplacement
 private const val SCRIPT = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
 private const val CONFIG =
     "MathJax = {loader: {load: ['input/asciimath']}, " +
-        "tex: {inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']]}, " +
+        "tex: {inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']], processEscapes: false}, " +
         "asciimath: {delimiters: [['\\\\\$', '\\\\\$']]}};"
 
 private val assets = listOf(

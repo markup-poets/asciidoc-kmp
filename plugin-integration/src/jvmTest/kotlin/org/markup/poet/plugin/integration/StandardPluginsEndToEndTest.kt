@@ -109,6 +109,8 @@ class StandardPluginsEndToEndTest {
         val head = html.substringBefore("</head>")
         assertEquals(1, head.occurrences("font-awesome/6.5.2/css/all.min.css"))
         assertEquals(1, head.occurrences("mathjax@3/es5/tex-chtml.js"))
+        // Without this MathJax turns the \$ AsciiMath delimiters into literal $ signs.
+        assertTrue("processEscapes: false" in head)
         assertEquals(1, html.occurrences("font-awesome/6.5.2/css/all.min.css"))
     }
 
