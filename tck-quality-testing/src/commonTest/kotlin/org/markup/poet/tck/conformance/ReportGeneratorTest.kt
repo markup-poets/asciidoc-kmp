@@ -34,7 +34,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should generate complete conformance report`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()
@@ -48,12 +48,12 @@ class ReportGeneratorTest {
         assertNotNull(report.categoryResults)
         assertNotNull(report.failedTests)
         assertNotNull(report.pendingTests)
-        assertNotNull(report.certificationStatus)
+        assertNotNull(report.tckStatus)
     }
     
     @Test
     fun `should build correct summary`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()
@@ -71,7 +71,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should build platform results`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()
@@ -90,7 +90,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should build category results`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()
@@ -108,7 +108,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should build failed test details`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()
@@ -126,7 +126,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should build pending test details`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()
@@ -143,7 +143,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should handle empty results`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val aggregator = DefaultResultAggregator()
         val results = aggregator.aggregate(emptyList())
@@ -160,7 +160,7 @@ class ReportGeneratorTest {
     
     @Test
     fun `should calculate pass rates by source`() {
-        val checker = DefaultCertificationChecker()
+        val checker = DefaultTckStatusChecker()
         val generator = DefaultReportGenerator(checker)
         val results = createMockResults()
         val metadata = createMockMetadata()

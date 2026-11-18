@@ -7,7 +7,7 @@ package org.markup.poet.tck.conformance
  * - Summary statistics
  * - Tables for platform/category breakdowns
  * - Failed test details
- * - Certification status
+ * - TCK status
  * 
  * **Usage:**
  * ```kotlin
@@ -37,7 +37,7 @@ interface MarkdownReporter {
  * - Category breakdown table
  * - Failed test details
  * - Pending test details
- * - Certification status
+ * - TCK status
  */
 class DefaultMarkdownReporter : MarkdownReporter {
     
@@ -49,18 +49,19 @@ class DefaultMarkdownReporter : MarkdownReporter {
             appendCategoryResults(report)
             appendFailedTests(report)
             appendPendingTests(report)
-            appendCertificationStatus(report)
+            appendUnsupportedFeatures(report)
+            appendTckStatus(report)
             appendFooter(report)
         }
     }
     
     private fun StringBuilder.appendHeader(report: ConformanceReport) {
-        appendLine("# AsciiDoc Conformance Report")
+        appendLine("# AsciiDoc TCK Results Report")
         appendLine()
         appendLine("**Generated**: ${formatTimestamp(report.metadata.generatedAt)}")
         appendLine("**Library Version**: ${report.metadata.libraryVersion}")
         appendLine("**Spec Version**: ${report.metadata.specVersion}")
-        appendLine("**TCK Commit**: ${report.metadata.tckCommitHash.take(8)}")
+        appendLine("**TCK Commit**: ${report.metadata.tckCommitHash}")
         appendLine("**Platforms**: ${report.metadata.platforms.joinToString(", ")}")
         appendLine()
         appendLine("---")
@@ -164,14 +165,14 @@ class DefaultMarkdownReporter : MarkdownReporter {
     
     private fun StringBuilder.appendPendingTests(report: ConformanceReport) {
         if (report.pendingTests.isEmpty()) {
-            appendLine("## Pending Tests")
+            appendLine("## Skipped or Unsupported Tests")
             appendLine()
             appendLine("✅ No pending tests!")
             appendLine()
             return
         }
         
-        appendLine("## Pending Tests (${report.pendingTests.size})")
+        appendLine("## Skipped or Unsupported Tests (${report.pendingTests.size})")
         appendLine()
         
         report.pendingTests.take(10).forEach { test ->
@@ -187,16 +188,27 @@ class DefaultMarkdownReporter : MarkdownReporter {
         appendLine()
     }
     
-    private fun StringBuilder.appendCertificationStatus(report: ConformanceReport) {
-        val status = report.certificationStatus
+    private fun StringBuilder.appendUnsupportedFeatures(report: ConformanceReport) {
+        appendLine("## Intentionally Unsupported Features")
+        appendLine()
+        if (report.unsupportedFeatures.isEmpty()) {
+            appendLine("None declared.")
+        } else {
+            report.unsupportedFeatures.forEach { appendLine("- **${it.feature}**: ${it.reason}") }
+        }
+        appendLine()
+    }
+    
+    private fun StringBuilder.appendTckStatus(report: ConformanceReport) {
+        val status = report.tckStatus
         
-        appendLine("## Certification Status")
+        appendLine("## TCK Status")
         appendLine()
         
         if (status.isReady) {
-            appendLine("✅ **READY FOR CERTIFICATION**")
+            appendLine("✅ **ALL PUBLISHED TCK TESTS PASSING**")
         } else {
-            appendLine("❌ **NOT READY FOR CERTIFICATION**")
+            appendLine("❌ **NOT ALL TCK TESTS PASSING**")
         }
         appendLine()
         appendLine("**Progress**: ${formatPercentage(status.overallProgress / 100.0)}")

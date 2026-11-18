@@ -3,20 +3,20 @@ package org.markup.poet.tck.conformance
 import kotlinx.serialization.Serializable
 
 /**
- * Complete conformance report for certification.
+ * Complete report of TCK results.
  * 
- * This report contains all information needed for AsciiDoc processor certification:
+ * This report contains the information the AsciiDoc Working Group suggests reporting (TCK version, passing and failing tests, skipped or unsupported tests):
  * - Test execution summary
  * - Platform-specific results
  * - Category-specific results
  * - Spec section coverage
  * - Failed test details
  * - Pending test details
- * - Certification readiness status
+ * - TCK status
  * 
  * **Usage:**
  * ```kotlin
- * val generator = DefaultReportGenerator(certificationChecker)
+ * val generator = DefaultReportGenerator(tckStatusChecker)
  * val report = generator.generateReport(aggregatedResults, metadata)
  * 
  * // Export to JSON
@@ -62,9 +62,28 @@ data class ConformanceReport(
     val pendingTests: List<PendingTestDetail>,
     
     /**
-     * Certification readiness status.
+     * TCK status.
      */
-    val certificationStatus: CertificationStatus
+    val tckStatus: TckStatus,
+
+    /**
+     * Features the implementation intentionally does not support, each with its reason.
+     *
+     * Reported alongside skipped/pending tests so results stay comparable
+     * across implementations.
+     */
+    val unsupportedFeatures: List<UnsupportedFeature> = emptyList()
+)
+
+/**
+ * A feature the implementation intentionally does not support.
+ */
+@Serializable
+data class UnsupportedFeature(
+    /** Short name of the feature. */
+    val feature: String,
+    /** Why it is not supported. */
+    val reason: String
 )
 
 /**
@@ -257,9 +276,9 @@ data class SpecSectionConformance(
     val passRate: Double,
     
     /**
-     * Whether this section is required for certification.
+     * Whether this section is required for a clean TCK status.
      */
-    val requiredForCertification: Boolean
+    val requiredForTckPass: Boolean
 )
 
 /**

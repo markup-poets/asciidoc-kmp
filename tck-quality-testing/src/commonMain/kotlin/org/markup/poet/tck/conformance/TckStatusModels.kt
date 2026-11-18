@@ -3,37 +3,38 @@ package org.markup.poet.tck.conformance
 import kotlinx.serialization.Serializable
 
 /**
- * Certification readiness status.
+ * TCK status.
  * 
- * Indicates whether the implementation is ready for official AsciiDoc
- * processor certification, along with progress metrics and blocking issues.
+ * Indicates whether every published test of the official AsciiDoc TCK passes,
+ * along with progress metrics and blocking issues. This is a measurement, not
+ * a certification: no official certification program exists.
  */
 @Serializable
-data class CertificationStatus(
+data class TckStatus(
     /**
-     * Whether the implementation is ready for certification.
+     * Whether the implementation is passing all published TCK tests.
      * 
-     * True if all certification requirements are met and there are no
+     * True if all TCK status requirements are met and there are no
      * blocking issues.
      */
     val isReady: Boolean,
     
     /**
-     * Overall progress toward certification (0.0 to 100.0).
+     * Overall progress toward passing all published TCK tests (0.0 to 100.0).
      * 
      * Calculated based on test pass rates and requirement completion.
      */
     val overallProgress: Double,
     
     /**
-     * List of blocking issues preventing certification.
+     * List of blocking issues preventing a clean TCK status.
      * 
-     * Empty if ready for certification.
+     * Empty if passing all published TCK tests.
      */
     val blockingIssues: List<BlockingIssue>,
     
     /**
-     * Recommendations for achieving certification.
+     * Recommendations for achieving a clean TCK status.
      * 
      * Actionable steps to resolve blocking issues and improve conformance.
      */
@@ -41,7 +42,7 @@ data class CertificationStatus(
 )
 
 /**
- * A blocking issue preventing certification.
+ * A blocking issue preventing a clean TCK status.
  */
 @Serializable
 data class BlockingIssue(
@@ -72,7 +73,7 @@ data class BlockingIssue(
 @Serializable
 enum class IssueSeverity {
     /**
-     * Critical issue that must be resolved for certification.
+     * Critical issue that must be resolved for a clean TCK status.
      * 
      * Examples:
      * - Core spec features not implemented
@@ -90,7 +91,7 @@ enum class IssueSeverity {
     HIGH,
     
     /**
-     * Medium-priority issue that affects certification progress.
+     * Medium-priority issue that affects TCK progress.
      * 
      * Examples:
      * - Optional spec features not implemented
@@ -109,10 +110,10 @@ enum class IssueSeverity {
 }
 
 /**
- * A certification requirement.
+ * A TCK status requirements.
  */
 @Serializable
-data class CertificationRequirement(
+data class TckRequirement(
     /**
      * Unique identifier for the requirement.
      */
@@ -124,7 +125,7 @@ data class CertificationRequirement(
     val description: String,
     
     /**
-     * Whether this requirement is mandatory for certification.
+     * Whether this requirement is mandatory for a clean TCK status.
      */
     val required: Boolean,
     

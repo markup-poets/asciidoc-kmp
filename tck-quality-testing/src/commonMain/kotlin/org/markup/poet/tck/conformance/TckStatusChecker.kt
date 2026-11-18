@@ -3,50 +3,50 @@ package org.markup.poet.tck.conformance
 import org.markup.poet.tck.execution.AggregatedResults
 
 /**
- * Checks certification readiness and identifies blocking issues.
+ * Checks TCK status and identifies blocking issues.
  * 
- * The CertificationChecker analyzes test results to determine if the
- * implementation is ready for official AsciiDoc processor certification.
+ * The TckStatusChecker analyzes test results to determine if the
+ * implementation is passing every published test of the official AsciiDoc TCK.
  * 
  * **Usage:**
  * ```kotlin
- * val checker = DefaultCertificationChecker()
+ * val checker = DefaultTckStatusChecker()
  * val status = checker.checkStatus(aggregatedResults)
  * 
  * if (status.isReady) {
- *     println("Ready for certification!")
+ *     println("All published TCK tests pass")
  * } else {
  *     println("Blocking issues: ${status.blockingIssues.size}")
  * }
  * ```
  */
-interface CertificationChecker {
+interface TckStatusChecker {
     /**
-     * Check if the implementation is ready for certification.
+     * Check if the implementation is passing all published TCK tests.
      * 
      * @param results Aggregated test execution results
-     * @return Certification status with blocking issues and recommendations
+     * @return TCK status with blocking issues and recommendations
      */
-    fun checkStatus(results: AggregatedResults): CertificationStatus
+    fun checkStatus(results: AggregatedResults): TckStatus
     
     /**
-     * Get all certification requirements.
+     * Get all TCK status requirements.
      * 
-     * @return List of certification requirements
+     * @return List of TCK status requirements
      */
-    fun getRequirements(): List<CertificationRequirement>
+    fun getRequirements(): List<TckRequirement>
 }
 
 /**
- * Default implementation of CertificationChecker.
+ * Default implementation of TckStatusChecker.
  * 
- * Certification criteria:
+ * Criteria for a clean TCK status:
  * 1. 100% of official TCK tests must pass
  * 2. Tests must pass on all supported platforms
  * 3. All required spec sections must be implemented
  * 4. No critical or high-severity blocking issues
  */
-class DefaultCertificationChecker : CertificationChecker {
+class DefaultTckStatusChecker : TckStatusChecker {
     
     companion object {
         /**
@@ -60,14 +60,14 @@ class DefaultCertificationChecker : CertificationChecker {
         private const val REQUIRED_OVERALL_PASS_RATE = 0.95
     }
     
-    override fun checkStatus(results: AggregatedResults): CertificationStatus {
+    override fun checkStatus(results: AggregatedResults): TckStatus {
         val blockingIssues = identifyBlockingIssues(results)
         val progress = calculateProgress(results)
         val isReady = blockingIssues.none { it.severity == IssueSeverity.CRITICAL || it.severity == IssueSeverity.HIGH }
                       && progress >= 100.0
         val recommendations = generateRecommendations(results, blockingIssues)
         
-        return CertificationStatus(
+        return TckStatus(
             isReady = isReady,
             overallProgress = progress,
             blockingIssues = blockingIssues,
@@ -75,30 +75,30 @@ class DefaultCertificationChecker : CertificationChecker {
         )
     }
     
-    override fun getRequirements(): List<CertificationRequirement> {
+    override fun getRequirements(): List<TckRequirement> {
         return listOf(
-            CertificationRequirement(
+            TckRequirement(
                 id = "official-tests-100",
                 description = "100% of official TCK tests must pass",
                 required = true,
                 met = false,
                 notes = "All tests from the official Eclipse AsciiDoc TCK must pass"
             ),
-            CertificationRequirement(
+            TckRequirement(
                 id = "all-platforms",
                 description = "Tests must pass on all supported platforms",
                 required = true,
                 met = false,
                 notes = "JVM, iOS, Linux, and Android platforms must all pass"
             ),
-            CertificationRequirement(
+            TckRequirement(
                 id = "spec-compliance",
                 description = "All required spec sections must be implemented",
                 required = true,
                 met = false,
                 notes = "Core AsciiDoc specification features must be fully implemented"
             ),
-            CertificationRequirement(
+            TckRequirement(
                 id = "no-critical-issues",
                 description = "No critical or high-severity blocking issues",
                 required = true,
@@ -165,7 +165,7 @@ class DefaultCertificationChecker : CertificationChecker {
     }
     
     /**
-     * Calculate overall progress toward certification.
+     * Calculate overall progress toward passing all published TCK tests.
      * 
      * Progress is based on:
      * - Official test pass rate (50% weight)
@@ -208,7 +208,7 @@ class DefaultCertificationChecker : CertificationChecker {
         }
         
         if (blockingIssues.any { it.severity == IssueSeverity.HIGH }) {
-            recommendations.add("Resolve high-severity issues before certification submission")
+            recommendations.add("Resolve high-severity issues before reporting results")
         }
         
         // Recommendations based on test results
@@ -235,7 +235,7 @@ class DefaultCertificationChecker : CertificationChecker {
         }
         
         if (recommendations.isEmpty()) {
-            recommendations.add("Implementation is ready for certification submission")
+            recommendations.add("All published TCK tests pass on all tested platforms (a snapshot, not a certification)")
         }
         
         return recommendations

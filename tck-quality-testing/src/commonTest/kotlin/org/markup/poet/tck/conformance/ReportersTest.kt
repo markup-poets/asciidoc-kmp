@@ -63,7 +63,7 @@ class ReportersTest {
             )
         )
         
-        val certificationStatus = CertificationStatus(
+        val tckStatus = TckStatus(
             isReady = false,
             overallProgress = 85.0,
             blockingIssues = listOf(
@@ -85,7 +85,7 @@ class ReportersTest {
             specSectionResults = emptyList(),
             failedTests = failedTests,
             pendingTests = pendingTests,
-            certificationStatus = certificationStatus
+            tckStatus = tckStatus
         )
     }
     
@@ -138,11 +138,11 @@ class ReportersTest {
         
         assertNotNull(markdown)
         assertTrue(markdown.isNotEmpty())
-        assertTrue(markdown.contains("# AsciiDoc Conformance Report"))
+        assertTrue(markdown.contains("# AsciiDoc TCK Results Report"))
         assertTrue(markdown.contains("## Executive Summary"))
         assertTrue(markdown.contains("## Platform Results"))
         assertTrue(markdown.contains("## Category Results"))
-        assertTrue(markdown.contains("## Certification Status"))
+        assertTrue(markdown.contains("## TCK Status"))
     }
     
     @Test
@@ -176,20 +176,20 @@ class ReportersTest {
         
         val markdown = reporter.generateMarkdown(report)
         
-        assertTrue(markdown.contains("## Pending Tests"))
+        assertTrue(markdown.contains("## Skipped or Unsupported Tests"))
         assertTrue(markdown.contains("test-pending"))
         assertTrue(markdown.contains("Tables not implemented"))
     }
     
     @Test
-    fun `MarkdownReporter should include certification status`() {
+    fun `MarkdownReporter should include TCK status`() {
         val reporter = DefaultMarkdownReporter()
         val report = createMockReport()
         
         val markdown = reporter.generateMarkdown(report)
         
-        assertTrue(markdown.contains("## Certification Status"))
-        assertTrue(markdown.contains("NOT READY"))
+        assertTrue(markdown.contains("## TCK Status"))
+        assertTrue(markdown.contains("NOT ALL TCK TESTS PASSING"))
         assertTrue(markdown.contains("Blocking Issues"))
         assertTrue(markdown.contains("Recommendations"))
     }
@@ -247,14 +247,14 @@ class ReportersTest {
     }
     
     @Test
-    fun `HtmlReporter should include certification status`() {
+    fun `HtmlReporter should include TCK status`() {
         val reporter = DefaultHtmlReporter()
         val report = createMockReport()
         
         val html = reporter.generateHtml(report)
         
-        assertTrue(html.contains("Certification Status"))
-        assertTrue(html.contains("NOT READY"))
+        assertTrue(html.contains("TCK Status"))
+        assertTrue(html.contains("NOT ALL TCK TESTS PASSING"))
         assertTrue(html.contains("Blocking Issues"))
     }
     
@@ -295,7 +295,7 @@ class ReportersTest {
         
         assertNotNull(adoc)
         assertTrue(adoc.isNotEmpty())
-        assertTrue(adoc.contains("= AsciiDoc Conformance Report"))
+        assertTrue(adoc.contains("= AsciiDoc TCK Results Report"))
         assertTrue(adoc.contains(":toc: left"))
     }
     
@@ -313,14 +313,14 @@ class ReportersTest {
     }
     
     @Test
-    fun `AsciidocReporter should include certification status`() {
+    fun `AsciidocReporter should include TCK status`() {
         val reporter = DefaultAsciidocReporter()
         val report = createMockReport()
         
         val adoc = reporter.generateAsciidoc(report)
         
-        assertTrue(adoc.contains("== Certification Status"))
-        assertTrue(adoc.contains("NOT READY"))
+        assertTrue(adoc.contains("== TCK Status"))
+        assertTrue(adoc.contains("NOT ALL TCK TESTS PASSING"))
         assertTrue(adoc.contains("Blocking Issues"))
         assertTrue(adoc.contains("Recommendations"))
     }

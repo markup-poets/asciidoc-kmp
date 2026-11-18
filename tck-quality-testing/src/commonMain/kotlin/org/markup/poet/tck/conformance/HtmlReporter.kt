@@ -49,7 +49,7 @@ class DefaultHtmlReporter : HtmlReporter {
         appendLine("<head>")
         appendLine("    <meta charset=\"UTF-8\">")
         appendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
-        appendLine("    <title>AsciiDoc Conformance Report</title>")
+        appendLine("    <title>AsciiDoc TCK Results Report</title>")
         appendLine("    <style>")
         appendLine(getEmbeddedCss())
         appendLine("    </style>")
@@ -60,22 +60,23 @@ class DefaultHtmlReporter : HtmlReporter {
     private fun StringBuilder.appendHtmlBody(report: ConformanceReport) {
         appendLine("    <div class=\"container\">")
         appendLine("        <header>")
-        appendLine("            <h1>AsciiDoc Conformance Report</h1>")
+        appendLine("            <h1>AsciiDoc TCK Results Report</h1>")
         appendLine("            <div class=\"metadata\">")
         appendLine("                <span><strong>Generated:</strong> ${formatTimestamp(report.metadata.generatedAt)}</span>")
         appendLine("                <span><strong>Library:</strong> ${report.metadata.libraryVersion}</span>")
         appendLine("                <span><strong>Spec:</strong> ${report.metadata.specVersion}</span>")
-        appendLine("                <span><strong>TCK:</strong> ${report.metadata.tckCommitHash.take(8)}</span>")
+        appendLine("                <span><strong>TCK:</strong> ${report.metadata.tckCommitHash}</span>")
         appendLine("            </div>")
         appendLine("        </header>")
         appendLine()
         
         appendSummarySection(report)
-        appendCertificationSection(report)
+        appendTckStatusSection(report)
         appendPlatformSection(report)
         appendCategorySection(report)
         appendFailedTestsSection(report)
         appendPendingTestsSection(report)
+        appendUnsupportedFeaturesSection(report)
         
         appendLine("    </div>")
     }
@@ -120,13 +121,29 @@ class DefaultHtmlReporter : HtmlReporter {
         appendLine()
     }
     
-    private fun StringBuilder.appendCertificationSection(report: ConformanceReport) {
-        val status = report.certificationStatus
+    private fun StringBuilder.appendUnsupportedFeaturesSection(report: ConformanceReport) {
+        appendLine("        <section class=\"unsupported-features\">")
+        appendLine("            <h2>Intentionally Unsupported Features</h2>")
+        if (report.unsupportedFeatures.isEmpty()) {
+            appendLine("            <p>None declared.</p>")
+        } else {
+            appendLine("            <ul>")
+            report.unsupportedFeatures.forEach {
+                appendLine("                <li><strong>${escapeHtml(it.feature)}</strong>: ${escapeHtml(it.reason)}</li>")
+            }
+            appendLine("            </ul>")
+        }
+        appendLine("        </section>")
+        appendLine()
+    }
+    
+    private fun StringBuilder.appendTckStatusSection(report: ConformanceReport) {
+        val status = report.tckStatus
         val statusClass = if (status.isReady) "success" else "error"
-        val statusText = if (status.isReady) "READY FOR CERTIFICATION" else "NOT READY"
+        val statusText = if (status.isReady) "ALL PUBLISHED TCK TESTS PASSING" else "NOT ALL TCK TESTS PASSING"
         
-        appendLine("        <section class=\"certification\">")
-        appendLine("            <h2>Certification Status</h2>")
+        appendLine("        <section class=\"tck-status\">")
+        appendLine("            <h2>TCK Status</h2>")
         appendLine("            <div class=\"cert-status $statusClass\">")
         appendLine("                <div class=\"cert-badge\">$statusText</div>")
         appendLine("                <div class=\"cert-progress\">Progress: ${formatPercentage(status.overallProgress / 100.0)}</div>")
@@ -276,7 +293,7 @@ class DefaultHtmlReporter : HtmlReporter {
     private fun StringBuilder.appendPendingTestsSection(report: ConformanceReport) {
         if (report.pendingTests.isEmpty()) {
             appendLine("        <section class=\"pending-tests\">")
-            appendLine("            <h2>Pending Tests</h2>")
+            appendLine("            <h2>Skipped or Unsupported Tests</h2>")
             appendLine("            <p class=\"success-message\">✅ No pending tests!</p>")
             appendLine("        </section>")
             appendLine()
@@ -284,7 +301,7 @@ class DefaultHtmlReporter : HtmlReporter {
         }
         
         appendLine("        <section class=\"pending-tests\">")
-        appendLine("            <h2>Pending Tests (${report.pendingTests.size})</h2>")
+        appendLine("            <h2>Skipped or Unsupported Tests (${report.pendingTests.size})</h2>")
         appendLine("            <ul class=\"pending-list\">")
         
         report.pendingTests.take(10).forEach { test ->
@@ -306,7 +323,7 @@ class DefaultHtmlReporter : HtmlReporter {
     
     private fun StringBuilder.appendHtmlFooter() {
         appendLine("        <footer>")
-        appendLine("            <p>Report generated by Markup Poet AsciiDoc Converter</p>")
+        appendLine("            <p>Report generated by Markup Poet AsciiDoc Converter. Results are a snapshot against the TCK commit above, not a certification: no official certification program for AsciiDoc implementations exists yet.</p>")
         appendLine("        </footer>")
         appendLine("    </div>")
         appendLine("</body>")

@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **TCK results are now reported in the format suggested by the AsciiDoc
+  Working Group**: TCK version (tag-relative version and commit), passing and
+  failing counts, skipped or unsupported tests with reasons, and intentionally
+  unsupported features. Tested against TCK `0.1.0-25-gcdfada9` (commit
+  `cdfada9c`): 13 of 13 published tests pass, 0 fail, none skipped.
+- **The tested TCK commit is pinned** in
+  `tck-quality-testing/official-tck/tck-pin.txt`. CI and local runs check out
+  that pin instead of upstream HEAD; `./scripts/sync-official-tck.sh --latest`
+  moves it.
+- **Compatibility wording**: the project "aims to be compatible with" the
+  AsciiDoc Language Specification. All "certification" language was removed
+  from generated reports, since no official certification program exists.
+  Added an AsciiDoc trademark notice.
+
 ### Fixed
 
 - **`include::` directives inside verbatim blocks (listings, literal blocks)

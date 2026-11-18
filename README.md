@@ -7,7 +7,7 @@
 
 **Documentation:** https://markup-poets.github.io/asciidoc-kmp/
 
-A lightweight AsciiDoc converter library built with Kotlin Multiplatform, aiming for compatibility with the official AsciiDoc Language Specification.
+A lightweight AsciiDoc converter library built with Kotlin Multiplatform, which aims to be compatible with the official AsciiDoc Language Specification.
 
 ## Overview
 
@@ -16,7 +16,7 @@ Markup Poet is a minimal AsciiDoc converter that transforms AsciiDoc markup into
 ## Features
 
 - **Platform Independent**: Runs on JVM, Android, iOS, Linux, and the browser via Kotlin/Wasm
-- **Specification-Oriented**: Aims for compatibility with the official AsciiDoc Language Specification, tracked via its Technology Compatibility Kit (run `./run-official-tck.sh`)
+- **Specification-Oriented**: Aims to be compatible with the official AsciiDoc Language Specification, tracked via its Technology Compatibility Kit (run `./run-official-tck.sh`)
 - **ASG-Native**: One document model end to end — the Abstract Semantic Graph mirroring the official AsciiDoc schema
 - **Broad Syntax Coverage**: Sections, lists (incl. description and callout lists), tables, admonitions, sidebars/examples/quotes, includes, conditionals, cross-references, footnotes, and rich inline formatting
 - **WASM Plugins**: Custom blocks, block macros, inline macros, and converter plugins via sandboxed, language-agnostic WebAssembly — no Ruby required (see the [plugin guide](https://markup-poets.github.io/asciidoc-kmp/asciidoc-kmp/how-to/write-a-wasm-plugin.html))
@@ -206,9 +206,9 @@ See [cli-app/README.md](cli-app/README.md) for detailed CLI documentation.
 
 ## Testing & Quality Assurance
 
-### Technology Compatibility Kit (TCK)
+### Fixture-replay quality suite
 
-The project includes a comprehensive TCK for ensuring consistent behavior across all platforms. The TCK provides:
+The project includes its own fixture-replay quality suite (`tck-quality-testing`) for ensuring consistent behavior across all platforms. It is separate from the official AsciiDoc TCK and provides:
 
 - **Test Fixtures**: Reusable AsciiDoc test documents with expected outputs
 - **Validation Framework**: Utilities for comparing actual vs expected results
@@ -216,17 +216,22 @@ The project includes a comprehensive TCK for ensuring consistent behavior across
 - **Performance Benchmarking**: Infrastructure for measuring parsing and rendering performance
 - **Memory Monitoring**: Tools for tracking memory usage across platforms
 
-**Official TCK**: this project aims to implement the AsciiDoc language in a way that is compatible with the official AsciiDoc Language Specification and its [Technology Compatibility Kit (TCK)](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck). Compatibility is a work in progress and should not be interpreted as official certification.
+### Official AsciiDoc TCK
+
+This project aims to be compatible with the official AsciiDoc Language Specification and its [Technology Compatibility Kit (TCK)](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck). Compatibility is a work in progress and should not be interpreted as official certification — no official certification or compatibility program for AsciiDoc implementations exists yet.
 
 Current TCK results, kept honest in CI on every pull request:
 
-- **TCK tested against**: commit `3490153d3eb2ef5984497428b75364f49749dfc7` (upstream HEAD at last sync)
-- **Result**: 13 of 13 published tests passing via the official Node.js harness
-- **Reproduce**: `./run-official-tck.sh` (requires Node 20+); re-sync the TCK with `./scripts/sync-official-tck.sh`
+- **TCK version tested**: `0.1.0-25-gcdfada9` (commit `cdfada9c2768b164eadf4bc12e9f9c68e6caf68a`, pinned in `tck-quality-testing/official-tck/tck-pin.txt`)
+- **Passing**: 13 of 13 published tests, via the official Node.js harness with source locations compared
+- **Failing**: 0
+- **Skipped or unsupported tests**: none
+- **Intentionally unsupported features**: none within the scope of the tested TCK; see the [TCK status page](https://markup-poets.github.io/asciidoc-kmp/asciidoc-kmp/reference/tck-and-syntax-coverage.html) for the adapter limitation on constructs the ASG schema does not cover yet
+- **Reproduce**: `./run-official-tck.sh` (requires Node 20+); `./scripts/sync-official-tck.sh` checks out the pinned TCK commit
 
 The TCK itself is still growing alongside the specification; passing all currently published tests is a snapshot, not a completeness claim.
 
-See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed TCK documentation and usage examples.
+See [tck-quality-testing/README.md](tck-quality-testing/README.md) for the quality suite's documentation and usage examples.
 
 ### Running Tests
 
@@ -238,7 +243,7 @@ See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed 
 ./gradlew :asciidoc-parser:jvmTest        # JVM only
 ./gradlew :asciidoc-parser:linuxX64Test   # Linux native
 
-# Official TCK conformance (source of truth)
+# Official TCK run (source of truth)
 ./run-official-tck.sh
 
 # Fixture-replay quality suite
@@ -257,3 +262,7 @@ See [tck-quality-testing/README.md](tck-quality-testing/README.md) for detailed 
 ./gradlew publishToMavenLocal     # Local testing
 ./gradlew publishToMavenCentral   # Maven Central
 ```
+
+## Trademarks
+
+AsciiDoc® is a trademark of the Eclipse Foundation, Inc. Markup Poet is an independent project; it is not affiliated with, endorsed by, or certified by the Eclipse Foundation or the AsciiDoc Working Group.
