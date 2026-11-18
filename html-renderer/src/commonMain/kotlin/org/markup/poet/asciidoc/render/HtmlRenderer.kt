@@ -183,7 +183,7 @@ class DefaultHtmlRenderer(
     }
 
     /**
-     * The document title and author line as a `<header>`, the way a standalone
+     * The document title, author and revision lines as a `<header>`, the way a standalone
      * page shows them. Empty when the document has no title or sets `:notitle:`.
      */
     private fun renderDocumentHeader(document: AsgDocument, context: RenderContext): String {
@@ -197,6 +197,21 @@ class DefaultHtmlRenderer(
             document.attributes["email"]?.takeIf { it.isNotBlank() }?.let {
                 if (isNotEmpty()) append("<br>")
                 append("<span id=\"email\" class=\"email\"><a href=\"mailto:${escaper.escapeAttribute(it)}\">${escaper.escapeHtml(it)}</a></span>")
+            }
+            val revnumber = document.attributes["revnumber"]?.takeIf { it.isNotBlank() }
+            val revdate = document.attributes["revdate"]?.takeIf { it.isNotBlank() }
+            if (revnumber != null) {
+                if (isNotEmpty()) append("<br>")
+                val separator = if (revdate != null) "," else ""
+                append("<span id=\"revnumber\">version ${escaper.escapeHtml(revnumber)}$separator</span>")
+            }
+            if (revdate != null) {
+                if (isNotEmpty()) append(if (revnumber != null) " " else "<br>")
+                append("<span id=\"revdate\">${escaper.escapeHtml(revdate)}</span>")
+            }
+            document.attributes["revremark"]?.takeIf { it.isNotBlank() }?.let {
+                if (isNotEmpty()) append("<br>")
+                append("<span id=\"revremark\">${escaper.escapeHtml(it)}</span>")
             }
         }
         val detailsHtml = if (details.isEmpty()) "" else "\n<div class=\"details\">$details</div>"
