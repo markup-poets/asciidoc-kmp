@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `video` (YouTube and Vimeo players for `video::`). Enable them with
   `html-renderer --with icons,math,video` or load `StandardPlugin.*.wasm()`
   from the new `standard-plugins` module.
+- **Plugins run in the browser.** `BrowserPluginEngine` (`plugin-engine`,
+  `wasmJs`) runs plugins on the browser's own WebAssembly engine with the
+  same ABI, limits and import rule. The browser module (`wasm-bridge`) gained
+  `enableStandardPlugins(keys, baseUrl)`, `loadPluginFromUrl(url)`,
+  `loadPlugin(bytes, name)`, `unloadPlugins()`, `loadedPlugins()` and
+  `convert(source)`, which returns `{ html, head, warnings }`. The standard
+  plugins are not embedded in the bundle; the distribution ships them in
+  `plugins/` and they are fetched on demand. `plugin-api`, `plugin-engine`,
+  `plugin-integration`, `asciidoc-asg` and `standard-plugins` now build for
+  `wasmJs`.
 - **Plugins can be written in Kotlin.** The new `plugin-sdk` module
   (`wasmWasi`) provides the guest side of the plugin ABI; `plugin-api` gained
   a `wasmWasi` target so plugins share the request and response types with

@@ -72,6 +72,9 @@ kotlin {
     iosSimulatorArm64()
     linuxX64()
     macosArm64()
+    wasmJs {
+        browser()
+    }
 
     sourceSets {
         commonMain {

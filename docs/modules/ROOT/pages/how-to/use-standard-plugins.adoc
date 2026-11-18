@@ -79,10 +79,45 @@ example a copy on your own server. Must be an `http:` or `https:` URL.
 `:iconfont-remote: false`:: Emit the icon markup but no stylesheet link. Use
 this when your page already includes Font Awesome.
 
+== In the browser
+
+The browser module (`wasm-bridge`) does not contain the plugins: embedding
+them would more than quadruple the download for every page. They are
+separate files in `plugins/` next to the bundle
+(`./gradlew :wasm-bridge:wasmJsBrowserDistribution` puts them there) and are
+fetched when a page asks for them:
+
+[source,javascript]
+----
+import * as poet from './asciidoc-kmp.mjs';
+
+// Second argument: the directory the plugin files are served from.
+// '' means "plugins/" relative to the page.
+await poet.enableStandardPlugins('icons,math,video', '');
+
+const { html, head, warnings } = poet.convert(source);
+document.head.insertAdjacentHTML('beforeend', head);   // see the note below
+document.querySelector('#preview').innerHTML = html;
+----
+
+`convert` returns the body fragment, the markup the plugins need in the
+page's `<head>`, and any plugin warnings. `convertToHtml(source)` still
+returns only the fragment. Without loaded plugins both give the neutral core
+output and `head` is empty.
+
+NOTE: A `<script>` inserted with `insertAdjacentHTML` or `innerHTML` does not
+run. For MathJax, create the script elements yourself, or include MathJax in
+your page and ignore that part of `head`.
+
+Other functions: `loadPluginFromUrl(url)` and `loadPlugin(bytes, name)` load
+your own plugins, `loadedPlugins()` lists the loaded ids, and
+`unloadPlugins()` returns to the core output. Deploy the `plugins/` directory
+together with the bundle, served with any content type.
+
 == Platforms
 
-The standard plugins run on JVM, Android, iOS, Linux and macOS. The browser
-build (`wasm-bridge`) does not run plugins yet and shows the core output.
+The standard plugins run on JVM, Android, iOS, Linux, macOS and in the
+browser.
 
 == Related pages
 

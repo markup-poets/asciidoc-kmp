@@ -24,13 +24,17 @@ enum class StandardPlugin(val key: String, val description: String) {
     VIDEO_EMBED("video", "Embedded YouTube and Vimeo players for video:: macros");
 
     /** The plugin's WebAssembly module, ready for `PluginEngine.loadPlugin`. */
-    fun wasm(): ByteArray = Base64.decode(
-        when (this) {
-            ICONS_FONT_AWESOME -> PluginBinaries.iconsFontawesome
-            STEM_MATHJAX -> PluginBinaries.stemMathjax
-            VIDEO_EMBED -> PluginBinaries.videoEmbed
-        }.joinToString(""),
-    )
+    fun wasm(): ByteArray = Base64.decode(wasmBase64())
+
+    /**
+     * The module in Base64, for hosts that hand it to another runtime without
+     * touching the bytes (`BrowserPluginEngine.loadPluginBase64` in a browser).
+     */
+    fun wasmBase64(): String = when (this) {
+        ICONS_FONT_AWESOME -> PluginBinaries.iconsFontawesome
+        STEM_MATHJAX -> PluginBinaries.stemMathjax
+        VIDEO_EMBED -> PluginBinaries.videoEmbed
+    }.joinToString("")
 
     companion object {
         /** The plugin with the given [key], or null. */
