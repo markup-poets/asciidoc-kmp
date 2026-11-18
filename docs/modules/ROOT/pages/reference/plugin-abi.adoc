@@ -1,9 +1,10 @@
 = Plugin ABI v1
 
 A Markup Poet plugin is a WebAssembly module executed by the Chasm runtime.
-*No imports are allowed* — modules requiring WASI or host functions are
-rejected at load; a plugin is pure compute over JSON envelopes (no filesystem,
-no network, no clock). This page is the normative ABI; for a walkthrough see
+A plugin is pure compute over JSON envelopes (no filesystem, no network, no
+clock). *No host functions are available*: the only imports a module may
+declare are the inert WASI functions listed under <<imports>>, and a module
+importing anything else is rejected at load. This page is the normative ABI; for a walkthrough see
 xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin].
 
 == Required exports
@@ -19,7 +20,32 @@ xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin].
 |`process` |`(i32 ptr, i32 len) -> i32 ptr` |Handles one invocation; `0` = internal failure
 |`on_load` |`()` |Optional init hook
 |`on_unload` |`()` |Optional shutdown hook
+|`_initialize` |`()` |Optional; WASI reactor start-up, called once before any other export
 |===
+
+A returned pointer of `0` always means failure, so a plugin must never hand
+out a buffer at address 0.
+
+[#imports]
+== Allowed imports
+
+Modules built by WASI toolchains (Kotlin/Wasm `wasmWasi`, for one) import
+functions from `wasi_snapshot_preview1` even when the plugin does no I/O. The
+host provides these and only these, as stubs without effect:
+
+[cols="2,3"]
+|===
+|Function |Stub behavior
+
+|`fd_write`, `fd_close` |Report success; output is discarded
+|`fd_read`, `fd_seek`, `fd_fdstat_get`, `fd_prestat_get`, `fd_prestat_dir_name` |Fail with `EBADF`
+|`environ_sizes_get`, `environ_get`, `args_sizes_get`, `args_get` |Report success and write nothing
+|`random_get`, `clock_time_get` |Fail with `ENOSYS`
+|`proc_exit` |Returns without exiting
+|===
+
+None of them writes to plugin memory. In a browser, `BrowserPluginEngine`
+applies the same table on the browser's WebAssembly engine.
 
 == Payload protocol
 
@@ -59,7 +85,8 @@ Capability `type` is one of `block`, `blockMacro`, `inlineMacro`, `converter`.
   "attributes": { "1": "shout" },
   "content": "raw block body or macro target",
   "documentAttributes": { "toc": "" },
-  "location": { "line": 12, "column": 1 }
+  "location": { "line": 12, "column": 1 },
+  "backend": "html5"
 }
 ----
 
@@ -67,8 +94,29 @@ Capability `type` is one of `block`, `blockMacro`, `inlineMacro`, `converter`.
   keyed by their 1-based index plus the named attributes.
 * For `blockMacro` and `inlineMacro`, the macro target is additionally
   available as `attributes["target"]`, and `content` is the target.
+* For `block` and `blockMacro`, `attributes` also carries the block's `id`,
+  `role` (roles separated by spaces), `options` (separated by commas) and
+  `title` (as plain text) when the block has them. A named attribute of the
+  same name takes precedence.
 * For `converter`, `content` is the claimed node serialized as official ASG
   node JSON (see below).
+* `backend` names the output format the host is producing; the HTML renderer
+  sends `html5`. A plugin whose output suits only some formats declines the
+  others (see <<declining>>). Hosts older than this field do not send it;
+  treat a missing value as `html5`.
+
+== Claiming built-in names
+
+A `block`, `blockMacro`, or `inlineMacro` claim takes precedence over the
+host's built-in handling of the same name:
+
+* inline macros the renderer handles itself, such as `icon`, `stem`,
+  `latexmath` and `asciimath`
+* the block macros `video`, `audio` and `image`
+* built-in block styles (`stem`, `source`, `listing`, `literal`, `verse`,
+  `quote`, `pass`, `example`, `sidebar`) on leaf blocks
+
+`toc` cannot be claimed.
 
 == Response (plugin -> host)
 
@@ -77,7 +125,10 @@ Capability `type` is one of `block`, `blockMacro`, `inlineMacro`, `converter`.
 {
   "ok": true,
   "replacement": { "contentType": "html", "value": "<div class=\"shout\">…</div>" },
-  "warnings": []
+  "warnings": [],
+  "assets": [
+    { "key": "shout-css", "placement": "head", "html": "<link rel=\"stylesheet\" href=\"shout.css\">" }
+  ]
 }
 ----
 
@@ -97,6 +148,26 @@ Capability `type` is one of `block`, `blockMacro`, `inlineMacro`, `converter`.
 
 `ok: false` + `error`: the host leaves the original construct untouched and
 surfaces the error as a processing warning.
+
+[#declining]
+=== Declining
+
+`ok: true` without a `replacement` declines the construct. The host keeps
+the original, reports nothing, and renders it as if no plugin had claimed
+it. Use this for a construct the plugin does not handle (a `video::` target
+that is a file, not a service id) or a `backend` it has no output for.
+
+=== Assets
+
+`assets` lists document-level resources the replacement depends on. Each has
+a `key`, the `html` to place, and a `placement`; `head` (the document
+`<head>`) is the only placement defined and the default. The host keeps one
+asset per `key` for a document, however many responses carry it, and ignores
+the assets of a response that replaced nothing. `WasmExtensions.apply`
+returns them in `PluginProcessingResult.assets`; `headContent` is ready to
+pass to `OutputOptions.headContent`. A host that renders a fragment places
+them in its own page. Assets apply to `block`, `blockMacro`, and
+`inlineMacro` responses.
 
 == Converter invocations
 
@@ -120,5 +191,5 @@ The host refuses to load a plugin when:
 * `abiVersion != 1`
 * the plugin `id` duplicates an already-loaded plugin
 * a `(type, name)` capability claim duplicates an existing one
-* the module requires imports (WASI or host functions)
+* the module declares an import other than the <<imports,allowed WASI stubs>>
 * a payload exceeds the configured cap

@@ -57,6 +57,9 @@ data class RenderConfig(
  * @param documentTitle Optional document title for <title> tag (overrides the document header title if provided)
  * @param language Language code for the lang attribute on <html> element
  * @param customAttributes Custom HTML attributes to apply to the root element
+ * @param headContent Markup the host wants at the end of `<head>` in standalone output, emitted verbatim
+ *   (stylesheet links, scripts). The renderer adds nothing of its own here; extension plugins
+ *   are the usual source. Not escaped: the host vouches for it.
  */
 data class OutputOptions(
     val standalone: Boolean = true,
@@ -66,7 +69,8 @@ data class OutputOptions(
     val includeToc: Boolean = false,
     val documentTitle: String? = null,
     val language: String = "en",
-    val customAttributes: Map<String, String> = emptyMap()
+    val customAttributes: Map<String, String> = emptyMap(),
+    val headContent: List<String> = emptyList()
 ) {
     companion object {
         fun default() = OutputOptions()
@@ -341,6 +345,8 @@ class DefaultHtmlRenderer(
                 // No CSS included in output
             }
         }
+
+        config.outputOptions.headContent.forEach { builder.append("  ").append(it).append("\n") }
 
         builder.append("</head>\n")
 

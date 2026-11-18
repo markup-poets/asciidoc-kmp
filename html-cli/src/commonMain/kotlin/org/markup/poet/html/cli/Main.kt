@@ -68,9 +68,18 @@ fun main(args: Array<String>) {
         // plugins can render the nodes they claim.
         var document = parseResult.document
         var customRenderers: Map<String, CustomRenderer> = emptyMap()
-        val engine = if (cliOptions.plugins.isEmpty()) null else org.markup.poet.plugin.engine.PluginEngine()
+        var headContent: List<String> = emptyList()
+        val usesPlugins = cliOptions.plugins.isNotEmpty() || cliOptions.standardPlugins.isNotEmpty()
+        val engine = if (usesPlugins) org.markup.poet.plugin.engine.PluginEngine() else null
         if (engine != null) {
-            println("[HTML-RENDERER] Loading ${cliOptions.plugins.size} plugin(s)...")
+            cliOptions.standardPlugins.forEach { key ->
+                val standard = org.markup.poet.plugin.standard.StandardPlugin.byKey(key)!!
+                val plugin = engine.loadPlugin(standard.wasm(), "standard:$key")
+                println("[HTML-RENDERER] Loaded standard plugin '${plugin.descriptor.name}' (${plugin.id})")
+            }
+            if (cliOptions.plugins.isNotEmpty()) {
+                println("[HTML-RENDERER] Loading ${cliOptions.plugins.size} plugin(s)...")
+            }
             cliOptions.plugins.forEach { pluginPath ->
                 if (!fileExists(pluginPath)) {
                     printlnErr("✗ Error: Plugin not found: $pluginPath")
@@ -82,6 +91,7 @@ fun main(args: Array<String>) {
             val processed = org.markup.poet.plugin.integration.WasmExtensions(engine).apply(document)
             processed.warnings.forEach { println("⚠ $it") }
             document = processed.document
+            headContent = processed.headContent
             customRenderers = org.markup.poet.plugin.integration.converterRenderers(engine, document.attributes)
             if (customRenderers.isNotEmpty()) {
                 println("[HTML-RENDERER] Registered converter renderer(s): ${customRenderers.keys.joinToString()}")
@@ -93,6 +103,7 @@ fun main(args: Array<String>) {
 
         // Create render configuration
         val renderConfig = RenderConfig(
+            outputOptions = OutputOptions(headContent = headContent),
             cssOptions = cssOptions,
             customRenderers = customRenderers
         )
@@ -209,7 +220,13 @@ fun printHelp() {
         |                          times); custom blocks, block macros, and inline
         |                          macros a plugin claims are replaced by its output,
         |                          and converter capabilities render the nodes they
-        |                          claim (docs/PLUGINS.md)
+        |                          claim (see "Write a WASM plugin" in the docs)
+        |  --with <list>           Enable bundled standard plugins, comma-separated:
+        |                            icons  Font Awesome icons for icon: (:icons: font)
+        |                            math   MathJax for stem/latexmath/asciimath (:stem:)
+        |                            video  embedded YouTube and Vimeo players
+        |                          Off by default: these make the generated page load
+        |                          resources from third-party servers.
         |
         |Examples:
         |  # Convert document.adoc to document.html with default styling
@@ -229,6 +246,9 @@ fun printHelp() {
         |
         |  # Override CSS variables
         |  html-renderer document.adoc --css-var --mp-color-primary=#ff0000
+        |
+        |  # Render icons, formulas and embedded videos
+        |  html-renderer document.adoc --with icons,math,video
         |
         |  # Combine multiple options
         |  html-renderer document.adoc output.html --theme minimal --css-var --mp-font-size-base=18px

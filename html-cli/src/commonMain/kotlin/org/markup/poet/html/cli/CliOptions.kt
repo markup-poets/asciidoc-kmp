@@ -13,6 +13,7 @@ package org.markup.poet.html.cli
  * @param theme Name of built-in theme to use ("default", "minimal", "dark")
  * @param cssVariables Map of CSS variable overrides (e.g., "--mp-color-primary" to "#007acc")
  * @param plugins Paths to WASM extension plugins to load (repeatable `--plugin` flag)
+ * @param standardPlugins Keys of the bundled standard plugins to load (`--with icons,math,video`)
  */
 data class CliOptions(
     val inputFile: String,
@@ -21,7 +22,8 @@ data class CliOptions(
     val noDefaultCss: Boolean = false,
     val theme: String = "default",
     val cssVariables: Map<String, String> = emptyMap(),
-    val plugins: List<String> = emptyList()
+    val plugins: List<String> = emptyList(),
+    val standardPlugins: List<String> = emptyList()
 )
 
 /**
@@ -49,6 +51,7 @@ fun parseArgs(args: Array<String>): CliOptions {
     var theme = "default"
     val cssVariables = mutableMapOf<String, String>()
     val plugins = mutableListOf<String>()
+    val standardPlugins = mutableListOf<String>()
     
     var i = 0
     while (i < args.size) {
@@ -76,6 +79,19 @@ fun parseArgs(args: Array<String>): CliOptions {
                     throw IllegalArgumentException("--plugin requires a path to a .wasm file")
                 }
                 plugins += args[i]
+            }
+            "--with" -> {
+                i++
+                if (i >= args.size) {
+                    throw IllegalArgumentException("--with requires a comma-separated list of standard plugins")
+                }
+                args[i].split(',').map { it.trim() }.filter { it.isNotEmpty() }.forEach { key ->
+                    if (org.markup.poet.plugin.standard.StandardPlugin.byKey(key) == null) {
+                        val known = org.markup.poet.plugin.standard.StandardPlugin.entries.joinToString { it.key }
+                        throw IllegalArgumentException("Unknown standard plugin: $key (available: $known)")
+                    }
+                    if (key !in standardPlugins) standardPlugins += key
+                }
             }
             "--css-var" -> {
                 i++
@@ -129,6 +145,7 @@ fun parseArgs(args: Array<String>): CliOptions {
         noDefaultCss = noDefaultCss,
         theme = theme,
         cssVariables = cssVariables,
-        plugins = plugins
+        plugins = plugins,
+        standardPlugins = standardPlugins
     )
 }

@@ -53,6 +53,9 @@ kotlin {
                 implementation("org.eclipse.jgit:org.eclipse.jgit:7.8.0.202609011348-r")
                 // Coroutines for async operations
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                // The performance report also measures the standard WASM plugins
+                implementation(project(":plugin-integration"))
+                implementation(project(":standard-plugins"))
             }
         }
 
@@ -72,6 +75,22 @@ kotlin {
 // This module is a strict gate: test failures fail the build. Genuinely
 // unimplemented features are marked with @Ignore (reason in the test name/KDoc),
 // never left failing.
+
+// Performance report (issue #138): parse and parse+render timings over the TCK
+// inputs, a kitchen-sink document, and generated documents. Informational only,
+// never a CI gate. Output: build/perf-report/perf-report.{md,json}.
+tasks.register<JavaExec>("perfReport") {
+    group = "verification"
+    description = "Measures parser and HTML renderer performance and writes build/perf-report."
+    val jvmMain = (kotlin.targets.getByName("jvm") as org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget)
+        .compilations.getByName("main")
+    dependsOn(jvmMain.compileTaskProvider)
+    classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+    mainClass.set("org.markup.poet.tck.performance.PerfReportKt")
+    workingDir = rootDir
+    args(layout.buildDirectory.dir("perf-report").get().asFile.path)
+    systemProperty("markup.poet.version", providers.gradleProperty("VERSION_NAME").get())
+}
 
 tasks.named<Test>("jvmTest") {
     // All TckConfig default paths ("tck-quality-testing/...") are repo-root-relative;

@@ -3,6 +3,7 @@ package org.markup.poet.plugin.engine
 import io.github.charlietap.chasm.embedding.exports
 import io.github.charlietap.chasm.embedding.instance
 import io.github.charlietap.chasm.embedding.module
+import io.github.charlietap.chasm.embedding.moduleInfo
 import io.github.charlietap.chasm.embedding.shapes.ChasmResult
 import io.github.charlietap.chasm.embedding.shapes.Memory
 import io.github.charlietap.chasm.embedding.store
@@ -13,8 +14,12 @@ import org.markup.poet.plugin.api.PluginJson
 
 /**
  * Loads and manages WASM plugins (Chasm runtime, pure Kotlin — works on every
- * KMP target). Plugins are instantiated with NO imports: modules requiring
- * WASI or host functions are rejected, which is the v1 sandbox guarantee.
+ * KMP target Chasm supports).
+ *
+ * The sandbox guarantee: a plugin gets no host capability. The only imports a
+ * module may declare are the inert WASI functions in [WasiStubs], which exist
+ * so that modules built by WASI toolchains (Kotlin/Wasm, for one) can
+ * instantiate; they do no I/O. A module importing anything else is rejected.
  */
 class PluginEngine(
     private val limits: PluginLimits = PluginLimits(),
@@ -32,14 +37,25 @@ class PluginEngine(
             is ChasmResult.Error -> throw PluginException.ModuleDecodeError(result.error.toString())
         }
 
-        // No imports: WASI or host-function requirements fail instantiation.
-        val inst = when (val result = instance(pluginStore, mod, emptyList())) {
+        // Only the inert WASI stubs may be imported; anything else is refused.
+        val requested = moduleInfo(mod).imports
+        requested.firstOrNull { !WasiStubs.provides(it.moduleName, it.entityName) }?.let {
+            throw PluginException.InstantiationError(
+                "import ${it.moduleName}.${it.entityName} is not available to plugins"
+            )
+        }
+        val stubs = WasiStubs.createImports(pluginStore, requested.map { it.entityName }.distinct())
+        val inst = when (val result = instance(pluginStore, mod, stubs)) {
             is ChasmResult.Success -> result.result
             is ChasmResult.Error -> throw PluginException.InstantiationError(result.error.toString())
         }
 
         val exportList = exports(inst)
         val exportNames = exportList.map { it.name }.toSet()
+        // WASI reactor modules initialise their runtime here, before any other export is called.
+        if ("_initialize" in exportNames) {
+            WasmMemoryOps.invokeVoid(pluginStore, inst, "_initialize")
+        }
         for (name in listOf("memory", "plugin_alloc", "plugin_dealloc", "plugin_info", "process")) {
             if (name !in exportNames) throw PluginException.MissingExport(name)
         }

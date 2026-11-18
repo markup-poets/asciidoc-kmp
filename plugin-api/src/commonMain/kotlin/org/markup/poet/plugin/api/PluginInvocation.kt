@@ -20,6 +20,9 @@ data class SourcePoint(
  * @param content raw block body, macro target, or serialized ASG node JSON for
  *   `converter` invocations
  * @param documentAttributes a copy of the resolved document attributes
+ * @param backend the output format the host is producing (`html5` for the HTML
+ *   renderer). A plugin whose output only makes sense for some formats checks
+ *   it and declines the rest by answering `ok` without a replacement.
  */
 @Serializable
 data class PluginInvocation(
@@ -30,4 +33,8 @@ data class PluginInvocation(
     val content: String = "",
     val documentAttributes: Map<String, String> = emptyMap(),
     val location: SourcePoint? = null,
+    val backend: String = BACKEND_HTML5,
 )
+
+/** [PluginInvocation.backend] of the HTML renderer. */
+const val BACKEND_HTML5: String = "html5"
