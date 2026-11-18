@@ -57,7 +57,7 @@ Coverage as of version {artifact-version}:
 * Listing, literal, pass, stem, and verse verbatim blocks
 * Block macros and breaks
 * `include::` / `ifdef::` / `ifndef::` / `ifeval::` directives
-* Document header with author line
+* Document header with author line and revision line
 * Block metadata: `[#id.role%option]`, `.Title`
 * Rich inlines: strong/emphasis/code/mark/subscript/superscript spans, links,
   autolinks, xref shorthand and macro forms, attribute references, generic
