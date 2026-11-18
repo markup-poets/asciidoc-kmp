@@ -44,7 +44,8 @@ host provides these and only these, as stubs without effect:
 |`proc_exit` |Returns without exiting
 |===
 
-None of them writes to plugin memory.
+None of them writes to plugin memory. In a browser, `BrowserPluginEngine`
+applies the same table on the browser's WebAssembly engine.
 
 == Payload protocol
 

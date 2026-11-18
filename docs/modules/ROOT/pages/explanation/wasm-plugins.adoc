@@ -49,7 +49,8 @@ WASM plugins solve both problems at once:
 * *One runtime, in Kotlin* — plugins execute on
   https://github.com/CharlieTap/chasm[Chasm], a pure-Kotlin WASM runtime, so
   the same `.wasm` file runs on JVM, Android, iOS, Linux, and macOS with no
-  native bindings and no platform-specific loader.
+  native bindings and no platform-specific loader. In a browser the same
+  file runs on the browser's own engine.
 * *No ambient authority* — a plugin sees only the JSON envelopes the host
   hands it. No filesystem, no network, no clock.
 
@@ -93,9 +94,11 @@ dispatcher.
 |Supported: the plugin modules are built for these targets.
 
 |Browser (`wasm-bridge`)
-|Not yet. Chasm has no browser target, so the browser build renders the
-neutral core output. A browser already has a WebAssembly engine; a plugin
-dispatcher on top of it is planned.
+|Supported through `BrowserPluginEngine`. Chasm has no browser target, and a
+browser already has a WebAssembly engine, so plugins run on that one. The
+ABI, the limits and the import rule are the same. Loading is asynchronous
+(browsers compile modules of this size off the main thread); invocations are
+synchronous as everywhere else.
 |===
 
 === What a plugin's output can do

@@ -28,6 +28,9 @@ kotlin {
     iosSimulatorArm64()
     linuxX64()
     macosArm64()
+    wasmJs {
+        browser()
+    }
     // Plugins written in Kotlin/Wasm share these types with the host.
     @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
     wasmWasi { nodejs() }

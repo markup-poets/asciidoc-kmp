@@ -28,12 +28,28 @@ kotlin {
     iosSimulatorArm64()
     linuxX64()
     macosArm64()
+    // The browser brings its own WebAssembly engine; see BrowserPluginEngine.
+    wasmJs {
+        browser()
+    }
+
+    applyDefaultHierarchyTemplate()
 
     sourceSets {
         commonMain.dependencies {
             api(project(":plugin-api"))
-            implementation(libs.chasm)
         }
+
+        // Every target Chasm (the pure-Kotlin WASM runtime) is published for.
+        val chasmMain = create("chasmMain") {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.chasm)
+            }
+        }
+        jvmMain.get().dependsOn(chasmMain)
+        androidMain.get().dependsOn(chasmMain)
+        nativeMain.get().dependsOn(chasmMain)
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)

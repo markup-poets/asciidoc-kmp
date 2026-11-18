@@ -164,10 +164,23 @@ YouTube/Vimeo videos neutrally; the web conventions are plugins.
   40 to 65 ms; converting the #139 demo document takes about 9 ms with all
   three plugins against 0.2 ms core-only, because every claimed construct is
   a JSON round trip through an interpreter.
-- [ ] Browser: `wasm-bridge` does not run plugins (Chasm has no browser
-      target). A dispatcher on the browser's own WebAssembly engine is the
-      follow-up.
-- [ ] The MathJax configuration has not been checked in a real browser.
+- [x] Browser (`feat/browser-plugin-dispatcher`): `BrowserPluginEngine` runs
+      plugins on the browser's own WebAssembly engine; `wasm-bridge` fetches
+      the standard plugins on demand from `plugins/` next to the bundle.
+      Bundle size 303 KB → 481 KB (the plugin pass and JSON handling); the
+      three plugin files are about 220 KB each and only downloaded when
+      enabled. Tested in headless Chromium only.
+- [x] The website that hosts the live demo (separate repository) deploys the
+      `plugins/` directory with the bundle and places the returned `head`
+      markup; prepared on its `feat/demo-plugins` branch.
+- [x] MathJax configuration checked in Chromium with MathJax 3.2.2 through
+      the live demo. It found one defect: the TeX input's escape handling
+      turned the `\$` AsciiMath delimiters into literal `$` signs around
+      every AsciiMath formula. The configuration now sets
+      `processEscapes: false`.
+- [ ] The parser does not recognise the revision line (`v1.0, 2026`) under
+      the author line; it ends the header, so attribute entries after it are
+      not document attributes.
 - [ ] Plugin calls are one per construct; batching per paragraph would cut
       the cost for icon-heavy documents.
 - [ ] `converter` plugins still see top-level blocks only.
