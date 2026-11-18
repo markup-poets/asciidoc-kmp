@@ -1,0 +1,90 @@
+= Use the standard plugins
+
+The core renderer shows icons as their name, formulas as their source, and
+YouTube or Vimeo videos as a link, and it loads nothing from third parties.
+Three standard plugins add the usual web presentation for these constructs.
+They are off until you enable them. For the reasoning see
+xref:explanation/wasm-plugins.adoc[Why WASM plugins].
+
+[cols="1,2,3,3"]
+|===
+|Key |Handles |Active when |The generated page then loads
+
+|`icons`
+|`icon:name[]`, with `set=brands` or `set=regular`, `size=`, `title=`
+|the document sets `:icons: font`
+|the Font Awesome stylesheet from cdnjs
+
+|`math`
+|`stem:[]`, `latexmath:[]`, `asciimath:[]`; `[stem]`, `[latexmath]`, `[asciimath]` blocks
+|the document sets `:stem:`
+|MathJax from jsDelivr
+
+|`video`
+|`video::id[youtube]`, `video::id[vimeo]`, with `list=`, `width=`, `height=`
+|always (media files such as `video::clip.mp4[]` stay a `<video>` element)
+|the YouTube or Vimeo player in a frame
+|===
+
+A plugin that is loaded but not active for a document leaves the core output
+unchanged.
+
+== On the command line
+
+[source,bash]
+----
+html-renderer document.adoc --with icons,math,video
+----
+
+`--with` takes any subset of the keys. It combines with `--plugin` for your
+own plugins.
+
+== In code
+
+Depend on the `standard-plugins` and `plugin-integration` modules
+(`org.markup-poet:standard-plugins` is published from the release after
+0.1.4), load the plugins you want, run the plugin pass, and
+hand the collected head content to the renderer:
+
+[source,kotlin]
+----
+val engine = PluginEngine()
+engine.loadPlugin(StandardPlugin.ICONS_FONT_AWESOME.wasm(), "icons")
+engine.loadPlugin(StandardPlugin.STEM_MATHJAX.wasm(), "math")
+
+val parsed = DefaultAsciidocParser().parse(source).document
+val processed = WasmExtensions(engine).apply(parsed)
+
+val html = renderer.render(
+    processed.document,
+    RenderConfig(outputOptions = OutputOptions(headContent = processed.headContent)),
+).getOrThrow()
+
+engine.unloadAll()
+----
+
+Loading a plugin takes tens of milliseconds, so keep one engine for many
+documents instead of creating one per document.
+
+If you render a fragment (`standalone = false`), the renderer writes no
+`<head>`. Place `processed.headContent` in your own page, or the icons and
+formulas will not be drawn.
+
+== Controlling where icons come from
+
+The `icons` plugin follows two document attributes:
+
+`:iconfont-cdn: <url>`:: Link this stylesheet instead of the default one, for
+example a copy on your own server. Must be an `http:` or `https:` URL.
+`:iconfont-remote: false`:: Emit the icon markup but no stylesheet link. Use
+this when your page already includes Font Awesome.
+
+== Platforms
+
+The standard plugins run on JVM, Android, iOS, Linux and macOS. The browser
+build (`wasm-bridge`) does not run plugins yet and shows the core output.
+
+== Related pages
+
+* xref:reference/plugin-abi.adoc[Plugin ABI v1]
+* xref:how-to/write-a-kotlin-plugin.adoc[Write a plugin in Kotlin]

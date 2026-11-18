@@ -6,7 +6,11 @@ import org.markup.poet.asciidoc.render.DefaultHtmlBuilder
 import org.markup.poet.asciidoc.render.DefaultHtmlEscaper
 import org.markup.poet.asciidoc.render.DefaultHtmlRenderer
 import org.markup.poet.asciidoc.render.DefaultInlineRenderer
+import org.markup.poet.asciidoc.render.OutputOptions
 import org.markup.poet.asciidoc.render.RenderConfig
+import org.markup.poet.plugin.engine.PluginEngine
+import org.markup.poet.plugin.integration.WasmExtensions
+import org.markup.poet.plugin.standard.StandardPlugin
 import java.io.File
 import java.util.Locale
 
@@ -34,6 +38,15 @@ private data class Timing(val medianMs: Double, val p95Ms: Double, val megabytes
 
 private data class Row(val document: Document, val bytes: Int, val parse: Timing, val parseAndRender: Timing)
 
+/** Cost of the standard WASM plugins: loading each one, and a full conversion with all of them. */
+private data class PluginCost(
+    val loads: List<Triple<StandardPlugin, Int, Double>>, // plugin, wasm bytes, median load ms
+    val document: Document,
+    val bytes: Int,
+    val withoutPlugins: Timing,
+    val withPlugins: Timing,
+)
+
 fun main(args: Array<String>) {
     val outputDir = File(args.getOrElse(0) { "tck-quality-testing/build/perf-report" }).apply { mkdirs() }
     val corpus = corpus()
@@ -56,14 +69,37 @@ fun main(args: Array<String>) {
         )
     }
 
+    val pluginCost = corpus.firstOrNull { it.name.startsWith("kitchen sink") }?.let { document ->
+        val bytes = document.source.toByteArray().size
+        val loads = StandardPlugin.entries.map { plugin ->
+            val wasm = plugin.wasm()
+            val load = measure(wasm.size, warmupNanos = 0, warmupIterations = 3, iterations = 9) {
+                PluginEngine().apply { loadPlugin(wasm, plugin.key) }.unloadAll()
+            }
+            Triple(plugin, wasm.size, load.medianMs)
+        }
+        val engine = PluginEngine()
+        StandardPlugin.entries.forEach { engine.loadPlugin(it.wasm(), it.key) }
+        val extensions = WasmExtensions(engine)
+        val withPlugins = measure(bytes) {
+            val processed = extensions.apply(parser.parse(document.source).document)
+            renderer.render(
+                processed.document,
+                RenderConfig(outputOptions = OutputOptions(headContent = processed.headContent)),
+            ).getOrThrow()
+        }
+        engine.unloadAll()
+        PluginCost(loads, document, bytes, rows.first { it.document === document }.parseAndRender, withPlugins)
+    }
+
     val environment = "JVM ${System.getProperty("java.version")} (${System.getProperty("java.vm.name")}), " +
         "${System.getProperty("os.name")} ${System.getProperty("os.arch")}, " +
         "${Runtime.getRuntime().availableProcessors()} cores"
     val version = System.getProperty("markup.poet.version") ?: "unknown"
 
-    File(outputDir, "perf-report.md").writeText(markdown(rows, environment, version))
-    File(outputDir, "perf-report.json").writeText(json(rows, environment, version))
-    println(markdown(rows, environment, version))
+    File(outputDir, "perf-report.md").writeText(markdown(rows, pluginCost, environment, version))
+    File(outputDir, "perf-report.json").writeText(json(rows, pluginCost, environment, version))
+    println(markdown(rows, pluginCost, environment, version))
     println("Written to ${outputDir.path}")
 }
 
@@ -129,17 +165,23 @@ private fun generate(sections: Int): String = buildString {
     }
 }
 
-private inline fun measure(bytes: Int, block: () -> Any?): Timing {
+private inline fun measure(
+    bytes: Int,
+    warmupNanos: Long = WARMUP_MIN_NANOS,
+    warmupIterations: Int = WARMUP_ITERATIONS,
+    iterations: Int = MEASURED_ITERATIONS,
+    block: () -> Any?,
+): Timing {
     var sink = 0
     // Warm up for a minimum number of runs AND a minimum time: tiny documents
     // need thousands of runs before the JIT settles.
-    val warmupDeadline = System.nanoTime() + WARMUP_MIN_NANOS
+    val warmupDeadline = System.nanoTime() + warmupNanos
     var warmups = 0
-    while (warmups < WARMUP_ITERATIONS || System.nanoTime() < warmupDeadline) {
+    while (warmups < warmupIterations || System.nanoTime() < warmupDeadline) {
         sink += block().hashCode()
         warmups++
     }
-    val nanos = LongArray(MEASURED_ITERATIONS)
+    val nanos = LongArray(iterations)
     for (i in nanos.indices) {
         val start = System.nanoTime()
         sink += block().hashCode()
@@ -155,7 +197,7 @@ private inline fun measure(bytes: Int, block: () -> Any?): Timing {
 
 private fun Double.fmt(digits: Int = 3) = String.format(Locale.ROOT, "%.${digits}f", this)
 
-private fun markdown(rows: List<Row>, environment: String, version: String): String = buildString {
+private fun markdown(rows: List<Row>, plugins: PluginCost?, environment: String, version: String): String = buildString {
     appendLine("# Performance report")
     appendLine()
     appendLine("Markup Poet $version — $environment. Median and 95th percentile of " +
@@ -170,12 +212,30 @@ private fun markdown(rows: List<Row>, environment: String, version: String): Str
                 "${row.parseAndRender.p95Ms.fmt()} | ${row.parseAndRender.megabytesPerSecond.fmt(1)} |"
         )
     }
+    if (plugins != null) {
+        appendLine()
+        appendLine("## Standard plugins")
+        appendLine()
+        appendLine("The standard plugins are WebAssembly modules run by an interpreter. Loading is paid " +
+            "once per engine (median of 9 loads after 3 warm-up loads):")
+        appendLine()
+        appendLine("| Plugin | Size (bytes) | Load median (ms) |")
+        appendLine("|---|---:|---:|")
+        plugins.loads.forEach { (plugin, size, ms) -> appendLine("| `${plugin.key}` | $size | ${ms.fmt()} |") }
+        appendLine()
+        appendLine("Converting \"${plugins.document.name}\" (${plugins.bytes} bytes) with all of them loaded:")
+        appendLine()
+        appendLine("| | Parse + HTML median (ms) | p95 (ms) |")
+        appendLine("|---|---:|---:|")
+        appendLine("| core only | ${plugins.withoutPlugins.medianMs.fmt()} | ${plugins.withoutPlugins.p95Ms.fmt()} |")
+        appendLine("| with standard plugins | ${plugins.withPlugins.medianMs.fmt()} | ${plugins.withPlugins.p95Ms.fmt()} |")
+    }
     appendLine()
     appendLine("Numbers describe this machine and JVM only; they are not comparable with other " +
         "processors measured elsewhere.")
 }
 
-private fun json(rows: List<Row>, environment: String, version: String): String {
+private fun json(rows: List<Row>, plugins: PluginCost?, environment: String, version: String): String {
     fun String.quoted() = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
     fun Timing.json() =
         "{\"medianMs\": ${medianMs.fmt(4)}, \"p95Ms\": ${p95Ms.fmt(4)}, \"megabytesPerSecond\": ${megabytesPerSecond.fmt(2)}}"
@@ -183,7 +243,14 @@ private fun json(rows: List<Row>, environment: String, version: String): String 
         "    {\"name\": ${row.document.name.quoted()}, \"bytes\": ${row.bytes}, " +
             "\"parse\": ${row.parse.json()}, \"parseAndRender\": ${row.parseAndRender.json()}}"
     }
+    val pluginJson = plugins?.let { cost ->
+        val loads = cost.loads.joinToString(", ") { (plugin, size, ms) ->
+            "{\"key\": ${plugin.key.quoted()}, \"bytes\": $size, \"loadMedianMs\": ${ms.fmt(4)}}"
+        }
+        ",\n  \"standardPlugins\": {\"loads\": [$loads], \"document\": ${cost.document.name.quoted()}, " +
+            "\"coreOnly\": ${cost.withoutPlugins.json()}, \"withPlugins\": ${cost.withPlugins.json()}}"
+    }.orEmpty()
     return "{\n  \"libraryVersion\": ${version.quoted()},\n  \"environment\": ${environment.quoted()},\n" +
         "  \"warmupIterations\": $WARMUP_ITERATIONS,\n  \"measuredIterations\": $MEASURED_ITERATIONS,\n" +
-        "  \"documents\": [\n$documents\n  ]\n}\n"
+        "  \"documents\": [\n$documents\n  ]$pluginJson\n}\n"
 }

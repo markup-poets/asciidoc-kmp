@@ -19,15 +19,34 @@ on JVM, Android, iOS, Linux, and macOS; an extension mechanism tied to a
 scripting runtime would exclude most of those targets, and native bindings
 would break the pure-Kotlin build.
 
+== A neutral core, features as plugins
+
+The core renderer limits itself to what the AsciiDoc language says a
+construct means, and it never makes the generated page load anything from a
+third party. Some widely used features are neither: drawing `icon:heart[]`
+with Font Awesome, typesetting `stem:[x^2]` with MathJax, or turning
+`video::id[youtube]` into an embedded player are conventions of one HTML
+converter. They only make sense for web output, and they pull stylesheets,
+scripts, or frames from other servers.
+
+So the core renders these constructs neutrally (the icon name, the formula
+source, a link to the video page) and the conventions live in plugins. Three
+_standard plugins_ ship with the project and are off until a host enables
+them; see xref:how-to/use-standard-plugins.adoc[Use the standard plugins].
+They are ordinary plugins built on the public ABI, written in Kotlin and
+compiled to WebAssembly. A host that wants local icon fonts, a different
+math engine, or no embeds at all swaps or omits a plugin instead of patching
+the renderer.
+
 == Why WebAssembly
 
 WASM plugins solve both problems at once:
 
 * *Language-agnostic* — a plugin is a compiled WASM module. It can be written
-  in Rust, Zig, C, Go, or anything else that targets
-  `wasm32-unknown-unknown`. The example plugin in
+  in Kotlin (the `wasmWasi` target; the standard plugins are), Rust, Zig, C,
+  Go, or anything else that compiles to WebAssembly. The example plugin in
   `examples/plugins/shout-rust/` is Rust.
-* *Every KMP target* — plugins execute on
+* *One runtime, in Kotlin* — plugins execute on
   https://github.com/CharlieTap/chasm[Chasm], a pure-Kotlin WASM runtime, so
   the same `.wasm` file runs on JVM, Android, iOS, Linux, and macOS with no
   native bindings and no platform-specific loader.
@@ -38,10 +57,16 @@ WASM plugins solve both problems at once:
 
 The sandbox is enforced structurally rather than by policy checks:
 
-* *No imports.* A module that requires WASI or any host function is rejected
-  at load time. A plugin is pure compute over its input envelope — the only
-  way data enters or leaves is through the length-prefixed JSON payloads the
-  host writes into and reads out of the plugin's own linear memory.
+* *No host functions.* A plugin is pure compute over its input envelope — the
+  only way data enters or leaves is through the length-prefixed JSON payloads
+  the host writes into and reads out of the plugin's own linear memory. A
+  module that imports a host function is rejected at load time.
+* *Inert WASI.* Toolchains that target WASI, Kotlin/Wasm among them, emit
+  modules that import a few `wasi_snapshot_preview1` functions even when the
+  code does no I/O. The engine satisfies those imports with stubs that do
+  nothing: writes are discarded, reads and file lookups fail, the clock and
+  the random source report "not supported". A plugin gains no capability
+  through them.
 * *Payload caps.* Payloads are capped at 1 MB (64 KB for the descriptor), so
   a plugin cannot force the host to buffer unbounded output.
 * *Isolation.* Each plugin gets its own store, instance, and memory; nothing
@@ -58,6 +83,29 @@ can touch, not *how long* it computes. Until metering lands: load only
 plugins you trust, or invoke the engine with a timeout on a background
 dispatcher.
 
+=== Where plugins run
+
+[cols="1,3"]
+|===
+|Platform |Status
+
+|JVM, Android, iOS, Linux, macOS
+|Supported: the plugin modules are built for these targets.
+
+|Browser (`wasm-bridge`)
+|Not yet. Chasm has no browser target, so the browser build renders the
+neutral core output. A browser already has a WebAssembly engine; a plugin
+dispatcher on top of it is planned.
+|===
+
+=== What a plugin's output can do
+
+The sandbox bounds the plugin, not the markup it returns. HTML from a plugin
+is emitted verbatim, so a plugin can make the _generated page_ load a
+stylesheet or script (the standard plugins do exactly that). Enabling a
+plugin means trusting its output the way you trust a stylesheet you add to
+your site.
+
 == Two kinds of extension point
 
 The four capability types split into two semantic groups, and the split
@@ -72,6 +120,16 @@ xref:explanation/architecture.adoc[the architecture page]:
   the host registers it as a custom renderer, and the html-renderer calls it
   with the claimed node serialized as official ASG JSON whenever it reaches a
   matching node. The response is emitted verbatim in the node's place.
+
+A transforming plugin's claim wins over the built-in handling of the same
+name: a plugin may claim `icon`, `stem`, the `video` block macro, or the
+`stem` block style. It may also decline a single construct, which then
+renders the built-in way. The request names the output format (`backend`),
+so a plugin whose output is HTML declines when the host produces something
+else.
+
+A converter currently sees top-level blocks only; blocks nested in sections
+and inline nodes do not reach it. Use a transforming capability for those.
 
 Keeping transformation and rendering separate means a document-transforming
 plugin composes with any renderer, and a converter plugin can restyle a node

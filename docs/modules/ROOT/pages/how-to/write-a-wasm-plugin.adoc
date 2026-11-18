@@ -34,7 +34,7 @@ A plugin declares one or more capabilities, each tied to an extension point:
 
 == Implement the module
 
-A plugin is a WASM module with no imports (modules requiring WASI or host functions are rejected at load) that exports `memory`, `plugin_alloc`, `plugin_dealloc`, `plugin_info`, and `process`. Every payload crossing the boundary is a 4-byte little-endian length prefix followed by UTF-8 JSON.
+A plugin is a WASM module with no host-function imports (only the inert WASI stubs listed in xref:reference/plugin-abi.adoc#imports[Allowed imports] are provided; a module importing anything else is rejected at load) that exports `memory`, `plugin_alloc`, `plugin_dealloc`, `plugin_info`, and `process`. Every payload crossing the boundary is a 4-byte little-endian length prefix followed by UTF-8 JSON.
 
 The complete example lives in `examples/plugins/shout-rust/` — a `cdylib` crate using `serde_json`. The skeleton:
 
