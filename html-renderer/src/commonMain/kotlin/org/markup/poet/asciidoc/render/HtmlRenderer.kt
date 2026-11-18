@@ -342,16 +342,6 @@ class DefaultHtmlRenderer(
             }
         }
 
-        // Web resources the document opted into, as other AsciiDoc converters do:
-        // `:icons: font` loads Font Awesome, `:stem:` loads MathJax.
-        if (document.attributes["icons"] == "font") {
-            builder.append("  <link rel=\"stylesheet\" href=\"$FONT_AWESOME_CSS\">\n")
-        }
-        if ("stem" in document.attributes) {
-            builder.append("  <script>$MATHJAX_CONFIG</script>\n")
-            builder.append("  <script async src=\"$MATHJAX_SCRIPT\"></script>\n")
-        }
-
         builder.append("</head>\n")
 
         // BODY section
@@ -379,15 +369,6 @@ class DefaultHtmlRenderer(
 
 /** What the block renderer emits for `toc::[]`; filled in by [DefaultHtmlRenderer]. */
 internal const val TOC_PLACEHOLDER = "<div id=\"toc\" class=\"toc\"></div>"
-
-private const val FONT_AWESOME_CSS = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-private const val MATHJAX_SCRIPT = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
-
-/** MathJax 3: LaTeX in `\\(..\\)` / `\\[..\\]`, AsciiMath in `\\$..\\$` (the delimiters the renderers emit). */
-private const val MATHJAX_CONFIG =
-    "MathJax = {loader: {load: ['input/asciimath']}, " +
-        "tex: {inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']]}, " +
-        "asciimath: {delimiters: [['\\\\\$', '\\\\\$']]}};"
 
 /**
  * Exception types for rendering errors.

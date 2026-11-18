@@ -116,10 +116,9 @@ TIP: Try adding sections, lists, and inline formatting.
     }
 
     @Test
-    fun `renders font icons including the brands set from an attribute value`() {
-        assertRendered("<i class=\"fa fa-arrow-right\"></i>")
-        assertRendered("<i class=\"fa-brands fa-github\"></i>")
-        assertRendered("font-awesome")
+    fun `renders icons as their name including one from an attribute value`() {
+        assertRendered("<span class=\"icon\">[arrow-right&#93;</span>")
+        assertRendered("<span class=\"icon\">[github&#93;</span>")
     }
 
     @Test
@@ -128,18 +127,30 @@ TIP: Try adding sections, lists, and inline formatting.
     }
 
     @Test
-    fun `embeds a youtube video with its playlist and title`() {
-        assertRendered("https://www.youtube.com/embed/RvRhUHTV_8k?rel=0&amp;list=PLDitloyBcHOm49bxNhvGgg0f9NRZ5lSaP")
+    fun `links a youtube video with its playlist and title`() {
+        assertRendered(
+            "<a href=\"https://www.youtube.com/watch?v=RvRhUHTV_8k&amp;list=PLDitloyBcHOm49bxNhvGgg0f9NRZ5lSaP\">"
+        )
         assertRendered("<div class=\"title\">A random video</div>")
     }
 
     @Test
-    fun `renders inline and block math with escaped brackets intact`() {
-        assertRendered("\\\$[[a,b],[c,d]]((n),(k))\\\$")
-        assertRendered("\\(C = \\alpha + \\beta Y^{\\gamma} + \\epsilon\\)")
+    fun `renders inline and block math source with escaped brackets intact`() {
+        assertRendered("<code class=\"stem\" data-notation=\"asciimath\">[[a,b],[c,d]]((n),(k))</code>")
+        assertRendered(
+            "<code class=\"stem\" data-notation=\"latexmath\">C = \\alpha + \\beta Y^{\\gamma} + \\epsilon</code>"
+        )
         assertRendered("<div class=\"stemblock\">")
-        assertRendered("\\\$sqrt(4) = 2\\\$")
-        assertRendered("mathjax")
+        assertRendered("<pre data-notation=\"asciimath\">sqrt(4) = 2</pre>")
+    }
+
+    @Test
+    fun `core output loads nothing from third parties`() {
+        // Icon fonts, math typesetting and embedded players belong to extension
+        // plugins; the core renderer must not emit scripts, frames or stylesheets.
+        listOf("<script", "<iframe", "<link ", "cdnjs", "jsdelivr", "youtube.com/embed").forEach {
+            assertFalse(html.contains(it, ignoreCase = true), "core output must not contain $it")
+        }
     }
 
     @Test

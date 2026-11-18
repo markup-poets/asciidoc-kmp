@@ -200,16 +200,18 @@ class DefaultBlockRenderer(
 
     /**
      * Renders a `[stem]` / `[asciimath]` / `[latexmath]` passthrough block as a
-     * `stemblock` holding the formula in the display delimiters MathJax
-     * expects. `[stem]` follows the document's `:stem:` notation.
+     * `stemblock` holding the formula source, tagged with the notation
+     * (`[stem]` follows the document's `:stem:` attribute). Typesetting is left
+     * to an extension plugin that claims the block.
      */
     private fun renderStemBlock(block: LeafBlock, style: String?, context: RenderContext): String {
         val latex = style == "latexmath" ||
             (style == "stem" && context.documentAttributes["stem"] in setOf("latexmath", "latex", "tex"))
+        val notation = if (latex) "latexmath" else "asciimath"
         val formula = builder.escape(plainText(block.inlines))
-        val delimited = if (latex) "\\[$formula\\]" else "\\\$$formula\\\$"
         val title = renderBlockTitle(block.metadata, context)
-        return "<div class=\"${withRoles("stemblock", block.metadata)}\">$title<div class=\"content\">\n$delimited\n</div></div>"
+        return "<div class=\"${withRoles("stemblock", block.metadata)}\">$title" +
+            "<div class=\"content\"><pre data-notation=\"$notation\">$formula</pre></div></div>"
     }
 
     /**
@@ -624,34 +626,36 @@ class DefaultBlockRenderer(
     }
 
     /**
-     * Renders `video::target[...]`. A first positional attribute of `youtube`
-     * or `vimeo` makes the target a video id on that service, embedded as an
-     * `<iframe>` (`list=` selects a YouTube playlist); anything else is a
-     * media file played by a `<video>` element.
+     * Renders `video::target[...]`. A media file is played by a `<video>`
+     * element. With a first positional attribute of `youtube` or `vimeo` the
+     * target is a video id on that service; the core renders a plain link to
+     * the video page (`list=` selects a YouTube playlist) and leaves embedding
+     * a player to an extension plugin that claims the `video` macro.
      */
     private fun renderVideoBlock(block: BlockMacro, target: String, context: RenderContext): String {
         val metadata = block.metadata
-        val service = metadata?.positional?.firstOrNull()
         val title = renderBlockTitle(metadata, context)
         val classes = builder.escapeAttribute(withRoles("videoblock", metadata))
         val idAttr = metadata?.id?.let { " id=\"${builder.escapeAttribute(it)}\"" } ?: ""
-        val size = listOfNotNull(
-            metadata?.named?.get("width")?.toIntOrNull()?.let { " width=\"$it\"" },
-            metadata?.named?.get("height")?.toIntOrNull()?.let { " height=\"$it\"" },
-        ).joinToString("")
-        val player = when (service) {
+        val videoId = target.takeIf { videoIdRegex.matches(it) }.orEmpty()
+        val pageUrl = when (metadata?.positional?.firstOrNull()) {
             "youtube" -> {
-                val list = metadata?.named?.get("list")?.takeIf { videoIdRegex.matches(it) }?.let { "&amp;list=$it" } ?: ""
-                val id = if (videoIdRegex.matches(target)) target else ""
-                "<iframe$size src=\"https://www.youtube.com/embed/$id?rel=0$list\" frameborder=\"0\" allowfullscreen></iframe>"
+                val list = metadata.named["list"]?.takeIf { videoIdRegex.matches(it) }?.let { "&amp;list=$it" } ?: ""
+                "https://www.youtube.com/watch?v=$videoId$list"
             }
-            "vimeo" -> {
-                val id = if (videoIdRegex.matches(target)) target else ""
-                "<iframe$size src=\"https://player.vimeo.com/video/$id\" frameborder=\"0\" allowfullscreen></iframe>"
-            }
-            else -> "<video$size controls src=\"${builder.escapeAttribute(target)}\"></video>"
+            "vimeo" -> "https://vimeo.com/$videoId"
+            else -> null
         }
-        return "<div class=\"$classes\"$idAttr>$title<div class=\"content\">$player</div></div>"
+        val content = if (pageUrl != null) {
+            "<a href=\"$pageUrl\">$pageUrl</a>"
+        } else {
+            val size = listOfNotNull(
+                metadata?.named?.get("width")?.toIntOrNull()?.let { " width=\"$it\"" },
+                metadata?.named?.get("height")?.toIntOrNull()?.let { " height=\"$it\"" },
+            ).joinToString("")
+            "<video$size controls src=\"${builder.escapeAttribute(target)}\"></video>"
+        }
+        return "<div class=\"$classes\"$idAttr>$title<div class=\"content\">$content</div></div>"
     }
 
     private val videoIdRegex = Regex("[A-Za-z0-9_-]+")
