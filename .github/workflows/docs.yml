@@ -65,6 +65,14 @@ jobs:
           set -o pipefail
           ./run-official-tck.sh 2>&1 | tee build/docs/tck/official-tck-output.txt
 
+      # Informational only (shared runners are noisy): never gates anything.
+      - name: Measure performance
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          ./gradlew -q :tck-quality-testing:perfReport
+          cp tck-quality-testing/build/perf-report/perf-report.md tck-quality-testing/build/perf-report/perf-report.json build/docs/tck/
+
       - name: Generate report page
         if: github.event_name != 'pull_request'
         run: |
@@ -99,6 +107,11 @@ jobs:
           These results are a snapshot, not a certification: no official certification or
           compatibility program for AsciiDoc implementations exists yet. AsciiDoc® is a trademark
           of the Eclipse Foundation, Inc.; this project is not affiliated with or endorsed by it.</p>
+          <h2>Performance</h2>
+          <p>Parser and HTML renderer timings measured on the CI runner for this build — informational,
+          for tracking this project against itself, not comparable with other processors measured elsewhere.
+          Data: <a href="perf-report.json">perf-report.json</a>.</p>
+          <pre>$(sed 's/&/\&amp;/g; s/</\&lt;/g' build/docs/tck/perf-report.md 2>/dev/null || echo 'Performance report not available for this build.')</pre>
           <h2>Raw harness output</h2>
           <pre>$(sed 's/&/\&amp;/g; s/</\&lt;/g' build/docs/tck/official-tck-output.txt)</pre>
           </body></html>
