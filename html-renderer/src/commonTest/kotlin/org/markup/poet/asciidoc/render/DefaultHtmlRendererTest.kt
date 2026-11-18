@@ -69,6 +69,22 @@ class DefaultHtmlRendererTest {
     }
 
     @Test
+    fun `should emit host-supplied head content verbatim and only in standalone output`() {
+        val link = "<link rel=\"stylesheet\" href=\"https://assets.example.org/icons.css\">"
+        val doc = document(blocks = listOf(paragraph("Text")))
+
+        val standalone = renderer.render(doc, RenderConfig(outputOptions = OutputOptions(headContent = listOf(link))))
+            .getOrThrow()
+        assertTrue(link in standalone.substringBefore("</head>"))
+
+        val fragment = renderer.render(
+            doc,
+            RenderConfig(outputOptions = OutputOptions(standalone = false, headContent = listOf(link))),
+        ).getOrThrow()
+        assertTrue(link !in fragment)
+    }
+
+    @Test
     fun `should render fragment without document structure`() {
         // Arrange
         val document = document(

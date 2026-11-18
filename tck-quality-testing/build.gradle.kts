@@ -53,6 +53,9 @@ kotlin {
                 implementation("org.eclipse.jgit:org.eclipse.jgit:7.8.0.202609011348-r")
                 // Coroutines for async operations
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+                // The performance report also measures the standard WASM plugins
+                implementation(project(":plugin-integration"))
+                implementation(project(":standard-plugins"))
             }
         }
 

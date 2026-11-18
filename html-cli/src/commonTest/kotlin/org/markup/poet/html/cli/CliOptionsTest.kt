@@ -207,4 +207,19 @@ class CliOptionsTest {
         
         assertEquals("value=with=equals", options.cssVariables["var"])
     }
+
+    @Test
+    fun `standard plugins are off unless requested with --with`() {
+        assertTrue(parseArgs(arrayOf("input.adoc")).standardPlugins.isEmpty())
+        assertEquals(
+            listOf("icons", "video"),
+            parseArgs(arrayOf("input.adoc", "--with", "icons, video,icons")).standardPlugins,
+        )
+    }
+
+    @Test
+    fun `unknown standard plugin is rejected with the available names`() {
+        val error = assertFailsWith<IllegalArgumentException> { parseArgs(arrayOf("input.adoc", "--with", "pdf")) }
+        assertTrue("icons" in error.message.orEmpty() && "math" in error.message.orEmpty())
+    }
 }

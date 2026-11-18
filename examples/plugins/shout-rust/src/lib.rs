@@ -3,7 +3,7 @@
 //! Registers a custom `[shout]` block processor that uppercases the block's
 //! content and renders it as HTML.
 //!
-//! ABI (see docs/PLUGINS.md in the Markup Poet repository):
+//! ABI (see docs/modules/ROOT/pages/reference/plugin-abi.adoc in the Markup Poet repository):
 //! - exports: memory, plugin_alloc, plugin_dealloc, plugin_info, process,
 //!   and optionally on_load / on_unload
 //! - all payloads are 4-byte little-endian length-prefixed UTF-8 JSON in

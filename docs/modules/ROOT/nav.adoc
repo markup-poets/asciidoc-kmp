@@ -6,7 +6,9 @@
 
 .How-to guides
 * xref:how-to/customize-theming.adoc[Customize themes and CSS]
+* xref:how-to/use-standard-plugins.adoc[Use the standard plugins]
 * xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin]
+* xref:how-to/write-a-kotlin-plugin.adoc[Write a plugin in Kotlin]
 * xref:how-to/export-asg-to-dot.adoc[Export the ASG to Graphviz DOT]
 * xref:how-to/build-native-cli.adoc[Build native CLI binaries]
 * xref:how-to/assemble-multi-file-documents.adoc[Assemble multi-file documents]
