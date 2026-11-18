@@ -80,6 +80,9 @@ class AsgInlineParser(
     /** Bare URL schemes are autolink territory, not inline macros. */
     private val excludedMacroNames = setOf("http", "https", "ftp", "irc", "mailto")
 
+    /** Macros whose bracketed part is raw content, never split on commas. */
+    private val rawContentMacroNames = setOf("stem", "latexmath", "asciimath", "footnote")
+
     private val autolinkSchemes = listOf("https://", "http://", "ftp://", "irc://")
 
     private val attributeNameRegex = Regex("""^[A-Za-z0-9_][A-Za-z0-9_-]*$""")
@@ -151,7 +154,9 @@ class AsgInlineParser(
             if (c == '{') {
                 val reference = tryParseAttributeReference(text, i, to, map)
                 if (reference != null) {
-                    consume(reference)
+                    flushPlain()
+                    inlines += reference.first
+                    i = reference.second
                     continue
                 }
             }
@@ -181,26 +186,45 @@ class AsgInlineParser(
     }
 
     /**
-     * Substitutes `{name}` when the attribute is defined. The produced text
-     * node's value is the attribute value while its location spans the
-     * reference in the source.
+     * Substitutes `{name}` when the attribute is defined. Attribute
+     * substitution precedes inline formatting, so markup in the value
+     * (`:lp: *live preview*`, `:gh: icon:github[]`) is parsed like inline
+     * source. A plain value yields one text node whose value is the attribute
+     * value; every produced node's location spans the reference in the source.
      */
     private fun tryParseAttributeReference(
         text: String,
         start: Int,
         to: Int,
         map: SegmentMap,
-    ): Pair<Inline, Int>? {
+    ): Pair<List<Inline>, Int>? {
         val close = text.indexOf('}', start + 1)
         if (close < 0 || close >= to) return null
         val name = text.substring(start + 1, close)
         if (!attributeNameRegex.matches(name)) return null
         val value = attributes[name] ?: return null
-        val node = InlineText(
-            value = value,
-            location = Location(map.position(start), map.position(close)),
-        )
-        return node to (close + 1)
+        val location = Location(map.position(start), map.position(close))
+        val plain = listOf(InlineText(value = value, location = location))
+        if (value.none { it in valueMarkupChars }) return plain to (close + 1)
+
+        // The value is parsed without its own name defined, so a self-referencing
+        // attribute cannot recurse.
+        val parsed = AsgInlineParser(attributes - name)
+            .parse(value, SegmentMap.ofLines(value.split('\n'), firstSourceLine = 1))
+        val nodes = if (parsed.size == 1 && parsed[0] is InlineText) plain else parsed.map { relocate(it, location) }
+        return nodes to (close + 1)
+    }
+
+    /** Characters that can start inline markup in an attribute value. */
+    private val valueMarkupChars = setOf('*', '_', '`', '#', '~', '^', '<', ':', '{', '\\')
+
+    /** Gives [inline] and everything nested in it the single source [location]. */
+    private fun relocate(inline: Inline, location: Location): Inline = when (inline) {
+        is InlineText -> inline.copy(location = location)
+        is InlineSpan -> inline.copy(inlines = inline.inlines.map { relocate(it, location) }, location = location)
+        is InlineRef -> inline.copy(inlines = inline.inlines.map { relocate(it, location) }, location = location)
+        is InlineMacro -> inline.copy(location = location)
+        else -> inline
     }
 
     /**
@@ -313,13 +337,18 @@ class AsgInlineParser(
         if (j >= to || text[j] != '[') return null
         val target = text.substring(targetStart, j)
 
-        val attrEnd = text.indexOf(']', j + 1)
-        if (attrEnd < 0 || attrEnd >= to) return null
-        val attrlist = text.substring(j + 1, attrEnd)
+        // The closing bracket is the first one not escaped as `\]`.
+        var attrEnd = j + 1
+        while (attrEnd < to && (text[attrEnd] != ']' || text[attrEnd - 1] == '\\')) attrEnd++
+        if (attrEnd >= to) return null
+        val attrlist = text.substring(j + 1, attrEnd).replace("\\]", "]")
 
         val positional = mutableListOf<String>()
         val named = LinkedHashMap<String, String>()
-        if (attrlist.isNotBlank()) {
+        if (name in rawContentMacroNames) {
+            // The brackets hold content (a formula, footnote text), not an attribute list.
+            if (attrlist.isNotEmpty()) positional += attrlist
+        } else if (attrlist.isNotBlank()) {
             attrlist.split(',').forEach { part ->
                 val trimmed = part.trim()
                 if (trimmed.isEmpty()) return@forEach

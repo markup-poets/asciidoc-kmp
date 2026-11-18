@@ -110,22 +110,23 @@ missing structures. Fixed, with a regression test per construct
 | Document title and author line | not rendered in the page body | `<header>` with `<h1>`, author, mailto link |
 | `toc::[]` with `:toc: macro` | empty `<div>` | filled with section links |
 | `:sectnums:` | ignored | `1.`, `1.1.` prefixes on headings and TOC entries |
-| `icon:name[]`, `set=brands` | placeholder | Font Awesome icon under `:icons: font` |
+| `icon:name[]`, `set=brands` | placeholder | icon name as text (`[github]`) |
 | `{attr}` whose value has markup | value shown as literal text | value is parsed as inline markup |
-| `video::id[youtube,list=…]` | `<video src="id">`, title dropped | YouTube `<iframe>` embed with title |
-| `stem:[…\]…]` | truncated at the first `]`, placeholder | full formula, MathJax delimiters |
-| `latexmath:[…]` | placeholder | LaTeX formula, MathJax delimiters |
-| `[stem]` passthrough block | bare text | `stemblock` |
+| `video::id[youtube,list=…]` | `<video src="id">`, title dropped | link to the video page, with title |
+| `stem:[…\]…]` | truncated at the first `]`, placeholder | full formula source in `<code class="stem">` |
+| `latexmath:[…]` | placeholder | formula source, tagged `latexmath` |
+| `[stem]` passthrough block | bare text | `stemblock` with the formula source |
 | `footnote:id[text]` in a section title | placeholder, id polluted | footnote marker, clean id, footnote list |
 | `[%collapsible%open]` example | plain example block | `<details open>` |
 | `cols="30%,70%"` | widths ignored | `<colgroup>` with widths |
 
 Official TCK unchanged at 13 of 13 after the parser changes.
 
-Decision for the maintainer: under `:icons: font` and `:stem:` the generated
-page now links Font Awesome (cdnjs) and MathJax (jsDelivr), as other AsciiDoc
-converters do. Pages without those attributes are unaffected. If generated
-pages must stay free of third-party requests, this needs an opt-out.
+Decision (2026-11-18): the core renderer stays neutral and loads nothing
+from third parties. Font Awesome icons, MathJax typesetting and embedded
+YouTube/Vimeo players are converter conventions for web output, not part of
+the AsciiDoc language, so they are provided by WASM extension plugins
+(branch `feat/renderer-plugins`) instead of the core.
 
 Not fixed, noted on the way:
 

@@ -160,6 +160,14 @@ class DefaultInlineRenderer(
                 val text = builder.escape(macro.positional.firstOrNull() ?: macro.target)
                 "<a href=\"#$escapedId\">$text</a>"
             }
+            "icon" -> renderIcon(macro)
+            "stem", "asciimath", "latexmath" -> renderMath(macro, context)
+            "footnote" -> {
+                val text = builder.escape(macro.positional.firstOrNull().orEmpty())
+                val number = context.registerFootnote(macro.target.ifEmpty { null }, text)
+                "<sup class=\"footnote\">[<a class=\"footnote\" href=\"#_footnotedef_$number\" " +
+                    "title=\"View footnote.\">$number</a>]</sup>"
+            }
             else -> {
                 context.logWarning("Unexpanded macro: ${macro.name}")
                 val escapedName = builder.escape("${macro.name}[]")
@@ -167,6 +175,32 @@ class DefaultInlineRenderer(
             }
         }
     }
+
+    /**
+     * Renders `icon:name[]` as the bracketed icon name. Which icon font or
+     * image set draws the icon is a presentation choice, so it is left to an
+     * extension plugin that claims the `icon` macro.
+     */
+    private fun renderIcon(macro: InlineMacro): String {
+        val titleAttr = macro.named["title"]?.let { " title=\"${builder.escapeAttribute(it)}\"" } ?: ""
+        return "<span class=\"icon\"$titleAttr>[${builder.escape(macro.target)}&#93;</span>"
+    }
+
+    /**
+     * Renders an inline formula as its source text in `<code class="stem">`,
+     * tagged with the notation (`stem:` follows the document's `:stem:`
+     * attribute, AsciiMath unless set to `latexmath`). Typesetting is left to
+     * an extension plugin that claims the macro.
+     */
+    private fun renderMath(macro: InlineMacro, context: RenderContext): String {
+        val latex = macro.name == "latexmath" ||
+            (macro.name == "stem" && context.documentAttributes["stem"] in latexNotations)
+        val notation = if (latex) "latexmath" else "asciimath"
+        val formula = builder.escape(macro.positional.firstOrNull().orEmpty())
+        return "<code class=\"stem\" data-notation=\"$notation\">$formula</code>"
+    }
+
+    private val latexNotations = setOf("latexmath", "latex", "tex")
 
     /**
      * Renders an unresolved attribute reference as its literal `{name}` text.

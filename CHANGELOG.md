@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Maven Central named `…-0.1.1.jar` for later releases. The project version
   now comes from `VERSION_NAME` in all 13 modules. Already-published metadata
   cannot be amended; the fix applies from the next release.
+- **A typical "kitchen sink" document now renders without placeholders**
+  (#139). The HTML renderer gained: the document title and author line as a
+  page header; `toc::[]` filled in under `:toc: macro`; section numbers under
+  `:sectnums:`; `footnote:` macros with a footnote list; block titles on
+  `video::`; `[%collapsible]` example blocks as `<details>`; and `cols`
+  widths as a `<colgroup>`. `icon:`, `stem:` / `latexmath:` / `asciimath:`,
+  `[stem]` blocks and YouTube/Vimeo `video::` targets render as neutral
+  markup (icon name, formula source, a link to the video page): the core
+  renderer loads nothing from third parties, and icon fonts, math typesetting
+  and embedded players are left to extension plugins. The parser now applies
+  inline formatting to attribute values (`:x: *bold*`), honors `\]` inside
+  inline macro brackets, and accepts percentage widths in `cols`.
 
 - **`include::` directives inside verbatim blocks (listings, literal blocks)
   are now resolved** (#119). Includes are preprocessor-level in AsciiDoc, so
