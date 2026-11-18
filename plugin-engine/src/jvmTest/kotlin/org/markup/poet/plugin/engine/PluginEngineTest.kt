@@ -112,4 +112,18 @@ class PluginEngineTest {
         assertNull(engine.forCapability("block", "shout"))
         assertEquals(false, engine.unloadPlugin(plugin.id))
     }
+
+    @Test
+    fun moduleImportingAHostFunctionIsRefused() {
+        // (module (import "env" "host_call" (func))) -- anything beyond the inert WASI stubs is refused.
+        val module = intArrayOf(
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x11,
+            0x01, 0x03, 0x65, 0x6e, 0x76, 0x09, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x00, 0x00,
+        ).map { it.toByte() }.toByteArray()
+
+        val error = assertFailsWith<PluginException.InstantiationError> {
+            PluginEngine().loadPlugin(module, "imports-host.wasm")
+        }
+        assertTrue("env.host_call" in error.message.orEmpty())
+    }
 }

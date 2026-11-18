@@ -142,6 +142,49 @@ Not fixed, noted on the way:
       implemented only there (auto-placed `:toc:`, bibliography, validation)
       are not available from the command line.
 
+### 4.5 Presentation features as WASM plugins — `feat/renderer-plugins`
+
+Follows the decision in 4.3: the core renders icons, formulas and
+YouTube/Vimeo videos neutrally; the web conventions are plugins.
+
+- [x] Three standard plugins written in Kotlin/Wasm (`plugins/`): `icons`
+      (Font Awesome), `math` (MathJax), `video` (YouTube/Vimeo players).
+      Off by default; `html-renderer --with icons,math,video` or
+      `StandardPlugin.*.wasm()` from the new `standard-plugins` module.
+- [x] `plugin-sdk` (guest side of the ABI for Kotlin plugins); `plugin-api`
+      builds for `wasmWasi`.
+- [x] ABI additions, still v1: `backend` in the request, block `id` / `role` /
+      `options` / `title` in the attributes, `assets` in the response,
+      claiming built-in names, declining a construct.
+- [x] Engine: inert WASI stubs so Kotlin/Wasm modules load; any other import
+      is still refused. Verified on Chasm 2.1.0.
+- [x] `OutputOptions.headContent` in the renderer (the only core change).
+- [x] Android target for the plugin modules.
+- Measured (JVM 17, this machine): each plugin is about 220 KB and loads in
+  40 to 65 ms; converting the #139 demo document takes about 9 ms with all
+  three plugins against 0.2 ms core-only, because every claimed construct is
+  a JSON round trip through an interpreter.
+- [x] Browser (`feat/browser-plugin-dispatcher`): `BrowserPluginEngine` runs
+      plugins on the browser's own WebAssembly engine; `wasm-bridge` fetches
+      the standard plugins on demand from `plugins/` next to the bundle.
+      Bundle size 303 KB → 481 KB (the plugin pass and JSON handling); the
+      three plugin files are about 220 KB each and only downloaded when
+      enabled. Tested in headless Chromium only.
+- [x] The website that hosts the live demo (separate repository) deploys the
+      `plugins/` directory with the bundle and places the returned `head`
+      markup; prepared on its `feat/demo-plugins` branch.
+- [x] MathJax configuration checked in Chromium with MathJax 3.2.2 through
+      the live demo. It found one defect: the TeX input's escape handling
+      turned the `\$` AsciiMath delimiters into literal `$` signs around
+      every AsciiMath formula. The configuration now sets
+      `processEscapes: false`.
+- [ ] The parser does not recognise the revision line (`v1.0, 2026`) under
+      the author line; it ends the header, so attribute entries after it are
+      not document attributes.
+- [ ] Plugin calls are one per construct; batching per paragraph would cut
+      the cost for icon-heavy documents.
+- [ ] `converter` plugins still see top-level blocks only.
+
 ### 4.4 Issue #138, performance testing — `feat/138-performance-harness`
 
 - [x] `./gradlew :tck-quality-testing:perfReport` measures parse and

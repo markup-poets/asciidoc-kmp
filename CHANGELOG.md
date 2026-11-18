@@ -6,7 +6,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Standard plugins for icons, math and video embeds.** The core renderer
+  stays neutral and loads nothing from third parties; three WASM plugins add
+  the usual web presentation and are off until enabled:
+  `icons` (Font Awesome for `icon:` under `:icons: font`, honoring
+  `:iconfont-cdn:` and `:iconfont-remote: false`), `math` (MathJax for
+  `stem:` / `latexmath:` / `asciimath:` and `[stem]` blocks under `:stem:`)
+  and `video` (YouTube and Vimeo players for `video::`). Enable them with
+  `html-renderer --with icons,math,video` or load `StandardPlugin.*.wasm()`
+  from the new `standard-plugins` module.
+- **Plugins run in the browser.** `BrowserPluginEngine` (`plugin-engine`,
+  `wasmJs`) runs plugins on the browser's own WebAssembly engine with the
+  same ABI, limits and import rule. The browser module (`wasm-bridge`) gained
+  `enableStandardPlugins(keys, baseUrl)`, `loadPluginFromUrl(url)`,
+  `loadPlugin(bytes, name)`, `unloadPlugins()`, `loadedPlugins()` and
+  `convert(source)`, which returns `{ html, head, warnings }`. The standard
+  plugins are not embedded in the bundle; the distribution ships them in
+  `plugins/` and they are fetched on demand. `plugin-api`, `plugin-engine`,
+  `plugin-integration`, `asciidoc-asg` and `standard-plugins` now build for
+  `wasmJs`.
+- **Plugins can be written in Kotlin.** The new `plugin-sdk` module
+  (`wasmWasi`) provides the guest side of the plugin ABI; `plugin-api` gained
+  a `wasmWasi` target so plugins share the request and response types with
+  the host. The standard plugins under `plugins/` are built this way.
+- **Plugin ABI additions** (optional fields, still ABI v1): the request
+  carries the output format (`backend`, `html5` for the HTML renderer) and,
+  for blocks, the block's `id`, `role`, `options` and `title`; a response may
+  list `assets` (for example a stylesheet link for `<head>`), collected once
+  per key into `PluginProcessingResult.assets`. A plugin can claim names the
+  host handles itself (`icon`, `stem`, the `video` / `audio` / `image` block
+  macros, built-in block styles) and can decline a single construct by
+  answering `ok` without a replacement.
+- **`OutputOptions.headContent`**: markup the host wants at the end of
+  `<head>` in standalone output.
+- **Android target** for `plugin-api`, `plugin-engine` and
+  `plugin-integration` (the docs already listed Android; the modules did not
+  build for it).
+
+- **Performance report** (#138): `./gradlew :tck-quality-testing:perfReport`
+  measures parse and parse + HTML render time (median, p95, MB/s) over the
+  official TCK inputs, a kitchen-sink document, and generated documents, and
+  writes Markdown and JSON reports. The Docs workflow publishes the table on
+  the `/tck/` page; it is informational and not a CI gate.
+
 ### Changed
+
+- **Plugin sandbox rule**: instead of rejecting every import, the engine now
+  provides inert `wasi_snapshot_preview1` stubs (no file, network, clock,
+  environment or randomness) so modules built by WASI toolchains such as
+  Kotlin/Wasm can load. A module importing any other function is still
+  rejected.
 
 - **TCK results are now reported in the format suggested by the AsciiDoc
   Working Group**: TCK version (tag-relative version and commit), passing and

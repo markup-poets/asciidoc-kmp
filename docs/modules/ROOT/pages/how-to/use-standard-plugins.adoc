@@ -1,0 +1,125 @@
+= Use the standard plugins
+
+The core renderer shows icons as their name, formulas as their source, and
+YouTube or Vimeo videos as a link, and it loads nothing from third parties.
+Three standard plugins add the usual web presentation for these constructs.
+They are off until you enable them. For the reasoning see
+xref:explanation/wasm-plugins.adoc[Why WASM plugins].
+
+[cols="1,2,3,3"]
+|===
+|Key |Handles |Active when |The generated page then loads
+
+|`icons`
+|`icon:name[]`, with `set=brands` or `set=regular`, `size=`, `title=`
+|the document sets `:icons: font`
+|the Font Awesome stylesheet from cdnjs
+
+|`math`
+|`stem:[]`, `latexmath:[]`, `asciimath:[]`; `[stem]`, `[latexmath]`, `[asciimath]` blocks
+|the document sets `:stem:`
+|MathJax from jsDelivr
+
+|`video`
+|`video::id[youtube]`, `video::id[vimeo]`, with `list=`, `width=`, `height=`
+|always (media files such as `video::clip.mp4[]` stay a `<video>` element)
+|the YouTube or Vimeo player in a frame
+|===
+
+A plugin that is loaded but not active for a document leaves the core output
+unchanged.
+
+== On the command line
+
+[source,bash]
+----
+html-renderer document.adoc --with icons,math,video
+----
+
+`--with` takes any subset of the keys. It combines with `--plugin` for your
+own plugins.
+
+== In code
+
+Depend on the `standard-plugins` and `plugin-integration` modules
+(`org.markup-poet:standard-plugins` is published from the release after
+0.1.4), load the plugins you want, run the plugin pass, and
+hand the collected head content to the renderer:
+
+[source,kotlin]
+----
+val engine = PluginEngine()
+engine.loadPlugin(StandardPlugin.ICONS_FONT_AWESOME.wasm(), "icons")
+engine.loadPlugin(StandardPlugin.STEM_MATHJAX.wasm(), "math")
+
+val parsed = DefaultAsciidocParser().parse(source).document
+val processed = WasmExtensions(engine).apply(parsed)
+
+val html = renderer.render(
+    processed.document,
+    RenderConfig(outputOptions = OutputOptions(headContent = processed.headContent)),
+).getOrThrow()
+
+engine.unloadAll()
+----
+
+Loading a plugin takes tens of milliseconds, so keep one engine for many
+documents instead of creating one per document.
+
+If you render a fragment (`standalone = false`), the renderer writes no
+`<head>`. Place `processed.headContent` in your own page, or the icons and
+formulas will not be drawn.
+
+== Controlling where icons come from
+
+The `icons` plugin follows two document attributes:
+
+`:iconfont-cdn: <url>`:: Link this stylesheet instead of the default one, for
+example a copy on your own server. Must be an `http:` or `https:` URL.
+`:iconfont-remote: false`:: Emit the icon markup but no stylesheet link. Use
+this when your page already includes Font Awesome.
+
+== In the browser
+
+The browser module (`wasm-bridge`) does not contain the plugins: embedding
+them would more than quadruple the download for every page. They are
+separate files in `plugins/` next to the bundle
+(`./gradlew :wasm-bridge:wasmJsBrowserDistribution` puts them there) and are
+fetched when a page asks for them:
+
+[source,javascript]
+----
+import * as poet from './asciidoc-kmp.mjs';
+
+// Second argument: the directory the plugin files are served from.
+// '' means "plugins/" relative to the page.
+await poet.enableStandardPlugins('icons,math,video', '');
+
+const { html, head, warnings } = poet.convert(source);
+document.head.insertAdjacentHTML('beforeend', head);   // see the note below
+document.querySelector('#preview').innerHTML = html;
+----
+
+`convert` returns the body fragment, the markup the plugins need in the
+page's `<head>`, and any plugin warnings. `convertToHtml(source)` still
+returns only the fragment. Without loaded plugins both give the neutral core
+output and `head` is empty.
+
+NOTE: A `<script>` inserted with `insertAdjacentHTML` or `innerHTML` does not
+run. For MathJax, create the script elements yourself, or include MathJax in
+your page and ignore that part of `head`.
+
+Other functions: `loadPluginFromUrl(url)` and `loadPlugin(bytes, name)` load
+your own plugins, `loadedPlugins()` lists the loaded ids, and
+`unloadPlugins()` returns to the core output. Deploy the `plugins/` directory
+together with the bundle, served with any content type.
+
+== Platforms
+
+The standard plugins run on JVM, Android, iOS, Linux, macOS and in the
+browser.
+
+== Related pages
+
+* xref:reference/plugin-abi.adoc[Plugin ABI v1]
+* xref:how-to/write-a-kotlin-plugin.adoc[Write a plugin in Kotlin]

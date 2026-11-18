@@ -8,6 +8,7 @@ import org.markup.poet.asciidoc.render.CustomRenderer
 import org.markup.poet.asciidoc.render.RenderContext
 import org.markup.poet.plugin.api.PluginDispatch
 import org.markup.poet.plugin.api.PluginHandle
+import org.markup.poet.plugin.api.BACKEND_HTML5
 import org.markup.poet.plugin.api.PluginInvocation
 import org.markup.poet.plugin.api.SourcePoint
 import org.markup.poet.plugin.engine.PluginException
@@ -57,6 +58,7 @@ class WasmConverterRenderer(
                     name = capabilityName,
                     content = nodeJson,
                     documentAttributes = documentAttributes,
+                    backend = BACKEND_HTML5,
                     location = SourcePoint(
                         node.location?.start?.line ?: 1,
                         node.location?.start?.col ?: 1,

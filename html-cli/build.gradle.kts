@@ -27,6 +27,7 @@ kotlin {
                 implementation(project(":asciidoc-parser"))
                 implementation(project(":html-renderer"))
                 implementation(project(":plugin-integration"))
+                implementation(project(":standard-plugins"))
             }
         }
         

@@ -1,0 +1,113 @@
+= Write a plugin in Kotlin
+
+A plugin can be written in Kotlin and compiled to WebAssembly with the
+`wasmWasi` target. The three standard plugins under `plugins/` are built this
+way and are the working examples. The `plugin-sdk` module supplies the memory
+handling and JSON plumbing of the xref:reference/plugin-abi.adoc[plugin ABI],
+so a plugin is a descriptor and one function. For other languages see
+xref:how-to/write-a-wasm-plugin.adoc[Write a WASM plugin].
+
+== Set up the module
+
+[source,kotlin]
+----
+// plugins/my-plugin/build.gradle.kts
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+}
+
+kotlin {
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmWasi {
+        nodejs()
+        binaries.executable()
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":plugin-sdk"))
+        }
+    }
+}
+----
+
+Register it in `settings.gradle.kts` next to the standard plugins:
+
+[source,kotlin]
+----
+include(":plugin-my-plugin")
+project(":plugin-my-plugin").projectDir = file("plugins/my-plugin")
+----
+
+== Implement the plugin
+
+[source,kotlin]
+----
+// plugins/my-plugin/src/wasmWasiMain/kotlin/MyPlugin.kt
+@file:OptIn(kotlin.wasm.ExperimentalWasmInterop::class)
+
+import org.markup.poet.plugin.api.BACKEND_HTML5
+import org.markup.poet.plugin.api.PluginCapability
+import org.markup.poet.plugin.api.PluginDescriptor
+import org.markup.poet.plugin.sdk.PluginGuest
+import org.markup.poet.plugin.sdk.decline
+import org.markup.poet.plugin.sdk.escapeHtml
+import org.markup.poet.plugin.sdk.htmlReplacement
+
+private val guest = PluginGuest(
+    PluginDescriptor(
+        abiVersion = 1,
+        id = "com.example.kbd",
+        name = "Keyboard keys",
+        version = "0.1.0",
+        capabilities = listOf(PluginCapability("inlineMacro", "kbd")),
+    ),
+) { invocation ->
+    if (invocation.backend != BACKEND_HTML5) {
+        decline()
+    } else {
+        htmlReplacement("<kbd>${escapeHtml(invocation.attributes["1"].orEmpty())}</kbd>")
+    }
+}
+
+@WasmExport("plugin_alloc") fun pluginAlloc(size: Int): Int = guest.alloc(size)
+@WasmExport("plugin_dealloc") fun pluginDealloc(ptr: Int, size: Int) = guest.dealloc(ptr, size)
+@WasmExport("plugin_info") fun pluginInfo(): Int = guest.info()
+@WasmExport("process") fun process(ptr: Int, len: Int): Int = guest.process(ptr, len)
+
+fun main() {}
+----
+
+The four `@WasmExport` functions are the same in every plugin; they must be
+declared in the plugin module itself so the compiler exports them.
+
+Things to know:
+
+* The handler gets a `PluginInvocation` and returns a `PluginResponse`. An
+  exception thrown by the handler becomes `ok: false` with the message as the
+  error.
+* Escape everything you take from the document with `escapeHtml`; the host
+  emits your HTML verbatim.
+* Return `decline()` for a construct or a `backend` you do not handle, and the
+  host renders it the built-in way.
+* To make the page load a stylesheet or script, pass `PluginAsset`s to
+  `htmlReplacement`. Give each a stable `key`: the host keeps one per key.
+* A plugin has no file, network, clock or random source. `println` output is
+  discarded.
+* Avoid `Regex` when a loop will do: it adds roughly 120 KB to a binary that
+  is otherwise about 220 KB.
+
+== Build and run
+
+[source,bash]
+----
+./gradlew :plugin-my-plugin:compileProductionExecutableKotlinWasmWasiOptimize
+html-renderer document.adoc \
+  --plugin plugins/my-plugin/build/compileSync/wasmWasi/main/productionExecutable/optimized/asciidoc-Konverter-plugin-my-plugin.wasm
+----
+
+== Related pages
+
+* xref:reference/plugin-abi.adoc[Plugin ABI v1]
+* xref:how-to/use-standard-plugins.adoc[Use the standard plugins]
+* xref:explanation/wasm-plugins.adoc[Why WASM plugins]

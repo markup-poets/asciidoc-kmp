@@ -18,6 +18,7 @@ Markup Poet is a Kotlin Multiplatform AsciiDoc converter targeting JVM, Android 
 - `cli-app` — AsciiDoc → Graphviz DOT export CLI
 - `asg-graphviz-export` — ASG → DOT conversion library
 - `antora-resolution`, `antora-assembler` — multi-file document assembly
+- `plugin-sdk`, `plugins/*`, `standard-plugins` — guest-side SDK for plugins written in Kotlin/Wasm (`wasmWasi`), the three standard plugins (icons, math, video; Gradle projects `:plugin-icons-fontawesome` etc.), and the module embedding their binaries. In the browser, `BrowserPluginEngine` (`plugin-engine` wasmJsMain) replaces the Chasm engine (`chasmMain`) and `wasm-bridge` fetches the plugin files instead of embedding them; browser tests need `CHROME_BIN` (e.g. `/snap/bin/chromium`). The core renderer must stay neutral: no third-party URLs, scripts or frames in `html-renderer`; such presentation features belong in plugins
 - `plugin-api`, `plugin-engine`, `plugin-integration` — WASM extension plugins (Chasm runtime; see docs/modules/ROOT/pages/how-to/write-a-wasm-plugin.adoc and reference/plugin-abi.adoc); example plugin in `examples/plugins/shout-rust/`
 
 ## Build Commands
