@@ -178,9 +178,9 @@ YouTube/Vimeo videos neutrally; the web conventions are plugins.
       turned the `\$` AsciiMath delimiters into literal `$` signs around
       every AsciiMath formula. The configuration now sets
       `processEscapes: false`.
-- [ ] The parser does not recognise the revision line (`v1.0, 2026`) under
-      the author line; it ends the header, so attribute entries after it are
-      not document attributes.
+- [x] The parser recognises the revision line (`v1.0, 2026`) under the
+      author line (`fix/revision-line`); before, it ended the header, so
+      attribute entries after it were not document attributes.
 - [ ] Plugin calls are one per construct; batching per paragraph would cut
       the cost for icon-heavy documents.
 - [ ] `converter` plugins still see top-level blocks only.
