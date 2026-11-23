@@ -133,6 +133,16 @@ class BlockTreeParser {
          */
         val authorLineRegex = Regex("""^([A-Z][A-Za-z0-9.'-]*(?: [A-Z][A-Za-z0-9.'-]*)*)(?: <([^<>@\s]+@[^<>\s]+)>)?$""")
 
+        /**
+         * Shape gate for the revision line below the author line: it starts
+         * with a digit or with `v` and a digit (`v1.0, 2026-01-05: Remark`,
+         * `2026-01-05`), which keeps ordinary text from being taken for one.
+         */
+        val revisionLineGateRegex = Regex("""^v?\d.*$""")
+
+        /** The remark of a revision line: everything after the first `: `. */
+        val revisionRemarkRegex = Regex("""^(.*?)\s*:\s+(\S.*)$""")
+
         /** A list-continuation line: `+` alone attaches the next block to the item. */
         const val LIST_CONTINUATION = "+"
 
@@ -204,6 +214,13 @@ class BlockTreeParser {
                     attributes += authorAttributes(author.groupValues[1], email)
                     lastHeaderLineIndex = reader.index
                     reader.next()
+
+                    // Revision line: only directly below an author line.
+                    if (!reader.eof && revisionLineGateRegex.matches(reader.peek())) {
+                        attributes += revisionAttributes(reader.peek())
+                        lastHeaderLineIndex = reader.index
+                        reader.next()
+                    }
                 }
             }
 
@@ -222,6 +239,39 @@ class BlockTreeParser {
                 ),
             )
             return header to attributes
+        }
+
+        /**
+         * Splits a revision line, `[v]number[, date][: remark]`, into the
+         * implicit `revnumber`, `revdate` and `revremark` attributes. Without
+         * a comma the value is the number when it starts with `v` and the
+         * date otherwise.
+         */
+        private fun revisionAttributes(line: String): Map<String, String> {
+            val attributes = LinkedHashMap<String, String>()
+            val remark = revisionRemarkRegex.matchEntire(line)
+            val version = (remark?.groupValues?.get(1) ?: line).trim()
+            val comma = version.indexOf(',')
+            val number: String
+            val date: String
+            when {
+                comma >= 0 -> {
+                    number = version.substring(0, comma).trim().removePrefix("v")
+                    date = version.substring(comma + 1).trim()
+                }
+                version.startsWith("v") -> {
+                    number = version.removePrefix("v")
+                    date = ""
+                }
+                else -> {
+                    number = ""
+                    date = version
+                }
+            }
+            if (number.isNotEmpty()) attributes["revnumber"] = number
+            if (date.isNotEmpty()) attributes["revdate"] = date
+            remark?.groupValues?.get(2)?.let { attributes["revremark"] = it }
+            return attributes
         }
 
         /** Splits an author line into the implicit author attributes. */

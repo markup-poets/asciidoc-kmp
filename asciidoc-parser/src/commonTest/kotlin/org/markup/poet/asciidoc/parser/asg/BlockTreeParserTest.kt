@@ -651,6 +651,48 @@ class BlockTreeParserTest {
     }
 
     @Test
+    fun revisionLineBelowAuthorLineBecomesRevisionAttributes() {
+        val doc = parser.parseDocument("= Title\nJane Doe <jane@example.com>\nv1.0, 2026-01-05: First draft\n:toc:\n\nbody")
+        assertEquals("1.0", doc.attributes["revnumber"])
+        assertEquals("2026-01-05", doc.attributes["revdate"])
+        assertEquals("First draft", doc.attributes["revremark"])
+        assertEquals("", doc.attributes["toc"])
+        assertEquals(4, doc.header?.location?.end?.line)
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("body", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
+    fun revisionLineFormsWithoutAllParts() {
+        fun revision(line: String) = parser.parseDocument("= Title\nJane Doe\n$line\n\nbody").attributes
+            .filterKeys { it.startsWith("rev") }
+
+        assertEquals(mapOf("revnumber" to "1.0", "revdate" to "2026"), revision("v1.0, 2026"))
+        assertEquals(mapOf("revnumber" to "2.1"), revision("v2.1"))
+        assertEquals(mapOf("revdate" to "2026-01-05"), revision("2026-01-05"))
+        assertEquals(mapOf("revnumber" to "3", "revdate" to "2026-01-05"), revision("3, 2026-01-05"))
+        assertEquals(mapOf("revnumber" to "1.0", "revremark" to "Draft"), revision("v1.0: Draft"))
+        // A time of day is not a remark separator.
+        assertEquals(mapOf("revnumber" to "1.0", "revdate" to "2026-01-05 10:30"), revision("v1.0, 2026-01-05 10:30"))
+    }
+
+    @Test
+    fun revisionShapedLineWithoutAuthorLineStaysAParagraph() {
+        val doc = parser.parseDocument("= Title\nv1.0, 2026")
+        assertNull(doc.attributes["revnumber"])
+        val paragraph = assertIs<LeafBlock>(doc.blocks.single())
+        assertEquals("v1.0, 2026", assertIs<InlineText>(paragraph.inlines.single()).value)
+    }
+
+    @Test
+    fun ordinaryTextBelowAuthorLineIsNotARevisionLine() {
+        val doc = parser.parseDocument("= Title\nJane Doe\nversion notes follow")
+        assertNull(doc.attributes["revnumber"])
+        assertNull(doc.attributes["revdate"])
+        assertIs<LeafBlock>(doc.blocks.single())
+    }
+
+    @Test
     fun listContinuationAttachesParagraphToItem() {
         val doc = parser.parseDocument("* first\n+\nattached paragraph\n* second")
         val list = assertIs<ListBlock>(doc.blocks.single())
