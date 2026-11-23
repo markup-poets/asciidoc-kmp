@@ -229,7 +229,7 @@ data class DiscreteHeading(
 // Document
 // ---------------------------------------------------------------------------
 
-/** Document header: `= Title` plus the attribute entries directly below it. */
+/** Document header: `= Title`, the author and revision lines, and the attribute entries below. */
 data class Header(
     val title: List<Inline>,
     val location: Location? = null,

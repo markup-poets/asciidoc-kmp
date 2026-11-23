@@ -75,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The revision line below the author line is recognised.** A line such as
+  `v1.0, 2026-01-05: First draft` used to end the document header: it became
+  a paragraph, and attribute entries after it (`:icons:`, `:stem:`, `:toc:`)
+  were not document attributes. It now sets `revnumber`, `revdate` and
+  `revremark`, the header continues after it, and the HTML page header shows
+  the version, date and remark. The line counts only directly below an author
+  line and only when it starts with a digit or `v` and a digit.
 - **Published Gradle module metadata no longer records stale artifact file
   names** (#117). Every module hardcoded `version = "0.1.1"` while the
   publication coordinates came from `VERSION_NAME`, so the `.module` files on
